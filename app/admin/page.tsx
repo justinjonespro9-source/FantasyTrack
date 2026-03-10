@@ -28,12 +28,8 @@ function parseOpeningWinOddsTo1(value: FormDataEntryValue | null): number | null
   if (!trimmed) return null;
 
   const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error("Opening WIN odds must be greater than 0.");
-  }
-
-  if (parsed > 50) {
-    throw new Error("Opening odds capped at 50-1 for MVP; longer shots can emerge organically.");
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 999) {
+    throw new Error("Opening WIN odds must be greater than 0 and at most 999.");
   }
 
   return parsed;
@@ -1194,9 +1190,9 @@ export default async function AdminPage() {
                   name="openingWinOddsTo1"
                   type="number"
                   min={0.1}
-                  max={50}
+                  max={999}
                   step="0.1"
-                  placeholder="Opening WIN odds to-1 (max 50)"
+                  placeholder="Opening WIN odds to-1 (>0–999)"
                 />
                 <button type="submit" className="rounded bg-track-800 px-3 py-1 text-white">
                   Add lane
@@ -1204,7 +1200,7 @@ export default async function AdminPage() {
               </form>
 
               <p className="mt-1 text-xs text-track-600">
-                Opening odds capped at 50-1 for MVP; longer shots can emerge organically.
+                Opening odds can be any positive number up to 999, e.g. 2-1, 75-1, 120-1, 150-1.
               </p>
 
               {contest.lanes.length > 0 ? (
@@ -1223,10 +1219,10 @@ export default async function AdminPage() {
                             name="openingWinOddsTo1"
                             type="number"
                             min={0.1}
-                            max={50}
+                            max={999}
                             step="0.1"
                             defaultValue={lane.openingWinOddsTo1 ?? ""}
-                            placeholder="Opening WIN odds to-1"
+                            placeholder="Opening WIN odds to-1 (>0–999)"
                           />
                           <div className="flex items-center gap-2">
                             <button
