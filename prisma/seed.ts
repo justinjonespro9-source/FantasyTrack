@@ -50,6 +50,56 @@ async function main() {
     }
   });
 
+  const charlie = await prisma.user.create({
+    data: {
+      email: "charlie@fantasytrack.local",
+      passwordHash: await bcrypt.hash("charlie123", 10),
+      displayName: "CharlieTracks",
+      realName: "Charlie Demo",
+      phone: "555-444-5555"
+    }
+  });
+
+  const dave = await prisma.user.create({
+    data: {
+      email: "dave@fantasytrack.local",
+      passwordHash: await bcrypt.hash("dave123", 10),
+      displayName: "DaveTracks",
+      realName: "Dave Demo",
+      phone: "555-555-6666"
+    }
+  });
+
+  const erin = await prisma.user.create({
+    data: {
+      email: "erin@fantasytrack.local",
+      passwordHash: await bcrypt.hash("erin123", 10),
+      displayName: "ErinTracks",
+      realName: "Erin Demo",
+      phone: "555-666-7777"
+    }
+  });
+
+  const frank = await prisma.user.create({
+    data: {
+      email: "frank@fantasytrack.local",
+      passwordHash: await bcrypt.hash("frank123", 10),
+      displayName: "FrankTracks",
+      realName: "Frank Demo",
+      phone: "555-777-8888"
+    }
+  });
+
+  const gina = await prisma.user.create({
+    data: {
+      email: "gina@fantasytrack.local",
+      passwordHash: await bcrypt.hash("gina123", 10),
+      displayName: "GinaTracks",
+      realName: "Gina Demo",
+      phone: "555-888-9999"
+    }
+  });
+
   const now = new Date();
   const activeSeries = await prisma.series.create({
     data: {
@@ -139,7 +189,7 @@ async function main() {
     ]
   });
 
-  for (const user of [alice, bob]) {
+  for (const user of [alice, bob, charlie, dave, erin, frank, gina]) {
     await prisma.transaction.create({
       data: {
         userId: user.id,
@@ -219,6 +269,12 @@ async function main() {
   console.log("Seed complete.");
   console.log("Admin login: admin@fantasytrack.local / admin123");
   console.log("User login: alice@fantasytrack.local / alice123");
+  console.log("User login: bob@fantasytrack.local / bob123");
+  console.log("User login: charlie@fantasytrack.local / charlie123");
+  console.log("User login: dave@fantasytrack.local / dave123");
+  console.log("User login: erin@fantasytrack.local / erin123");
+  console.log("User login: frank@fantasytrack.local / frank123");
+  console.log("User login: gina@fantasytrack.local / gina123");
 }
 
 main()

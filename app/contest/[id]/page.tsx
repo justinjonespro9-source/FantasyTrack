@@ -123,14 +123,14 @@ export default async function ContestPage({ params }: PageProps) {
 
     return (
       <div className="space-y-6">
-        <section className="rounded-lg border border-track-200 bg-white p-4">
+        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold text-track-900">{contest.title}</h1>
-              <p className="mt-1 text-sm text-track-600">
+              <h1 className="text-lg font-semibold text-neutral-50">{contest.title}</h1>
+              <p className="mt-1 text-sm text-neutral-300">
                 {contest.series?.name ? `${contest.series.name} · ` : ""}
                 {contest.sport} · Settled{" "}
-                <span className="font-medium">
+                <span className="font-medium text-neutral-100">
                   {formatDateTime((contest as any).settledAt ?? contest.startTime)}
                 </span>
               </p>
@@ -140,7 +140,7 @@ export default async function ContestPage({ params }: PageProps) {
               <ShareContestButton contestId={contest.id} contestTitle={contest.title} />
               <Link
                 href="/how-to-play"
-                className="rounded bg-track-100 px-3 py-1 text-sm text-track-700"
+                className="rounded-full border border-neutral-600 bg-neutral-900 px-3 py-1 text-sm text-neutral-100 hover:border-amber-400 hover:text-amber-300"
               >
                 How to Play
               </Link>
@@ -148,23 +148,23 @@ export default async function ContestPage({ params }: PageProps) {
               {contest.series?.id ? (
                 <Link
                   href={`/series/${contest.series.id}/leaderboard`}
-                  className="rounded bg-track-100 px-3 py-1 text-sm text-track-700"
+                  className="rounded-full border border-neutral-600 bg-neutral-900 px-3 py-1 text-sm text-neutral-100 hover:border-amber-400 hover:text-amber-300"
                 >
                   Series leaderboard
                 </Link>
               ) : null}
 
-              <span className="rounded bg-track-100 px-2 py-1 text-xs font-semibold text-track-700">
+              <span className="rounded-full border border-amber-400/80 bg-amber-500/20 px-2 py-1 text-xs font-semibold tracking-wide text-amber-100">
                 SETTLED
               </span>
             </div>
           </div>
         </section>
 
-        <section className="rounded-lg border border-track-200 bg-white p-4">
+        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
           <div className="mb-3">
-            <h2 className="text-base font-semibold text-track-900">Final race board</h2>
-            <p className="text-sm text-track-600">
+            <h2 className="text-base font-semibold text-neutral-50">Final race board</h2>
+            <p className="text-sm text-neutral-300">
               Locked odds, pool totals, and final podium order.
             </p>
           </div>
@@ -172,20 +172,20 @@ export default async function ContestPage({ params }: PageProps) {
           <SettledRaceBoard rows={settledRows} />
         </section>
 
-        <section className="rounded-lg border border-track-200 bg-white p-4">
+        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-track-900">My bets & payouts</h2>
+            <h2 className="text-base font-semibold text-neutral-50">My bets & payouts</h2>
             {userId ? (
-              <div className="text-sm text-track-700">
-                Total payout: <span className="font-semibold">{formatCoins(totalPayout)}</span>
+              <div className="text-sm text-neutral-300">
+                Total payout: <span className="font-semibold text-neutral-50">{formatCoins(totalPayout)}</span>
               </div>
             ) : (
-              <div className="text-sm text-track-600">Log in to see your bets.</div>
+              <div className="text-sm text-neutral-400">Log in to see your bets.</div>
             )}
           </div>
 
           {userId && myTickets.length === 0 ? (
-            <p className="mt-2 text-sm text-track-600">No tickets for you in this contest.</p>
+            <p className="mt-2 text-sm text-neutral-400">No tickets for you in this contest.</p>
           ) : null}
 
           {userId && myTickets.length > 0 ? (
@@ -197,36 +197,45 @@ export default async function ContestPage({ params }: PageProps) {
                 const ticketNet = t.netAmount ?? null;
 
                 return (
-                  <div key={t.id} className="rounded border border-track-200 bg-track-50 p-3">
+                  <div
+                    key={t.id}
+                    className="rounded border border-neutral-800 bg-neutral-900/80 p-3"
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-medium text-track-900">
+                        <p className="font-medium text-neutral-100">
                           Total wager: {formatCoins(stake)}
                           {t.status ? (
-                            <span className="text-xs text-track-600"> · {t.status}</span>
+                            <span className="text-xs text-neutral-400"> · {t.status}</span>
                           ) : null}
                           {t.result ? (
-                            <span className="text-xs text-track-600"> · {t.result}</span>
+                            <span className="text-xs text-neutral-400"> · {t.result}</span>
                           ) : null}
                         </p>
-                        <p className="text-xs text-track-500">
+                        <p className="text-xs text-neutral-500">
                           Wagered: {formatDateTime((t.placedAt ?? t.createdAt) as Date)}
                         </p>
                       </div>
 
-                      <div className="min-w-[170px] text-right text-sm text-track-700">
+                      <div className="min-w-[170px] text-right text-sm text-neutral-300">
                         {ticketPayout != null ? (
                           <>
-                            Payout: <span className="font-semibold">{formatCoins(ticketPayout)}</span>
+                            Payout:{" "}
+                            <span className="font-semibold text-neutral-50">
+                              {formatCoins(ticketPayout)}
+                            </span>
                             {ticketNet != null ? (
                               <>
                                 {" "}
-                                · Net: <span className="font-semibold">{formatCoins(ticketNet)}</span>
+                                · Net:{" "}
+                                <span className="font-semibold text-neutral-50">
+                                  {formatCoins(ticketNet)}
+                                </span>
                               </>
                             ) : null}
                           </>
                         ) : (
-                          <span className="text-track-600">
+                          <span className="text-neutral-400">
                             Payout shown in profile (ticket fields not present).
                           </span>
                         )}
@@ -234,19 +243,25 @@ export default async function ContestPage({ params }: PageProps) {
                     </div>
 
                     {legs.length > 0 ? (
-                      <div className="mt-3 overflow-hidden rounded border border-track-200 bg-white">
-                        <table className="w-full table-fixed text-left text-sm">
+                      <div className="mt-3 overflow-hidden rounded border border-neutral-800 bg-neutral-950">
+                        <table className="w-full table-fixed text-left text-sm text-neutral-100">
                           <colgroup>
                             <col className="w-[58%]" />
                             <col className="w-[18%]" />
                             <col className="w-[24%]" />
                           </colgroup>
 
-                          <thead className="bg-track-50 text-track-600">
+                          <thead className="bg-neutral-900 text-neutral-400">
                             <tr>
-                              <th className="px-3 py-2 font-medium">Lane</th>
-                              <th className="px-3 py-2 font-medium">Market</th>
-                              <th className="px-3 py-2 text-right font-medium">Wager amount</th>
+                              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                                Lane
+                              </th>
+                              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                                Market
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                                Wager amount
+                              </th>
                             </tr>
                           </thead>
 
@@ -268,23 +283,25 @@ export default async function ContestPage({ params }: PageProps) {
                               const refunded = leg.lane?.status === "SCRATCHED";
 
                               return (
-                                <tr key={leg.id} className="border-t border-track-100 align-top">
+                                <tr key={leg.id} className="border-t border-neutral-800 align-top">
                                   <td className="px-3 py-2">
                                     <div className="flex items-center gap-2">
                                       <span
-                                        className={refunded ? "text-track-500 line-through" : undefined}
+                                        className={
+                                          refunded ? "text-neutral-500 line-through" : undefined
+                                        }
                                       >
                                         {leg.lane?.name ?? leg.laneNameSnap ?? "—"}
                                       </span>
 
                                       {oddsLabel ? (
-                                        <span className="rounded bg-track-100 px-2 py-0.5 text-xs font-semibold text-track-700">
+                                        <span className="rounded border border-amber-400/60 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-200">
                                           {oddsLabel}
                                         </span>
                                       ) : null}
 
                                       {refunded ? (
-                                        <span className="rounded border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                                        <span className="rounded border border-red-500/70 bg-red-900/40 px-2 py-0.5 text-xs font-semibold text-red-200">
                                           Refunded
                                         </span>
                                       ) : null}
@@ -303,7 +320,9 @@ export default async function ContestPage({ params }: PageProps) {
 
                                   <td className="px-3 py-2 text-right">
                                     <span
-                                      className={refunded ? "text-track-500 line-through" : undefined}
+                                      className={
+                                        refunded ? "text-neutral-500 line-through" : undefined
+                                      }
                                     >
                                       {formatCoins(betAmount ?? fallbackPerLeg)}
                                     </span>
@@ -315,7 +334,9 @@ export default async function ContestPage({ params }: PageProps) {
                         </table>
                       </div>
                     ) : (
-                      <p className="mt-2 text-sm text-track-600">No legs found for this ticket.</p>
+                      <p className="mt-2 text-sm text-neutral-400">
+                        No legs found for this ticket.
+                      </p>
                     )}
                   </div>
                 );
@@ -324,13 +345,17 @@ export default async function ContestPage({ params }: PageProps) {
           ) : null}
 
           {userId && myPayoutTxs.length > 0 ? (
-            <div className="mt-4 rounded border border-track-200 bg-white p-3">
-              <p className="text-sm font-semibold text-track-800">Payout transactions</p>
-              <ul className="mt-2 space-y-1 text-sm text-track-700">
+            <div className="mt-4 rounded border border-neutral-800 bg-neutral-900/80 p-3">
+              <p className="text-sm font-semibold text-neutral-100">Payout transactions</p>
+              <ul className="mt-2 space-y-1 text-sm text-neutral-300">
                 {myPayoutTxs.map((tx: any) => (
                   <li key={tx.id} className="flex items-center justify-between gap-2">
-                    <span className="text-track-600">{formatDateTime(tx.createdAt as Date)}</span>
-                    <span className="font-medium">{formatCoins(tx.amount ?? 0)}</span>
+                    <span className="text-neutral-500">
+                      {formatDateTime(tx.createdAt as Date)}
+                    </span>
+                    <span className="font-medium text-neutral-100">
+                      {formatCoins(tx.amount ?? 0)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -341,8 +366,8 @@ export default async function ContestPage({ params }: PageProps) {
         <ScoringRulesCard sport={contest.sport} />
 
         {isAdmin ? (
-          <section className="rounded-lg border border-track-200 bg-white p-4">
-            <p className="text-sm text-track-600">
+          <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+            <p className="text-sm text-neutral-300">
               Admin: this contest is settled. If you need to correct results, use the Admin page to
               Reopen (Edit) and resettle.
             </p>
