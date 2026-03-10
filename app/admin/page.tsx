@@ -516,6 +516,9 @@ async function updateLaneAction(formData: FormData) {
   const team = String(formData.get("team") ?? "").trim();
   const position = String(formData.get("position") ?? "").trim();
   const openingWinOddsTo1 = parseOpeningWinOddsTo1(formData.get("openingWinOddsTo1"));
+  const liveFantasyPointsRaw = String(formData.get("liveFantasyPoints") ?? "").trim();
+  const liveFantasyPoints =
+    liveFantasyPointsRaw === "" ? null : Number.isNaN(Number(liveFantasyPointsRaw)) ? null : Number(liveFantasyPointsRaw);
 
   if (!laneId || !contestId || !name || !team || !position) {
     throw new Error("Lane id/contest/name/team/position are required.");
@@ -523,7 +526,8 @@ async function updateLaneAction(formData: FormData) {
 
   await prisma.lane.update({
     where: { id: laneId },
-    data: { name, team, position, openingWinOddsTo1 },
+    // cast to any so this stays type-safe once Prisma client is regenerated with liveFantasyPoints
+    data: { name, team, position, openingWinOddsTo1, liveFantasyPoints } as any,
   });
 
   revalidatePath("/admin");
@@ -1209,7 +1213,7 @@ export default async function AdminPage() {
                   <ul className="grid gap-2">
                     {contest.lanes.map((lane) => (
                       <li key={lane.id} className="rounded border border-track-200 p-2">
-                        <form action={updateLaneAction} className="grid gap-2 md:grid-cols-5">
+                        <form action={updateLaneAction} className="grid gap-2 md:grid-cols-6">
                           <input type="hidden" name="laneId" value={lane.id} />
                           <input type="hidden" name="contestId" value={contest.id} />
                           <input name="name" defaultValue={lane.name} required />
@@ -1223,6 +1227,13 @@ export default async function AdminPage() {
                             step="0.1"
                             defaultValue={lane.openingWinOddsTo1 ?? ""}
                             placeholder="Opening WIN odds to-1 (>0–999)"
+                          />
+                          <input
+                            name="liveFantasyPoints"
+                            type="number"
+                            step="0.1"
+                            defaultValue={(lane as any).liveFantasyPoints ?? ""}
+                            placeholder="Live points"
                           />
                           <div className="flex items-center gap-2">
                             <button
@@ -1349,7 +1360,7 @@ export default async function AdminPage() {
                       name={`points_${lane.id}`}
                       type="number"
                       step="0.01"
-                      placeholder="Fantasy points (optional)"
+                      placeholder="Final fantasy points (optional)"
                     />
                   </div>
                 ))}

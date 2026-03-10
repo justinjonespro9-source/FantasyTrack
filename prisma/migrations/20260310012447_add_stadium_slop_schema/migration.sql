@@ -1,0 +1,2 @@
+-- Placeholder restored migration file for previously removed local Stadium Slop migration.
+-- Intentionally left blank so Prisma migration history remains consistent.

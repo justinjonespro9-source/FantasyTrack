@@ -27,6 +27,8 @@ type LaneView = {
   finalRank: number | null;
   openingWinOddsTo1: number | null;
   fantasyPoints: number | null;
+  /** Live-only in-race fantasy points; final points remain on fantasyPoints. */
+  liveFantasyPoints?: number | null;
   status: LaneStatus;
 };
 
@@ -403,11 +405,16 @@ export default function ContestBoard({
 
   const topRaceLanes = useMemo(() => {
     return [...lanes]
-      .sort((a, b) => (b.fantasyPoints ?? 0) - (a.fantasyPoints ?? 0))
+      .sort(
+        (a, b) =>
+          (b.liveFantasyPoints ?? b.fantasyPoints ?? 0) -
+          (a.liveFantasyPoints ?? a.fantasyPoints ?? 0)
+      )
       .slice(0, 4);
   }, [lanes]);
 
-  const raceLeaderPoints = topRaceLanes[0]?.fantasyPoints ?? 0;
+  const raceLeaderPoints =
+    topRaceLanes[0]?.liveFantasyPoints ?? topRaceLanes[0]?.fantasyPoints ?? 0;
 
   const sortedLanes = useMemo(() => {
     const copy = [...lanes];
@@ -813,7 +820,7 @@ export default function ContestBoard({
           ) : (
             <div className="space-y-3">
               {topRaceLanes.map((lane, index) => {
-                const pts = lane.fantasyPoints ?? 0;
+                const pts = lane.liveFantasyPoints ?? lane.fantasyPoints ?? 0;
                 const barPercent =
                   raceLeaderPoints > 0 ? clamp((pts / raceLeaderPoints) * 100, 0, 100) : 0;
 

@@ -456,7 +456,11 @@ export default async function ContestPage({ params }: PageProps) {
           name: lane.name,
           team: lane.team ?? null,
           position: lane.position ?? null,
-          fantasyPoints: lane.fantasyPoints ?? null,
+          // Use live-only points for in-race view; fall back to final points for legacy data.
+          fantasyPoints:
+            (lane as any).liveFantasyPoints != null
+              ? (lane as any).liveFantasyPoints
+              : lane.fantasyPoints ?? null,
           status: lane.status,
         }))}
       />

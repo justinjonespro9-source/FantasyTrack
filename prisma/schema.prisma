@@ -227,6 +227,7 @@ model Lane {
   finalRank         Int?
   openingWinOddsTo1 Float?
   fantasyPoints     Float?
+  liveFantasyPoints Float?
   status            LaneStatus @default(ACTIVE)
   statusUpdatedAt   DateTime?
   playerId          String?
