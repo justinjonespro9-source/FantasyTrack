@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "SettlementSummary" ADD COLUMN     "placePoolGross" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "placeTakeoutTotal" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "showPoolGross" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "showTakeoutTotal" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "winPoolGross" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "winTakeoutTotal" INTEGER NOT NULL DEFAULT 0;

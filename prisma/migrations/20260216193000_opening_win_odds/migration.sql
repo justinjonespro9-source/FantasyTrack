@@ -1,0 +1,2 @@
+ALTER TABLE "Lane"
+ADD COLUMN "openingWinOddsTo1" DOUBLE PRECISION;

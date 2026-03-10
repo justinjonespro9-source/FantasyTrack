@@ -1,0 +1,464 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContestStatus {
+  DRAFT
+  PUBLISHED
+  LOCKED
+  SETTLED
+}
+
+enum Market {
+  WIN
+  PLACE
+  SHOW
+}
+
+enum TransactionType {
+  GRANT
+  BET
+  PAYOUT
+  ADJUSTMENT
+  VOID_REFUND
+}
+
+enum LaneStatus {
+  ACTIVE
+  QUESTIONABLE
+  DOUBTFUL
+  SCRATCHED
+}
+
+enum TicketStatus {
+  OPEN
+  SUBMITTED
+  LOCKED
+  SETTLED
+  VOIDED
+}
+
+enum TicketResult {
+  PENDING
+  WON
+  LOST
+  PUSH
+  VOID
+  PARTIAL
+}
+
+enum LegResult {
+  PENDING
+  WON
+  LOST
+  PUSH
+  VOID
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  displayName  String
+  realName     String
+  phone        String
+  isAdmin      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  // legacy
+  bets Bet[]
+
+  // new
+  tickets    Ticket[]
+  ticketLegs TicketLeg[]
+
+  // message board
+  contestPosts     ContestPost[]
+  contestPostLikes ContestPostLike[]
+
+  transactions             Transaction[] @relation("TransactionUser")
+  adminCreatedTransactions Transaction[] @relation("TransactionCreatedByAdmin")
+  shoutoutsCreated         Shoutout[]    @relation("ShoutoutCreatedByAdmin")
+
+  seriesMemberships SeriesMembership[]
+}
+
+model Series {
+  id          String   @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  prizesText  String?
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  inviteCode  String?  @unique
+  description String?
+
+  contests     Contest[]
+  tickets      Ticket[]
+  transactions Transaction[]
+  shoutouts    Shoutout[]
+  memberships  SeriesMembership[]
+}
+
+model SeriesMembership {
+  id        String   @id @default(cuid())
+  seriesId  String
+  userId    String
+  role      String   @default("MEMBER")
+  createdAt DateTime @default(now())
+
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, userId])
+  @@index([userId])
+}
+
+model League {
+  id               String   @id @default(cuid())
+  name             String
+  sport            String
+  code             String   @unique
+  externalProvider String?
+  externalId       String?
+  createdAt        DateTime @default(now())
+
+  teams Team[]
+
+  @@unique([externalProvider, externalId])
+}
+
+model Team {
+  id               String   @id @default(cuid())
+  leagueId         String
+  name             String
+  market           String?
+  abbreviation     String?
+  externalProvider String?
+  externalId       String?
+  createdAt        DateTime @default(now())
+
+  league       League    @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  players      Player[]
+  homeContests Contest[] @relation("HomeTeamContests")
+  awayContests Contest[] @relation("AwayTeamContests")
+
+  @@unique([externalProvider, externalId])
+  @@index([leagueId])
+}
+
+model Player {
+  id               String   @id @default(cuid())
+  teamId           String?
+  fullName         String
+  position         String?
+  jerseyNumber     Int?
+  externalProvider String?
+  externalId       String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  team  Team?  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  lanes Lane[]
+
+  @@unique([externalProvider, externalId])
+  @@index([teamId])
+}
+
+model Contest {
+  id          String        @id @default(cuid())
+  seriesId    String
+  title       String
+  sport       String
+  startTime   DateTime
+  status      ContestStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  publishedAt DateTime?
+  lockedAt    DateTime?
+  settledAt   DateTime?
+  archivedAt  DateTime?
+
+  // Optional linkage to underlying real-world game and teams
+  homeTeamId       String?
+  awayTeamId       String?
+  externalProvider String?
+  externalId       String?
+
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  lanes  Lane[]
+
+  // legacy
+  bets Bet[]
+
+  // new
+  tickets    Ticket[]
+  ticketLegs TicketLeg[]
+
+  transactions      Transaction[]
+  settlementSummary SettlementSummary?
+  shoutouts         Shoutout[]
+
+  homeTeam Team? @relation("HomeTeamContests", fields: [homeTeamId], references: [id])
+  awayTeam Team? @relation("AwayTeamContests", fields: [awayTeamId], references: [id])
+
+  // message board
+  posts ContestPost[]
+
+  @@unique([externalProvider, externalId])
+  @@index([seriesId, startTime])
+  @@index([status, startTime])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+}
+
+model Lane {
+  id                String     @id @default(cuid())
+  contestId         String
+  name              String
+  team              String
+  position          String
+  finalRank         Int?
+  openingWinOddsTo1 Float?
+  fantasyPoints     Float?
+  status            LaneStatus @default(ACTIVE)
+  statusUpdatedAt   DateTime?
+  playerId          String?
+
+  // ✅ NEW: closing odds snapshot at lock
+  closingWinOddsTo1   Float?
+  closingPlaceOddsTo1 Float?
+  closingShowOddsTo1  Float?
+
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  player  Player? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  // legacy
+  bets Bet[]
+
+  // new
+  ticketLegs TicketLeg[]
+
+  @@index([contestId])
+  @@index([contestId, playerId])
+}
+
+model ContestPost {
+  id        String   @id @default(cuid())
+  contestId String
+  userId    String
+  body      String
+  isPinned  Boolean  @default(false)
+  isCommish Boolean  @default(false)
+  isHidden  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  likes ContestPostLike[]
+
+  @@index([contestId, createdAt])
+  @@index([contestId, isPinned])
+}
+
+model ContestPostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post ContestPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+// NEW: Ticket (bet slip)
+model Ticket {
+  id        String  @id @default(cuid())
+  userId    String
+  seriesId  String?
+  contestId String
+
+  status TicketStatus @default(SUBMITTED)
+  result TicketResult @default(PENDING)
+
+  stakeAmount  Int
+  payoutAmount Int?
+  netAmount    Int?
+
+  placedAt  DateTime  @default(now())
+  settledAt DateTime?
+
+  settlementVer Int     @default(1)
+  note          String?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series  Series? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+
+  legs         TicketLeg[]
+  transactions Transaction[]
+
+  @@index([userId, placedAt])
+  @@index([contestId, placedAt])
+  @@index([userId, contestId])
+  @@index([status, placedAt])
+}
+
+// NEW: TicketLeg (each selection within the slip)
+model TicketLeg {
+  id        String @id @default(cuid())
+  ticketId  String
+  userId    String
+  contestId String
+  laneId    String
+  market    Market
+
+  // ✅ NEW: wager amount for this leg (coins)
+  // Option B: required with default so migration can apply with existing rows
+  amount Int @default(0)
+
+  laneNameSnap String?
+  teamSnap     String?
+  positionSnap String?
+  oddsTo1Snap  Float?
+
+  result    LegResult @default(PENDING)
+  settledAt DateTime?
+
+  isVoided   Boolean   @default(false)
+  voidReason String?
+  voidedAt   DateTime?
+
+  ticket  Ticket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  lane    Lane    @relation(fields: [laneId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[]
+
+  @@unique([ticketId, laneId, market])
+  @@index([ticketId])
+  @@index([userId, contestId])
+  @@index([contestId, market])
+  @@index([laneId, market])
+}
+
+model Transaction {
+  id        String          @id @default(cuid())
+  userId    String
+  type      TransactionType
+  amount    Int
+  seriesId  String?
+  contestId String?
+
+  // legacy
+  betId String?
+
+  // new
+  ticketId    String?
+  ticketLegId String?
+
+  note             String?
+  createdAt        DateTime @default(now())
+  createdByAdminId String?
+
+  user    User     @relation("TransactionUser", fields: [userId], references: [id], onDelete: Cascade)
+  series  Series?  @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  contest Contest? @relation(fields: [contestId], references: [id], onDelete: SetNull)
+
+  // legacy
+  bet Bet? @relation(fields: [betId], references: [id], onDelete: SetNull)
+
+  // new
+  ticket    Ticket?    @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  ticketLeg TicketLeg? @relation(fields: [ticketLegId], references: [id], onDelete: SetNull)
+
+  createdByAdmin User? @relation("TransactionCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@unique([ticketLegId, type])
+  @@index([userId, createdAt])
+  @@index([type, seriesId])
+  @@index([contestId, type])
+  @@index([ticketId, createdAt])
+  @@index([ticketLegId, createdAt])
+}
+
+model SettlementSummary {
+  id        String @id @default(cuid())
+  contestId String @unique
+
+  winPoolGross   Int @default(0)
+  placePoolGross Int @default(0)
+  showPoolGross  Int @default(0)
+
+  winTakeoutTotal   Int @default(0)
+  placeTakeoutTotal Int @default(0)
+  showTakeoutTotal  Int @default(0)
+
+  winPoolTotal   Int
+  placePoolTotal Int
+  showPoolTotal  Int
+
+  winPayoutMultiple   Float
+  placePayoutMultiple Float
+  showPayoutMultiple  Float
+
+  createdAt DateTime @default(now())
+  contest   Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+}
+
+model Shoutout {
+  id               String   @id @default(cuid())
+  seriesId         String
+  contestId        String?
+  message          String
+  createdAt        DateTime @default(now())
+  createdByAdminId String
+  series           Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  contest          Contest? @relation(fields: [contestId], references: [id], onDelete: SetNull)
+  createdByAdmin   User     @relation("ShoutoutCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Cascade)
+
+  @@index([seriesId, createdAt])
+  @@index([contestId, createdAt])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String?
+  likes     String
+  changes   String
+  ideas     String
+  createdAt DateTime @default(now())
+}
+
+// LEGACY
+model Bet {
+  id           String        @id @default(cuid())
+  userId       String
+  contestId    String
+  laneId       String
+  market       Market
+  amount       Int
+  createdAt    DateTime      @default(now())
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contest      Contest       @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  lane         Lane          @relation(fields: [laneId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([contestId, market])
+  @@index([userId, contestId])
+  @@index([laneId, market])
+}
