@@ -10,6 +10,7 @@ type SignupState = {
   email: string;
   phone: string;
   password: string;
+  acceptedTerms: boolean;
 };
 
 const initialState: SignupState = {
@@ -17,7 +18,8 @@ const initialState: SignupState = {
   realName: "",
   email: "",
   phone: "",
-  password: ""
+  password: "",
+  acceptedTerms: false,
 };
 
 export default function SignupForm() {
@@ -34,6 +36,12 @@ export default function SignupForm() {
     event.preventDefault();
     setLoading(true);
     setError("");
+
+    if (!form.acceptedTerms) {
+      setLoading(false);
+      setError("You must agree to the Terms of Use and Privacy Policy to create an account.");
+      return;
+    }
 
     const response = await fetch("/api/register", {
       method: "POST",
@@ -123,6 +131,27 @@ export default function SignupForm() {
           onChange={(event) => updateField("password", event.target.value)}
           className="w-full"
         />
+      </div>
+
+      <div className="flex items-start gap-2 text-xs text-track-700">
+        <input
+          id="acceptedTerms"
+          type="checkbox"
+          checked={form.acceptedTerms}
+          onChange={(event) => updateField("acceptedTerms", event.target.checked as any)}
+          className="mt-0.5 h-4 w-4 cursor-pointer accent-track-800"
+        />
+        <label htmlFor="acceptedTerms" className="cursor-pointer leading-snug">
+          I agree to the{" "}
+          <a href="/terms" className="font-semibold text-track-800 underline">
+            Terms of Use
+          </a>{" "}
+          and{" "}
+          <a href="/privacy" className="font-semibold text-track-800 underline">
+            Privacy Policy
+          </a>
+          .
+        </label>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

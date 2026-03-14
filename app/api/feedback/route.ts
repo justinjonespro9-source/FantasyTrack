@@ -1,43 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const { likes, changes, ideas, email } = await req.json();
+    const session = await getCurrentSession();
+    const userId = session?.user?.id ?? null;
 
-    const trimmedLikes = String(likes ?? "").trim();
-    const trimmedChanges = String(changes ?? "").trim();
-    const trimmedIdeas = String(ideas ?? "").trim();
-    const trimmedEmail = String(email ?? "").trim();
+    const body = await request.json().catch(() => ({}));
+    const likes = typeof body.likes === "string" ? body.likes.trim() : "";
+    const changes = typeof body.changes === "string" ? body.changes.trim() : "";
+    const ideas = typeof body.ideas === "string" ? body.ideas.trim() : "";
+    const emailRaw = typeof body.email === "string" ? body.email.trim() : "";
+    const email = emailRaw.length > 0 ? emailRaw : null;
 
-    if (!trimmedLikes && !trimmedChanges && !trimmedIdeas) {
+    if (!likes && !changes && !ideas) {
       return NextResponse.json(
         { error: "Please share at least one piece of feedback." },
         { status: 400 }
       );
     }
 
-    const session = await getCurrentSession();
-    const userId = session?.user?.id ?? null;
+    const maxTextLen = 4000;
+    const safeLikes = likes.slice(0, maxTextLen);
+    const safeChanges = changes.slice(0, maxTextLen);
+    const safeIdeas = ideas.slice(0, maxTextLen);
 
     await prisma.feedback.create({
       data: {
         userId,
-        email: trimmedEmail || null,
-        likes: trimmedLikes,
-        changes: trimmedChanges,
-        ideas: trimmedIdeas,
+        email,
+        likes: safeLikes,
+        changes: safeChanges,
+        ideas: safeIdeas,
       },
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("Error submitting feedback", error);
+  } catch (err) {
+    console.error("Error handling feedback:", err);
     return NextResponse.json(
-      { error: "Unable to submit feedback right now." },
+      { error: "Failed to submit feedback. Please try again later." },
       { status: 500 }
     );
   }
 }
-

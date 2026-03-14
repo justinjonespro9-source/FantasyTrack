@@ -173,23 +173,32 @@ model Player {
 }
 
 model Contest {
-  id          String        @id @default(cuid())
-  seriesId    String
-  title       String
-  sport       String
-  startTime   DateTime
-  status      ContestStatus @default(DRAFT)
-  createdAt   DateTime      @default(now())
-  publishedAt DateTime?
-  lockedAt    DateTime?
-  settledAt   DateTime?
-  archivedAt  DateTime?
+  id              String        @id @default(cuid())
+  seriesId        String
+  title           String
+  sport           String
+  startTime       DateTime
+  status          ContestStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  publishedAt     DateTime?
+  lockedAt        DateTime?
+  settledAt       DateTime?
+  archivedAt      DateTime?
+  trackConditions String?
 
   // Optional linkage to underlying real-world game and teams
   homeTeamId       String?
   awayTeamId       String?
   externalProvider String?
   externalId       String?
+
+  // Last basketball live-stats pull (admin visibility only)
+  lastLiveStatsPullAt      DateTime?
+  lastLiveStatsUpdatedCount Int?
+
+  // Game progress from live BoxScore (UI only; 0–100, status e.g. InProgress, Final)
+  liveGameProgress Int?
+  liveGameStatus   String?
 
   series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   lanes  Lane[]
@@ -228,6 +237,97 @@ model Lane {
   openingWinOddsTo1 Float?
   fantasyPoints     Float?
   liveFantasyPoints Float?
+  // Live per-sport stats (starting with hockey)
+  hockeyGoals       Int?
+  hockeyAssists     Int?
+  hockeyShotsOnGoal Int?
+  hockeySaves       Int?
+  hockeyBlocks      Int?
+  hockeyShortHandedGoals   Int?
+  hockeyShortHandedAssists Int?
+  hockeyShootoutGoals      Int?
+  hockeyGoalsAgainst Int?
+  hockeyShutouts     Int?
+  hockeyOvertimeLosses Int?
+  // Basketball live stats
+  basketballPoints      Int?
+  basketballRebounds    Int?
+  basketballAssists     Int?
+  basketballSteals      Int?
+  basketballBlocks      Int?
+  basketballTurnovers   Int?
+  basketballThreesMade  Int?
+  // Football live stats (raw inputs by role)
+  footballPassingYards        Int?
+  footballPassingTDs          Int?
+  footballInterceptions       Int?
+  footballRushingYards        Int?
+  footballRushingTDs          Int?
+  footballReceivingYards      Int?
+  footballReceivingTDs        Int?
+  footballReceptions          Int?
+  footballTwoPointConversions Int?
+  footballFumblesLost         Int?
+  footballExtraPointsMade     Int?
+  footballFieldGoals0to39     Int?
+  footballFieldGoals40to49    Int?
+  footballFieldGoals50Plus    Int?
+  footballFieldGoalsMissed    Int?
+  footballSacks               Int?
+  footballDSTInterceptions    Int?
+  footballFumbleRecoveries    Int?
+  footballDefensiveTDs        Int?
+  footballSafeties            Int?
+  footballBlockedKicks        Int?
+  footballPointsAllowed       Int?
+  // Baseball live stats
+  baseballSingles        Int?
+  baseballDoubles        Int?
+  baseballTriples        Int?
+  baseballHomeRuns       Int?
+  baseballRuns           Int?
+  baseballRunsBattedIn   Int?
+  baseballWalks          Int?
+  baseballStolenBases    Int?
+  baseballStrikeouts     Int?
+  baseballInningsPitched Float?
+  baseballStrikeoutsPitching Int?
+  baseballWins           Int?
+  baseballEarnedRuns     Int?
+  baseballHitsAllowed    Int?
+  baseballWalksAllowed   Int?
+  baseballSaves          Int?
+  baseballQualityStart   Int?
+  // Soccer live stats (outfield + goalkeeper)
+  soccerGoals          Int?
+  soccerAssists        Int?
+  soccerShotsOnTarget  Int?
+  soccerChancesCreated Int?
+  soccerCrosses        Int?
+  soccerTacklesWon     Int?
+  soccerInterceptions  Int?
+  soccerFoulsCommitted Int?
+  soccerYellowCards    Int?
+  soccerRedCards       Int?
+  soccerSaves          Int?
+  soccerGoalsAllowed   Int?
+  soccerCleanSheet     Int?
+  soccerPenaltySaves   Int?
+  soccerWins           Int?
+  // Golf live stats
+  golfBirdies             Int?
+  golfEagles              Int?
+  golfAlbatrosses         Int?
+  golfPars                Int?
+  golfBogeys              Int?
+  golfDoubleBogeyOrWorse  Int?
+  golfHoleInOnes          Int?
+  golfBirdieStreaks3Plus  Int?
+  golfBogeyFreeRounds     Int?
+  golfRoundsUnder70       Int?
+  golfMadeCut             Int?
+  golfTop10Finish         Int?
+  golfWins                Int?
   status            LaneStatus @default(ACTIVE)
   statusUpdatedAt   DateTime?
   playerId          String?

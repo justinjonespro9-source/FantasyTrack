@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 type ContestOption = {
@@ -41,6 +42,7 @@ type Props = {
 };
 
 export default function ContestLaneBuilder({ contests, leagues, initialContestId }: Props) {
+  const router = useRouter();
   const [contestId, setContestId] = useState<string>(initialContestId ?? "");
   const [leagueId, setLeagueId] = useState<string>("");
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
@@ -142,6 +144,7 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
         throw new Error(data.error || "Unable to create lanes.");
       }
       setMessage("Lanes created from selected players.");
+      router.refresh();
     } catch (err: any) {
       setError(err?.message || "Unable to create lanes.");
     } finally {

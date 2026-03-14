@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SUPPORT_EMAIL } from "@/lib/support";
 
 function Section({
   title,
@@ -24,9 +25,9 @@ export default function TermsPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
               FantasyTrack
             </p>
-            <h1 className="mt-1 text-2xl font-semibold text-neutral-50">Terms of Service</h1>
+            <h1 className="mt-1 text-2xl font-semibold text-neutral-50">Terms of Use</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-300">
-              These Terms of Service (&quot;Terms&quot;) govern your access to and use of
+              These Terms of Use (&quot;Terms&quot;) govern your access to and use of
               FantasyTrack. By creating an account or participating in contests, you agree to
               be bound by these Terms. This document is a first-pass set of terms intended for
               testing and MVP evaluation and does not replace a final production legal review.
@@ -193,8 +194,7 @@ export default function TermsPage() {
           at:
         </p>
         <p className="text-sm text-neutral-300">
-          <span className="font-semibold text-neutral-50">Email:</span>{" "}
-          support@fantasytrack.test
+          <span className="font-semibold text-neutral-50">Email:</span> {SUPPORT_EMAIL}
         </p>
       </Section>
     </div>

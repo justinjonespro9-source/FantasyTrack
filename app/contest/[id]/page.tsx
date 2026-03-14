@@ -10,8 +10,9 @@ import { prisma } from "@/lib/prisma";
 import { ContestLiveTape } from "@/components/contest-live-tape";
 import { getCurrentSession } from "@/lib/session";
 import { SettledRaceBoard } from "@/components/settled-race-board";
-import { LiveRaceBoard } from "@/components/live-race-board";
 import { formatCoins, formatDateTime, formatOddsTo1 } from "@/lib/format";
+import { formatSportLabel } from "@/lib/sports";
+import { formatTrackConditionsLabel } from "@/lib/track-conditions";
 
 type PageProps = {
   params: { id: string };
@@ -121,19 +122,31 @@ export default async function ContestPage({ params }: PageProps) {
       showMultiple: settledOdds.estMultiples[lane.id]?.SHOW ?? null,
     }));
 
+    const sportLabel = formatSportLabel(contest.sport as any);
+    const trackConditionsCode = (contest as any).trackConditions as string | null | undefined;
+    const trackConditionsLabel = formatTrackConditionsLabel(trackConditionsCode);
+
     return (
       <div className="space-y-6">
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold text-neutral-50">{contest.title}</h1>
+              <h1 className="text-xl font-semibold text-amber-300">{contest.title}</h1>
               <p className="mt-1 text-sm text-neutral-300">
                 {contest.series?.name ? `${contest.series.name} · ` : ""}
-                {contest.sport} · Settled{" "}
+                Settled{" "}
                 <span className="font-medium text-neutral-100">
                   {formatDateTime((contest as any).settledAt ?? contest.startTime)}
                 </span>
               </p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <span className="rounded-full border border-neutral-700 bg-neutral-950/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-100">
+                  {sportLabel}
+                </span>
+                <span className="rounded-full border border-neutral-700 bg-neutral-950/80 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-neutral-100">
+                  Track Conditions: {trackConditionsLabel}
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -147,10 +160,10 @@ export default async function ContestPage({ params }: PageProps) {
 
               {contest.series?.id ? (
                 <Link
-                  href={`/series/${contest.series.id}/leaderboard`}
+                  href={`/series/${contest.series.id}`}
                   className="rounded-full border border-neutral-600 bg-neutral-900 px-3 py-1 text-sm text-neutral-100 hover:border-amber-400 hover:text-amber-300"
                 >
-                  Series leaderboard
+                  Series hub
                 </Link>
               ) : null}
 
@@ -189,7 +202,7 @@ export default async function ContestPage({ params }: PageProps) {
           ) : null}
 
           {userId && myTickets.length > 0 ? (
-            <div className="mt-3 space-y-3">
+            <div className="mt-3 max-h-[28rem] space-y-3 overflow-y-auto overscroll-contain pr-1">
               {myTickets.map((t: any) => {
                 const legs = t.legs ?? [];
                 const stake = t.stakeAmount ?? 0;
@@ -412,76 +425,111 @@ export default async function ContestPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <ContestBoard
-        contestId={contest.id}
-        title={contest.title}
-        startTime={contest.startTime.toISOString()}
-        endTime={((contest as any).endTime ?? contest.startTime).toISOString()}
-        status={contest.status}
-        lanes={contest.lanes}
-        initialOdds={odds}
-        initialMyBets={myTickets.flatMap((t: any) => {
-          const legs = t.legs ?? [];
-          const legCount = legs.length || 1;
-          const perLegAmount = Math.floor((t.stakeAmount ?? 0) / legCount);
-          const createdAt = (t.placedAt ?? t.createdAt).toISOString();
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <ContestBoard
+            contestId={contest.id}
+            title={contest.title}
+            startTime={contest.startTime.toISOString()}
+            endTime={((contest as any).endTime ?? contest.startTime).toISOString()}
+            sport={contest.sport}
+            trackConditions={(contest as any).trackConditions ?? null}
+            status={contest.status}
+            lanes={contest.lanes}
+            initialOdds={odds}
+            initialMyBets={myTickets.flatMap((t: any) => {
+              const legs = t.legs ?? [];
+              const legCount = legs.length || 1;
+              const perLegAmount = Math.floor((t.stakeAmount ?? 0) / legCount);
+              const createdAt = (t.placedAt ?? t.createdAt).toISOString();
 
-          return legs.map((leg: any) => {
-            const payout = (leg.transactions ?? [])
-              .filter((tx: any) => tx.type === TransactionType.PAYOUT)
-              .reduce((sum: number, tx: any) => sum + (tx.amount ?? 0), 0);
+              return legs.map((leg: any) => {
+                const payout = (leg.transactions ?? [])
+                  .filter((tx: any) => tx.type === TransactionType.PAYOUT)
+                  .reduce((sum: number, tx: any) => sum + (tx.amount ?? 0), 0);
 
-            return {
-              id: leg.id,
-              ticketId: t.id ?? null,
-              laneId: leg.lane?.id ?? leg.laneId,
-              laneName: leg.lane?.name ?? leg.laneNameSnap ?? "—",
-              market: leg.market,
-              amount: perLegAmount,
-              createdAt,
-              refunded: leg.lane?.status === "SCRATCHED",
-              payout,
-            };
-          });
-        })}
-        isLoggedIn={Boolean(userId)}
-        isAdmin={isAdmin}
-      />
+                const lockedMultiple =
+                  leg.market === "WIN" && leg.oddsTo1Snap != null && Number.isFinite(leg.oddsTo1Snap)
+                    ? leg.oddsTo1Snap + 1
+                    : null;
 
-      <LiveRaceBoard
-        contestId={contest.id}
-        title={contest.title}
-        lanes={contest.lanes.map((lane: any) => ({
-          id: lane.id,
-          name: lane.name,
-          team: lane.team ?? null,
-          position: lane.position ?? null,
-          // Use live-only points for in-race view; fall back to final points for legacy data.
-          fantasyPoints:
-            (lane as any).liveFantasyPoints != null
-              ? (lane as any).liveFantasyPoints
-              : lane.fantasyPoints ?? null,
-          status: lane.status,
-        }))}
-      />
+                return {
+                  id: leg.id,
+                  ticketId: t.id ?? null,
+                  laneId: leg.lane?.id ?? leg.laneId,
+                  laneName: leg.lane?.name ?? leg.laneNameSnap ?? "—",
+                  market: leg.market,
+                  amount: perLegAmount,
+                  createdAt,
+                  refunded: leg.lane?.status === "SCRATCHED",
+                  payout,
+                  lockedMultiple,
+                };
+              });
+            })}
+            isLoggedIn={Boolean(userId)}
+            isAdmin={isAdmin}
+            liveGameProgress={(contest as any).liveGameProgress ?? undefined}
+            liveGameStatus={(contest as any).liveGameStatus ?? undefined}
+          />
 
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
-        <p className="text-sm text-neutral-300">
-          <span className="font-medium text-amber-200">Scratched players:</span> remain visible but
-          cannot be wagered. Any wagers already placed on a scratched player are voided and refunded.
-          If you already met the contest entry requirement, your entry remains valid. Refunded funds
-          may be reallocated before lock if time remains.
-        </p>
-      </section>
+          <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+            <p className="text-sm text-neutral-300">
+              <span className="font-medium text-amber-200">Scratched players:</span> remain visible
+              but cannot be wagered. Any wagers already placed on a scratched player are voided and
+              refunded. If you already met the contest entry requirement, your entry remains valid.
+              Refunded funds may be reallocated before lock if time remains.
+            </p>
+          </section>
+        </div>
 
-      <ContestLiveTape contestId={contest.id} />
+        <div className="space-y-4">
+          {/* Mobile: secondary sections as accordions */}
+          <div className="space-y-3 lg:hidden">
+            <details className="rounded-lg border border-neutral-800 bg-neutral-900/80">
+              <summary className="cursor-pointer list-none px-4 py-2 text-sm font-semibold text-neutral-100">
+                Live Tape
+              </summary>
+              <div className="border-t border-neutral-800 px-4 py-3">
+                <ContestLiveTape contestId={contest.id} />
+              </div>
+            </details>
 
-      <ContestMessageBoard
-        contestId={contest.id}
-        revalidatePath={`/contest/${contest.id}`}
-      />
+            <details className="rounded-lg border border-neutral-800 bg-neutral-900/80">
+              <summary className="cursor-pointer list-none px-4 py-2 text-sm font-semibold text-neutral-100">
+                Message Board
+              </summary>
+              <div className="border-t border-neutral-800 px-4 py-3">
+                <ContestMessageBoard
+                  contestId={contest.id}
+                  revalidatePath={`/contest/${contest.id}`}
+                />
+              </div>
+            </details>
 
-      <ScoringRulesCard sport={contest.sport} />
+            <details className="rounded-lg border border-neutral-800 bg-neutral-900/80">
+              <summary className="cursor-pointer list-none px-4 py-2 text-sm font-semibold text-neutral-100">
+                Scoring Rules
+              </summary>
+              <div className="border-t border-neutral-800 px-4 py-3">
+                <ScoringRulesCard sport={contest.sport} />
+              </div>
+            </details>
+          </div>
+
+          {/* Desktop: full secondary column */}
+          <div className="hidden space-y-4 lg:block">
+            <ContestLiveTape contestId={contest.id} />
+
+            <ContestMessageBoard
+              contestId={contest.id}
+              revalidatePath={`/contest/${contest.id}`}
+            />
+
+            <ScoringRulesCard sport={contest.sport} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

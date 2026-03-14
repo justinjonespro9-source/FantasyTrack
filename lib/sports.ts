@@ -4,6 +4,7 @@ export const SPORTS = [
   "BASEBALL",
   "HOCKEY",
   "SOCCER",
+  "GOLF",
 ] as const;
 
 export type SportKey = (typeof SPORTS)[number];
@@ -20,6 +21,8 @@ export function formatSportLabel(sport: SportKey): string {
       return "Hockey";
     case "SOCCER":
       return "Soccer";
+    case "GOLF":
+      return "Golf";
     default:
       return sport;
   }

@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
@@ -33,6 +34,9 @@ export async function POST(req: Request) {
     }
 
     await createLanesFromPlayers(body.contestId, body.playerIds);
+
+    revalidatePath("/admin");
+    revalidatePath("/");
 
     return NextResponse.json({ ok: true });
   } catch (error) {

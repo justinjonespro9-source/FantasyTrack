@@ -70,6 +70,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       })
     : [];
 
+  // For the dashboard Series module, avoid duplicating joined series in the Public Series preview.
+  const userSeriesIds = new Set(userSeries.map((m) => m.series.id));
+  const publicSeriesForPanel = seriesToShow.filter((s) => !userSeriesIds.has(s.id));
+
   const now = new Date();
 
   const seriesDashboards = await Promise.all(
@@ -134,8 +138,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const showSeriesBanner =
     seriesStatusParam === "joined" || seriesStatusParam === "alreadyMember";
 
+  const allActiveContests = seriesDashboards.flatMap((d) => d.activeContests);
+  allActiveContests.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+  const contestSeriesById: Record<string, string> = {};
+  seriesDashboards.forEach(({ series, activeContests }) => {
+    activeContests.forEach((c: any) => {
+      contestSeriesById[c.id] = series.name;
+    });
+  });
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {showSeriesBanner && seriesStatusParam ? (
         <SeriesStatusBanner
           status={seriesStatusParam as "joined" | "alreadyMember"}
@@ -143,87 +157,143 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       ) : null}
 
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold text-neutral-50">Contest Hub</h1>
-            <p className="mt-2 max-w-3xl text-sm text-neutral-300">
-              Browse active contests, track leaderboards, review settled results, and follow the latest
-              commish notes. New here? Learn how FantasyTrack works before placing your first wager.
+      {/* Top row: Active Contests (left) + Series panel (right) */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        {/* Active Contests — primary focus */}
+        <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-lg font-semibold text-neutral-50">Active Contests</h1>
+          </div>
+          {allActiveContests.length === 0 ? (
+            <p className="text-sm text-neutral-400">
+              No active contests right now. Join a series to see contests when they’re open.
             </p>
+          ) : (
+            <div className="space-y-2.5">
+              {allActiveContests.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/contest/${c.id}`}
+                  className="block rounded-lg border border-neutral-800 bg-neutral-950/80 p-3 hover:border-amber-400/60 hover:bg-neutral-900/80 transition-colors"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-amber-300 sm:text-base">
+                        {c.title}
+                      </p>
+                      <p className="mt-0.5 text-xs text-neutral-400 sm:text-[13px]">
+                        {contestSeriesById[c.id] ? (
+                          <>
+                            <span className="rounded-full border border-neutral-700 bg-neutral-900/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-300">
+                              {contestSeriesById[c.id]}
+                            </span>
+                            <span className="mx-1 text-neutral-600">·</span>
+                          </>
+                        ) : null}
+                        Starts{" "}
+                        <ClientOnly>
+                          <span>{formatDateTime(c.startTime)}</span>
+                        </ClientOnly>{" "}
+                        · Status: {c.status}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-amber-400/70 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-200">
+                      {c.status === ContestStatus.PUBLISHED ? "Open" : c.status}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Series panel */}
+        <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
+              Series
+            </h2>
           </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
+          {/* Your Series / Private series */}
+          {!userId ? (
+            <p className="text-sm text-neutral-400">
+              Sign in to see and join series you&apos;re competing in.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                  Your Series
+                </p>
+                {userSeries.length === 0 ? (
+                  <div className="mt-1 space-y-2 text-sm">
+                    <p className="text-neutral-300">
+                      Join a private series with an invite code to compete on its leaderboard.
+                    </p>
+                    <p className="text-xs text-neutral-400">
+                      Series track your performance across multiple contests and unlock more
+                      competitive stats.
+                    </p>
                     <Link
                       href="/series/join"
-                      className="rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-300 hover:text-amber-200"
+                      className="inline-flex items-center rounded-full border border-amber-400/70 bg-amber-400 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-amber-300"
                     >
                       Join a Series
                     </Link>
-                    <Link
-                      href="/how-to-play"
-                      className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:border-amber-300 hover:text-amber-200"
-                    >
-                      How to Play
-                    </Link>
                   </div>
-        </div>
-      </section>
+                ) : (
+                  <div className="mt-1 space-y-2">
+                    {userSeries.slice(0, 3).map((m) => (
+                      <Link
+                        key={m.id}
+                        href={`/series/${m.series.id}`}
+                        className="block rounded-lg border border-neutral-800 bg-neutral-950/80 p-3 hover:border-amber-400/60 hover:bg-neutral-900/80 transition-colors"
+                      >
+                        <p className="font-semibold text-neutral-50">{m.series.name}</p>
+                        {m.series.description ? (
+                          <p className="mt-1 line-clamp-2 text-xs text-neutral-300">
+                            {m.series.description}
+                          </p>
+                        ) : null}
+                        {m.series.inviteCode ? (
+                          <p className="mt-1.5 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+                            Code: {m.series.inviteCode}
+                          </p>
+                        ) : null}
+                        <span className="mt-2 inline-block text-xs text-amber-200/80 hover:text-amber-200">
+                          View series →
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-      {/* Your Series */}
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-neutral-50">Your Series</h2>
-          {userId && userSeries.length > 0 ? (
-            <Link
-              href="/series/join"
-              className="text-xs font-semibold text-amber-200/80 underline hover:text-amber-200"
-            >
-              Join another
-            </Link>
-          ) : null}
-        </div>
-        {!userId ? (
-          <p className="text-sm text-neutral-400">Sign in to see your series.</p>
-        ) : userSeries.length === 0 ? (
-          <div className="rounded-lg border border-neutral-800 bg-neutral-950/80 p-4">
-            <p className="text-sm text-neutral-300">You haven&apos;t joined any series yet.</p>
-            <p className="mt-1 text-xs text-neutral-400">
-              Use an invite code from your league organizer to join a private series and appear on its
-              leaderboard.
-            </p>
-            <Link
-              href="/series/join"
-              className="mt-3 inline-block rounded-full border border-amber-400/70 bg-amber-400 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-amber-300"
-            >
-              Join a Series
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {userSeries.map((m) => (
-              <Link
-                key={m.id}
-                href={`/series/${m.series.id}/leaderboard`}
-                className="block rounded-lg border border-neutral-800 bg-neutral-950/80 p-3 hover:border-neutral-700 hover:bg-neutral-900/80"
-              >
-                <p className="font-semibold text-neutral-50">{m.series.name}</p>
-                {m.series.description ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-neutral-300">{m.series.description}</p>
-                ) : null}
-                {m.series.inviteCode ? (
-                  <p className="mt-1.5 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
-                    Code: {m.series.inviteCode}
+              {/* Public Series */}
+              {publicSeriesForPanel.length > 0 && (
+                <div className="border-t border-neutral-800 pt-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                    Public Series
                   </p>
-                ) : null}
-                <span className="mt-2 inline-block text-xs text-amber-200/80 hover:text-amber-200">
-                  View leaderboard →
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+                  <div className="space-y-1.5">
+                    {publicSeriesForPanel.slice(0, 3).map((s) => (
+                      <Link
+                        key={s.id}
+                        href={`/series/${s.id}`}
+                        className="flex items-center justify-between rounded border border-neutral-800 bg-neutral-950/80 px-2.5 py-1.5 text-xs text-neutral-200 hover:border-amber-400/60 hover:bg-neutral-900/80 transition-colors"
+                      >
+                        <span className="truncate font-medium">{s.name}</span>
+                        <span className="text-[10px] text-neutral-400">View series</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
 
       {/* GLOBAL HUB (always visible) */}
       <section className="grid gap-4 lg:grid-cols-2">
@@ -243,7 +313,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <tr>
                   <th className="py-1">Rank</th>
                   <th className="py-1">Name</th>
-                  <th className="py-1">Net</th>
+                  <th className="py-1">Skill</th>
                   <th className="py-1">Wagered</th>
                 </tr>
               </thead>
@@ -265,7 +335,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                         <span className="ml-1 text-xs font-semibold text-emerald-300">Eligible</span>
                       ) : null}
                     </td>
-                    <td className="py-1">{formatCoins(row.net)}</td>
+                    <td className="py-1 tabular-nums">{row.skillScore.toFixed(1)}</td>
                     <td className="py-1">{formatCoins(row.totalWagered)}</td>
                   </tr>
                 ))}
@@ -347,7 +417,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <p className="font-semibold text-neutral-50">{c.title}</p>
+                            <p className="text-base font-semibold text-amber-300">{c.title}</p>
                             <p className="text-sm text-neutral-400">
                               Starts{" "}
                               <ClientOnly>

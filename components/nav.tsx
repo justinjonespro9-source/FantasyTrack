@@ -21,8 +21,8 @@ export default async function Nav() {
           </Link>
 
           <nav className="flex flex-wrap items-center gap-4 text-sm sm:gap-6">
-            <Link href="/dashboard" className={navLink}>
-              Dashboard
+            <Link href="/series" className={navLink}>
+              Series
             </Link>
             <Link href="/me" className={navLink}>
               Profile
@@ -30,7 +30,7 @@ export default async function Nav() {
             <Link href="/how-to-play" className={navLink}>
               How it Works
             </Link>
-            <Link href="/dashboard" className={navLink}>
+            <Link href="/leaderboard" className={navLink}>
               Leaderboard
             </Link>
             {session?.user?.isAdmin && (

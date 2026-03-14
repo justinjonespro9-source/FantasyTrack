@@ -1,8 +1,9 @@
 import type { SportKey } from "@/lib/sports";
+import type { BasketballRawStats } from "@/lib/scoring-config";
 
 export type ExternalId = string;
 
-export type ProviderName = "mock";
+export type ProviderName = "mock" | "sportsdataio";
 
 export type DateRange = {
   start: Date;
@@ -43,5 +44,20 @@ export type ExternalGame = {
   homeTeamId: ExternalId;
   awayTeamId: ExternalId;
   startTime: Date;
+};
+
+/** Provider-agnostic live stat update for one player in one game. Used by ingestion to update lanes. */
+export type NormalizedPlayerGameStat = {
+  playerId: ExternalId;
+  gameId: ExternalId;
+  teamId: ExternalId;
+  rawStats: BasketballRawStats;
+};
+
+/** Game state from BoxScore (status, period, 0–100 progress). Used for UI progress bar only. */
+export type LiveGameState = {
+  status: string;
+  period: string | null;
+  progressPercent: number;
 };
 

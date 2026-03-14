@@ -12,7 +12,7 @@ export default function SignupPage() {
       <p className="text-center text-xs text-track-500">
         By creating an account, you agree to the{" "}
         <Link href="/terms" className="text-track-700 underline">
-          Terms of Service
+          Terms of Use
         </Link>{" "}
         and{" "}
         <Link href="/privacy" className="text-track-700 underline">

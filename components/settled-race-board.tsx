@@ -146,11 +146,14 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
       <table className="min-w-full text-sm text-neutral-100">
         <thead className="text-left">
           <tr>
-            <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
+            <th className="min-w-[7rem] border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
               Odds
             </th>
             <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
               Player
+            </th>
+            <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80 text-center">
+              Pts
             </th>
             <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
               Win pool
@@ -160,9 +163,6 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
             </th>
             <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
               Show pool
-            </th>
-            <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
-              Final pts
             </th>
           </tr>
         </thead>
@@ -180,25 +180,27 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
                   lane.status === "SCRATCHED" ? "opacity-60" : "",
                 ].join(" ")}
               >
-                <td className="px-3 py-2 align-top">
-                  <div className="font-semibold text-amber-200">
-                    {formatSettledOdds(lane.winMultiple, lane.openingWinOddsTo1)}
-                  </div>
-
-                  {lane.finalRank ? (
-                    <div className="mt-1">
+                <td className="min-w-[7rem] px-3 py-2 align-top">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="shrink-0 whitespace-nowrap text-lg font-bold text-amber-200 tabular-nums">
+                      {formatSettledOdds(lane.winMultiple, lane.openingWinOddsTo1)}
+                    </span>
+                    {lane.finalRank && lane.finalRank <= 3 ? (
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${podiumRankClass(
-                          lane.finalRank
-                        )}`}
+                        className={
+                          [
+                            "inline-flex items-center gap-1 rounded-full border font-semibold uppercase tracking-wide",
+                            lane.finalRank <= 3
+                              ? "px-2 py-0.5 text-[11px]"
+                              : "px-1.5 py-0.5 text-[10px]",
+                            podiumRankClass(lane.finalRank),
+                          ].join(" ")
+                        }
                       >
-                        {podiumMedal(lane.finalRank) ? (
-                          <span>{podiumMedal(lane.finalRank)}</span>
-                        ) : null}
-                        <span>{podiumLabel(lane.finalRank)}</span>
+                        {podiumLabel(lane.finalRank)}
                       </span>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </td>
 
                 <td className="px-3 py-2 align-top">
@@ -217,26 +219,34 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
                   </div>
                 </td>
 
-                <td className="px-3 py-2 align-top">
-                  <p className="font-medium text-neutral-50">{formatCoins(lane.winTotal)}</p>
-                  <p className="text-xs text-amber-300/80">{formatMultiple(lane.winMultiple)}</p>
+                {/* Pts column */}
+                <td className="px-3 py-2 align-top text-center">
+                  <span className="inline-block min-w-[3.5rem] whitespace-nowrap text-xs font-medium text-neutral-300">
+                    {formatFantasyPoints(lane.fantasyPoints)} pts
+                  </span>
                 </td>
 
                 <td className="px-3 py-2 align-top">
-                  <p className="font-medium text-neutral-50">{formatCoins(lane.placeTotal)}</p>
-                  <p className="text-xs text-amber-300/80">{formatMultiple(lane.placeMultiple)}</p>
+                  <p className="font-medium text-neutral-50 tabular-nums">{formatCoins(lane.winTotal)}</p>
+                  {lane.winMultiple != null ? (
+                    <p className="text-xs text-amber-300/80">{formatMultiple(lane.winMultiple)}</p>
+                  ) : null}
                 </td>
 
                 <td className="px-3 py-2 align-top">
-                  <p className="font-medium text-neutral-50">{formatCoins(lane.showTotal)}</p>
-                  <p className="text-xs text-amber-300/80">{formatMultiple(lane.showMultiple)}</p>
+                  <p className="font-medium text-neutral-50 tabular-nums">{formatCoins(lane.placeTotal)}</p>
+                  {lane.placeMultiple != null ? (
+                    <p className="text-xs text-amber-300/80">{formatMultiple(lane.placeMultiple)}</p>
+                  ) : null}
                 </td>
 
                 <td className="px-3 py-2 align-top">
-                  <p className="font-medium text-neutral-50">
-                    {formatFantasyPoints(lane.fantasyPoints)}
-                  </p>
+                  <p className="font-medium text-neutral-50 tabular-nums">{formatCoins(lane.showTotal)}</p>
+                  {lane.showMultiple != null ? (
+                    <p className="text-xs text-amber-300/80">{formatMultiple(lane.showMultiple)}</p>
+                  ) : null}
                 </td>
+
               </tr>
             );
           })}

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 type Status = "idle" | "submitting" | "success" | "error";
 
 export default function FeedbackWidget() {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [likes, setLikes] = useState("");
   const [changes, setChanges] = useState("");
@@ -12,6 +13,10 @@ export default function FeedbackWidget() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (status === "success") {
@@ -52,6 +57,8 @@ export default function FeedbackWidget() {
       setError(err?.message || "Failed to submit feedback.");
     }
   }
+
+  if (!mounted) return null;
 
   return (
     <>

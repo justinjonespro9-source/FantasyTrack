@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "@/app/providers";
 import Nav from "@/components/nav";
 import FeedbackWidget from "@/components/feedback-widget";
+import SiteFooter from "@/components/footer";
 
 export const metadata: Metadata = {
   title: "FantasyTrack MVP",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>
           <Nav />
           <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+          <SiteFooter />
           <FeedbackWidget />
         </Providers>
       </body>

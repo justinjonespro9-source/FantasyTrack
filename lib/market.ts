@@ -13,6 +13,8 @@ import {
   REQUIRED_TOTAL_WAGER_PER_CONTEST,
   SERIES_ELIGIBILITY_MIN_CONTESTS,
   SERIES_ELIGIBILITY_MIN_WAGER,
+  LEADERBOARD_MIN_SETTLED_CONTESTS,
+  LEADERBOARD_MIN_WAGER,
 } from "@/lib/constants";
 
 import { prisma } from "@/lib/prisma";
@@ -69,6 +71,13 @@ export type LeaderboardEntry = {
   totalGranted: number;
   totalWagered: number;
   participatedContests: number;
+  settledContests: number;
+  podiumFinishes: number;
+  roi: number;
+  podiumRate: number;
+  consistencyRate: number;
+  credibilityScore: number;
+  skillScore: number;
   eligible: boolean;
 };
 
@@ -1020,10 +1029,10 @@ export async function getLeaderboard(params: LeaderboardScope): Promise<Leaderbo
         params.scope === "series"
           ? {
               where: { seriesId: params.seriesId },
-              select: { contestId: true },
+              select: { contestId: true, status: true, result: true },
             }
           : {
-              select: { contestId: true },
+              select: { contestId: true, status: true, result: true },
             },
     },
   });
@@ -1057,9 +1066,75 @@ export async function getLeaderboard(params: LeaderboardScope): Promise<Leaderbo
     // participatedContests now comes from tickets (new system)
     const participatedContests = new Set((user.tickets ?? []).map((t) => t.contestId)).size;
 
+    // Settled contests approximated from tickets with status SETTLED
+    const settledContestIds = new Set(
+      (user.tickets ?? [])
+        .filter((t: any) => t.status === TicketStatus.SETTLED)
+        .map((t) => t.contestId)
+    );
+    const settledContests = settledContestIds.size;
+
+    // Settled-only contest-scoped transactions (for skill metrics)
+    const settledTx = scopedTx.filter(
+      (tx) => tx.contestId && settledContestIds.has(tx.contestId)
+    );
+
+    const settledBalance = settledTx.reduce((sum, tx) => sum + tx.amount, 0);
+    const settledGranted = settledTx
+      .filter((tx) => tx.type === TransactionType.GRANT)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const settledWagered = settledTx
+      .filter((tx) => tx.type === TransactionType.BET)
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+    const settledNet = settledBalance - settledGranted;
+
+    // Per-contest net for this user (for Winning Contest % and consistency), from settledTx only
+    const contestNet = new Map<string, number>();
+    for (const tx of settledTx) {
+      const cid = tx.contestId!;
+      contestNet.set(cid, (contestNet.get(cid) ?? 0) + tx.amount);
+    }
+
+    // Podium finishes (v1): settled contests where user finished profitable (>0 net)
+    let podiumFinishes = 0;
+    let nonLosingContests = 0;
+    for (const contestId of settledContestIds) {
+      const netForContest = contestNet.get(contestId) ?? 0;
+      if (netForContest > 0) {
+        podiumFinishes += 1;
+        nonLosingContests += 1;
+      } else if (netForContest === 0) {
+        nonLosingContests += 1;
+      }
+    }
+
+    const net = balance - totalGranted;
+
+    // Settled-only ROI for leaderboard skill metrics
+    const roiRaw = settledWagered > 0 ? settledNet / settledWagered : 0;
+    const clampedRoi = Math.max(-1, Math.min(1, roiRaw));
+    const roiScore = ((clampedRoi + 1) / 2) * 100;
+
+    const podiumRate = settledContests > 0 ? podiumFinishes / settledContests : 0;
+    // Consistency fallback: rate of contests where the user did not lose money (>= 0 net)
+    const consistencyRate = settledContests > 0 ? nonLosingContests / settledContests : 0;
+    const consistencyScore = consistencyRate * 100;
+
+    const credibilityScore =
+      settledContests > 0 ? Math.min(settledContests / 20, 1) * 100 : 0;
+
+    const topFinishScore = podiumRate * 100;
+
+    const skillScore =
+      0.4 * roiScore +
+      0.25 * topFinishScore +
+      0.2 * consistencyScore +
+      0.15 * credibilityScore;
+
     const eligible =
-      totalWagered >= SERIES_ELIGIBILITY_MIN_WAGER &&
-      participatedContests >= SERIES_ELIGIBILITY_MIN_CONTESTS;
+      totalWagered >= LEADERBOARD_MIN_WAGER &&
+      settledContests >= LEADERBOARD_MIN_SETTLED_CONTESTS;
 
     if (eligibleOnly && !eligible) continue;
 
@@ -1068,14 +1143,22 @@ export async function getLeaderboard(params: LeaderboardScope): Promise<Leaderbo
       displayName: user.displayName,
       balance,
       totalGranted,
-      net: balance - totalGranted,
+      net,
       totalWagered,
       participatedContests,
+      settledContests,
+      podiumFinishes,
+      roi: roiRaw,
+      podiumRate,
+      consistencyRate,
+      credibilityScore,
+      skillScore,
       eligible,
     });
   }
 
   rows.sort((a, b) => {
+    if (b.skillScore !== a.skillScore) return b.skillScore - a.skillScore;
     if (b.net !== a.net) return b.net - a.net;
     return a.displayName.localeCompare(b.displayName);
   });

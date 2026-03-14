@@ -32,3 +32,36 @@ h1 {
 h2 {
   @apply text-lg font-semibold text-neutral-50;
 }
+
+/* Live race board: rank movement flash (1.5s) */
+@keyframes rank-flash-up {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+  }
+  30% {
+    box-shadow: 0 0 12px 4px rgba(52, 211, 153, 0.4);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+@keyframes rank-flash-down {
+  0% {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.5);
+  }
+  30% {
+    box-shadow: 0 0 12px 4px rgba(248, 113, 113, 0.35);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+.rank-flash-up {
+  animation: rank-flash-up 1.5s ease-out forwards;
+}
+
+.rank-flash-down {
+  animation: rank-flash-down 1.5s ease-out forwards;
+}

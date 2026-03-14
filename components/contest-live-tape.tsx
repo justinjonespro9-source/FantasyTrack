@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatCoins } from "@/lib/format";
 
 type TapeItem = {
@@ -88,7 +88,7 @@ export function ContestLiveTape({ contestId }: { contestId: string }) {
   const [loading, setLoading] = useState(true);
   const seen = useRef(new Set<string>());
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/contest/${contestId}/tape`, { cache: "no-store" });
       const data = await res.json();
@@ -118,19 +118,19 @@ export function ContestLiveTape({ contestId }: { contestId: string }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [contestId]);
 
   useEffect(() => {
     load();
     const t = setInterval(load, 2500);
     return () => clearInterval(t);
-  }, [contestId]);
+  }, [load]);
 
   // ✅ Use collapsed items for BOTH the headline and the vertical list
   const displayItems = useMemo(() => collapseWpsTapeItems(items), [items]);
 
   const latest = displayItems.length > 0 ? displayItems[0] : null;
-  const headline = useMemo(() => buildHeadline(latest), [latest?.id]);
+  const headline = useMemo(() => buildHeadline(latest), [latest]);
 
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-3 shadow-sm">

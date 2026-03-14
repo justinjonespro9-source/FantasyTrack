@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SUPPORT_EMAIL } from "@/lib/support";
 
 function Section({
   title,
@@ -165,8 +166,7 @@ export default function PrivacyPage() {
           information, you can reach us at:
         </p>
         <p className="text-sm text-neutral-300">
-          <span className="font-semibold text-neutral-50">Email:</span>{" "}
-          support@fantasytrack.test
+          <span className="font-semibold text-neutral-50">Email:</span> {SUPPORT_EMAIL}
         </p>
       </Section>
     </div>

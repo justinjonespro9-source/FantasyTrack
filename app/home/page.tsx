@@ -12,9 +12,9 @@ const SAMPLE_SETTLED_ROWS = [
     finalRank: 1,
     fantasyPoints: 22,
     openingWinOddsTo1: 46,
-    winTotal: 0,
-    placeTotal: 0,
-    showTotal: 0,
+    winTotal: 9873,
+    placeTotal: 4620,
+    showTotal: 2955,
     winMultiple: null,
     placeMultiple: null,
     showMultiple: null,
@@ -28,9 +28,9 @@ const SAMPLE_SETTLED_ROWS = [
     finalRank: 2,
     fantasyPoints: 21.1,
     openingWinOddsTo1: 11,
-    winTotal: 0,
-    placeTotal: 0,
-    showTotal: 0,
+    winTotal: 59260,
+    placeTotal: 27450,
+    showTotal: 18650,
     winMultiple: null,
     placeMultiple: null,
     showMultiple: null,
@@ -44,9 +44,57 @@ const SAMPLE_SETTLED_ROWS = [
     finalRank: 3,
     fantasyPoints: 20.5,
     openingWinOddsTo1: 6,
-    winTotal: 0,
-    placeTotal: 0,
-    showTotal: 0,
+    winTotal: 81875,
+    placeTotal: 39560,
+    showTotal: 24430,
+    winMultiple: null,
+    placeMultiple: null,
+    showMultiple: null,
+  },
+  {
+    id: "sample-sb-4",
+    name: "J. Myers",
+    team: "",
+    position: "",
+    status: "ACTIVE" as const,
+    finalRank: 4,
+    fantasyPoints: 19,
+    openingWinOddsTo1: 31,
+    winTotal: 12789,
+    placeTotal: 7435,
+    showTotal: 6672,
+    winMultiple: null,
+    placeMultiple: null,
+    showMultiple: null,
+  },
+  {
+    id: "sample-sb-5",
+    name: "M. Hollins",
+    team: "",
+    position: "",
+    status: "ACTIVE" as const,
+    finalRank: 5,
+    fantasyPoints: 17.8,
+    openingWinOddsTo1: 55,
+    winTotal: 7173,
+    placeTotal: 5243,
+    showTotal: 5189,
+    winMultiple: null,
+    placeMultiple: null,
+    showMultiple: null,
+  },
+  {
+    id: "sample-sb-6",
+    name: "R. Stevenson",
+    team: "",
+    position: "",
+    status: "ACTIVE" as const,
+    finalRank: 6,
+    fantasyPoints: 17.38,
+    openingWinOddsTo1: 12,
+    winTotal: 51492,
+    placeTotal: 28613,
+    showTotal: 17340,
     winMultiple: null,
     placeMultiple: null,
     showMultiple: null,
@@ -63,11 +111,11 @@ export default function FantasyTrackHomePage() {
     <div className="-mx-4 -my-6 min-h-[calc(100vh-5rem)] bg-neutral-950 px-4 py-10 text-neutral-100">
       {/* No duplicate header — top nav only from layout Nav */}
 
-      <main className="mx-auto max-w-6xl">
+      <main className="mx-auto max-w-6xl lg:max-w-7xl">
         {/* Hero */}
-        <section className="grid gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center">
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] lg:items-center">
           {/* Left: text */}
-          <div className="space-y-6">
+          <div className="space-y-5 max-w-lg">
             <div className="flex justify-center sm:justify-start">
               <div
                 className={`inline-flex flex-col items-center rounded-full border ${goldBorder} bg-neutral-900/80 px-4 py-1 text-center shadow-sm`}
@@ -81,12 +129,12 @@ export default function FantasyTrackHomePage() {
               </div>
             </div>
             <div className="space-y-3">
-              <h1 className="text-3xl font-semibold tracking-tight text-neutral-50 sm:text-4xl">
-                Bet on Players Like a Race
+              <h1 className="text-3xl font-semibold tracking-tight text-neutral-50 sm:text-[2.1rem]">
+                Player Performance Market
               </h1>
-              <p className="max-w-2xl text-sm leading-6 text-neutral-300 sm:text-base">
-                FantasyTrack is the first Player Performance Market. Pick athletes, watch the live
-                leaderboard powered by fantasy scoring, and win when your runner finishes on the podium.
+              <p className="max-w-md text-sm leading-6 text-neutral-300 sm:text-[15px]">
+                FantasyTrack turns athlete performance into a live race. Pick your runners, track the
+                fantasy leaderboard, and win when your ticket finishes on the podium.
               </p>
             </div>
 
@@ -104,17 +152,16 @@ export default function FantasyTrackHomePage() {
           </div>
 
           {/* Right: same settled board as real contest page — sample data only */}
-          <section className="rounded-lg border border-track-200 bg-white p-4 shadow-sm">
+          <section className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4 shadow-[0_0_40px_rgba(0,0,0,0.7)]">
             <div className="mb-3">
-              <h2 className="text-base font-semibold text-track-900">
+              <h2 className="text-base font-semibold text-neutral-50">
                 Super Bowl Player Performance Market
               </h2>
-              <p className="mt-1 text-sm text-track-600">
-                <span className="font-medium text-track-700">Track Conditions:</span> Dry / Sunny
+              <p className="mt-1 text-sm text-neutral-300">
+                <span className="font-medium text-neutral-100">Track Conditions:</span> Dry / Sunny
               </p>
-              <p className="mt-2 text-sm text-track-600">
-                Final race board — same layout as a settled contest. Win / Place / Show from final
-                ranks; sample pools shown as zero.
+              <p className="mt-2 text-sm text-neutral-400">
+                Sample final standings from a completed player performance market.
               </p>
             </div>
             <SettledRaceBoard rows={SAMPLE_SETTLED_ROWS} />
