@@ -3,9 +3,9 @@
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Props = { token: string };
+type Props = { selector: string; token: string; email: string };
 
-export default function ResetPasswordForm({ token }: Props) {
+export default function ResetPasswordForm({ selector, token, email }: Props) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -28,8 +28,10 @@ export default function ResetPasswordForm({ token }: Props) {
       return;
     }
 
-    if (!token) {
-      setError("Missing reset link. Use the link from your email or request a new one.");
+    if (!selector || !token || !email) {
+      setError(
+        "Missing reset link details. Use the link from your email or request a new one."
+      );
       return;
     }
 
@@ -39,7 +41,7 @@ export default function ResetPasswordForm({ token }: Props) {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ email, selector, token, password }),
       });
       const data = await res.json().catch(() => ({}));
 
@@ -61,10 +63,10 @@ export default function ResetPasswordForm({ token }: Props) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {!token && (
+      {(!selector || !token || !email) && (
         <p className="text-sm text-amber-600">
-          No reset token in URL. Open the link from your email or go to{" "}
-          <a href="/auth/forgot-password" className="underline">
+          Reset link is incomplete. Open the link from your email or go to{" "}
+          <a href="/forgot-password" className="underline">
             Forgot password
           </a>{" "}
           to request a new link.
@@ -97,7 +99,7 @@ export default function ResetPasswordForm({ token }: Props) {
       {message && <p className="text-sm text-track-600">{message}</p>}
       <button
         type="submit"
-        disabled={loading || !token}
+        disabled={loading || !selector || !token || !email}
         className="w-full bg-track-800 text-white"
       >
         {loading ? "Resetting…" : "Reset password"}

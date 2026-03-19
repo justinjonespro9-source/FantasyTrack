@@ -24,7 +24,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const activeSeries = await prisma.series.findMany({
     where: { isActive: true },
     orderBy: { startDate: "desc" },
-    take: 3,
   });
 
   const fallbackSeries =

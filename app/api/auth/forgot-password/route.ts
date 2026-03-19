@@ -1,25 +1,10 @@
-import bcrypt from "bcryptjs";
-import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generatePasswordResetToken } from "@/lib/reset-token";
+import { sendPasswordResetEmail } from "@/lib/email";
 
-const TOKEN_EXPIRY_HOURS = 1;
-const SELECTOR_BYTES = 16;
-const VERIFIER_BYTES = 16;
-
-function base64UrlEncode(buf: Buffer): string {
-  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function getBaseUrl(request: Request): string {
-  const url = request.url;
-  try {
-    const u = new URL(url);
-    return `${u.protocol}//${u.host}`;
-  } catch {
-    return process.env.NEXTAUTH_URL ?? "http://localhost:3001";
-  }
-}
+const TOKEN_EXPIRY_MINUTES = 60;
 
 export async function POST(request: Request) {
   let body: { email?: string };
@@ -36,35 +21,57 @@ export async function POST(request: Request) {
 
   const normalizedEmail = rawEmail.toLowerCase();
 
+  // Basic sanity check without leaking whether the email exists.
+  if (!normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
+    return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
+  }
+
   const user = await prisma.user.findUnique({
     where: { email: normalizedEmail },
-    select: { id: true },
+    select: { id: true, email: true },
   });
 
   if (user) {
-    const selector = randomBytes(SELECTOR_BYTES);
-    const verifier = randomBytes(VERIFIER_BYTES);
-    const tokenHash = await bcrypt.hash(verifier.toString("base64"), 10);
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
+    const { token, tokenHash } = generatePasswordResetToken();
+    const selector = randomBytes(16).toString("hex");
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000);
+
+    // Invalidate any previous tokens for this user.
+    await prisma.passwordResetToken.deleteMany({
+      where: { userId: user.id },
+    });
 
     await prisma.passwordResetToken.create({
       data: {
         userId: user.id,
-        selector: selector.toString("hex"),
+        selector,
         tokenHash,
         expiresAt,
+        usedAt: null,
       },
     });
 
-    const tokenForLink = base64UrlEncode(Buffer.concat([selector, verifier]));
-    const baseUrl = getBaseUrl(request);
-    const resetLink = `${baseUrl}/auth/reset-password?token=${encodeURIComponent(tokenForLink)}`;
-
-    // When email is configured (e.g. EMAIL_SERVER_*), send email with resetLink instead of relying on support.
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        email: normalizedEmail,
+        selector,
+        token,
+      });
+    } catch {
+      await prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id },
+      });
+      return NextResponse.json(
+        { error: "Unable to send reset email. Please try again later." },
+        { status: 500 }
+      );
+    }
   }
 
   return NextResponse.json({
+    ok: true,
     message:
-      "If an account exists with that email, we've sent a link to reset your password. Check your inbox and spam folder.",
+      "If an account exists for that email, a reset link has been sent.",
   });
 }

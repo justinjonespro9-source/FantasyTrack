@@ -1,23 +1,22 @@
-import Link from "next/link";
-import ResetPasswordForm from "@/components/auth/reset-password-form";
+import { redirect } from "next/navigation";
 
-type Props = { searchParams?: { token?: string } };
+type PageProps = {
+  searchParams?: Record<string, string | string[] | undefined>;
+};
 
-export default function ResetPasswordPage({ searchParams }: Props) {
-  const token = typeof searchParams?.token === "string" ? searchParams.token : "";
-
-  return (
-    <section className="mx-auto max-w-md space-y-4 rounded-lg border border-track-200 bg-white p-6 shadow-sm">
-      <h1 className="text-center">Set new password</h1>
-      <p className="text-center text-sm text-track-600">
-        Enter your new password below. Use the link from your email; links expire after 1 hour.
-      </p>
-      <ResetPasswordForm token={token} />
-      <p className="text-center text-sm text-track-600">
-        <Link href="/auth/login" className="text-track-800 underline">
-          Back to log in
-        </Link>
-      </p>
-    </section>
-  );
+/** Legacy URL: forward query string to canonical /reset-password (selector, token, email). */
+export default function LegacyResetPasswordRedirectPage({ searchParams }: PageProps) {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams ?? {})) {
+    if (value === undefined) continue;
+    if (typeof value === "string") {
+      qs.set(key, value);
+    } else if (Array.isArray(value)) {
+      for (const v of value) {
+        if (v) qs.append(key, v);
+      }
+    }
+  }
+  const suffix = qs.toString();
+  redirect(suffix ? `/reset-password?${suffix}` : "/reset-password");
 }

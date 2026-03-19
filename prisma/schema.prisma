@@ -96,6 +96,7 @@ model PasswordResetToken {
   selector  String   @unique
   tokenHash String
   expiresAt DateTime
+  usedAt    DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
