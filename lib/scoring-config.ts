@@ -135,6 +135,20 @@ export type GolfRawStats = {
   wins?: number | null;
 };
 
+// ---------- Shared scoring breakdown types ----------
+
+export type ScoringBreakdownRow = {
+  key: string;
+  label: string;
+  rawValue: number;
+  fantasyPoints: number;
+};
+
+export type ScoringBreakdown = {
+  rows: ScoringBreakdownRow[];
+  total: number;
+};
+
 // ---------- Admin field metadata ----------
 
 export type AdminFieldDef = {
@@ -269,6 +283,66 @@ export function computeBasketballFantasyPointsFromRaw(raw: BasketballRawStats): 
   }
 
   return Number.isFinite(total) ? total : 0;
+}
+
+export function getBasketballScoringBreakdown(raw: BasketballRawStats): ScoringBreakdown {
+  const points = raw.points ?? 0;
+  const rebounds = raw.rebounds ?? 0;
+  const assists = raw.assists ?? 0;
+  const steals = raw.steals ?? 0;
+  const blocks = raw.blocks ?? 0;
+  const turnovers = raw.turnovers ?? 0;
+  const threes = raw.threePointersMade ?? 0;
+
+  const rows: ScoringBreakdownRow[] = [];
+
+  const addRow = (key: string, label: string, count: number, perUnit: number) => {
+    if (!count) return;
+    rows.push({
+      key,
+      label,
+      rawValue: count,
+      fantasyPoints: count * perUnit,
+    });
+  };
+
+  // Base categories
+  addRow("basketball.points", "Points", points, 1);
+  addRow("basketball.threes", "3-pointers made", threes, 0.5);
+  addRow("basketball.rebounds", "Rebounds", rebounds, 1.2);
+  addRow("basketball.assists", "Assists", assists, 1.5);
+  addRow("basketball.steals", "Steals", steals, 3);
+  addRow("basketball.blocks", "Blocks", blocks, 3);
+  addRow("basketball.turnovers", "Turnovers", turnovers, -1);
+
+  // Bonuses (mirror computeBasketballFantasyPointsFromRaw)
+  const doubleDigitCats =
+    (points >= 10 ? 1 : 0) +
+    (rebounds >= 10 ? 1 : 0) +
+    (assists >= 10 ? 1 : 0) +
+    (steals >= 10 ? 1 : 0) +
+    (blocks >= 10 ? 1 : 0);
+
+  if (doubleDigitCats >= 2) {
+    rows.push({
+      key: "basketball.doubleDouble",
+      label: "Double-double bonus",
+      rawValue: 1,
+      fantasyPoints: 3,
+    });
+  }
+  if (doubleDigitCats >= 3) {
+    rows.push({
+      key: "basketball.tripleDouble",
+      label: "Triple-double bonus",
+      rawValue: 1,
+      fantasyPoints: 5,
+    });
+  }
+
+  const total = rows.reduce((sum, row) => sum + row.fantasyPoints, 0);
+
+  return { rows, total };
 }
 
 // ---------- Football ----------

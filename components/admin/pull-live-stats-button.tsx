@@ -1,16 +1,25 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function PullLiveStatsButton({ contestId }: { contestId: string }) {
+type Props = { contestId: string; sport: string };
+
+export function PullLiveStatsButton({ contestId, sport }: Props) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const isHockey = sport === "HOCKEY";
+  const endpoint = isHockey
+    ? "/api/internal/hockey-live-stats"
+    : "/api/internal/basketball-live-stats";
 
   async function handleClick() {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/internal/basketball-live-stats", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contestId }),
@@ -25,6 +34,7 @@ export function PullLiveStatsButton({ contestId }: { contestId: string }) {
           ? `Updated ${data.updated} lane(s).`
           : "Done."
       );
+      router.refresh();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Request failed.");
     } finally {

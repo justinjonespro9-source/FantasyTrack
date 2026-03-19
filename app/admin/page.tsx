@@ -17,7 +17,10 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { ClientOnly } from "@/components/client-only";
 import { ImportCBBButton } from "@/components/admin/import-cbb-button";
+import { ImportNBAButton } from "@/components/admin/import-nba-button";
+import { ImportNHLButton } from "@/components/admin/import-nhl-button";
 import { PullLiveStatsButton } from "@/components/admin/pull-live-stats-button";
+import { BulkPullLiveStatsButton } from "@/components/admin/bulk-pull-live-stats-button";
 import { computeHockeyFantasyPoints } from "@/lib/scoring-hockey";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
 import {
@@ -1816,6 +1819,41 @@ async function updateContestTrackConditionsAction(formData: FormData) {
   revalidatePath("/");
 }
 
+async function linkContestToGameAction(formData: FormData) {
+  "use server";
+  await requireAdmin();
+
+  const contestId = String(formData.get("contestId") ?? "").trim();
+  const externalId = String(formData.get("externalId") ?? "").trim();
+
+  if (!contestId || !externalId) {
+    throw new Error("Contest ID and SportsDataIO Game ID are required.");
+  }
+
+  const contest = await prisma.contest.findUnique({
+    where: { id: contestId },
+    select: { id: true, sport: true },
+  });
+  if (!contest) {
+    throw new Error("Contest not found.");
+  }
+  if (contest.sport !== "HOCKEY") {
+    throw new Error("Link to game is only for hockey contests.");
+  }
+
+  await prisma.contest.update({
+    where: { id: contestId },
+    data: {
+      externalProvider: "sportsdataio",
+      externalId,
+    } as any,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath(`/contest/${contestId}`);
+  revalidatePath("/");
+}
+
 async function setLaneStatusAction(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -1957,6 +1995,42 @@ async function lockContestAction(formData: FormData) {
   revalidatePath("/");
 }
 
+async function unlockContestAction(formData: FormData) {
+  "use server";
+  await requireAdmin();
+
+  const contestId = String(formData.get("contestId") ?? "");
+  if (!contestId) throw new Error("Missing contestId");
+
+  const contest = await prisma.contest.findUnique({
+    where: { id: contestId },
+    select: { id: true, startTime: true },
+  });
+
+  if (!contest) {
+    throw new Error("Contest not found.");
+  }
+
+  const now = new Date();
+  const needsStartTimeBump = contest.startTime <= now;
+  const newStartTime = needsStartTimeBump
+    ? new Date(now.getTime() + 2 * 60 * 60 * 1000)
+    : contest.startTime;
+
+  await prisma.contest.update({
+    where: { id: contestId },
+    data: {
+      status: ContestStatus.PUBLISHED,
+      lockedAt: null,
+      ...(needsStartTimeBump ? { startTime: newStartTime } : {}),
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath(`/contest/${contestId}`);
+  revalidatePath("/");
+}
+
 async function settleAction(formData: FormData) {
   "use server";
   const auth = await requireAdmin();
@@ -2029,6 +2103,58 @@ async function settleAction(formData: FormData) {
   if (!lanes.some((l) => l.finalRank === 1)) {
     throw new Error("At least one lane must be ranked 1st.");
   }
+
+  await settleContestAtomic({
+    contestId,
+    adminId: auth.user.id,
+    lanes: lanes as any,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath(`/contest/${contestId}`);
+  revalidatePath("/");
+  revalidatePath(`/series/${contest.seriesId}/leaderboard`);
+}
+
+async function settleFromLiveResultsAction(formData: FormData) {
+  "use server";
+  const auth = await requireAdmin();
+
+  const contestId = String(formData.get("contestId") ?? "").trim();
+  if (!contestId) throw new Error("Missing contestId");
+
+  const contest = await prisma.contest.findUnique({
+    where: { id: contestId },
+    include: {
+      lanes: { orderBy: { name: "asc" } },
+      series: { select: { id: true } },
+      settlementSummary: { select: { id: true } },
+    },
+  });
+
+  if (!contest) throw new Error("Contest not found.");
+  if (contest.status === ContestStatus.SETTLED) {
+    throw new Error("Contest is already settled. Use Reopen (Edit) to modify.");
+  }
+  if (contest.status !== ContestStatus.LOCKED) {
+    throw new Error(`Contest must be LOCKED to settle (current: ${contest.status}).`);
+  }
+  const existingPayouts = await prisma.transaction.count({
+    where: { contestId, type: TransactionType.PAYOUT },
+  });
+  if (existingPayouts > 0 || contest.settlementSummary) {
+    throw new Error(
+      "This contest already appears settled. Use Reopen (Edit) to change it."
+    );
+  }
+
+  const autoFill = computeAutoFillSettlement(contest);
+  const lanes = contest.lanes.map((lane) => ({
+    id: lane.id,
+    laneId: lane.id,
+    finalRank: autoFill[lane.id].finalRank,
+    fantasyPoints: autoFill[lane.id].fantasyPoints,
+  }));
 
   await settleContestAtomic({
     contestId,
@@ -2178,10 +2304,42 @@ async function reopenSettlementAction(formData: FormData) {
   revalidatePath(`/series/${contest.seriesId}/leaderboard`);
 }
 
+/**
+ * Compute suggested final rank and fantasy points for settlement from lane live/final points.
+ * Uses liveFantasyPoints ?? fantasyPoints ?? 0; sorts desc; assigns ranks (ties get same rank, next ordinal skipped).
+ */
+function computeAutoFillSettlement(contest: {
+  id: string;
+  lanes: Array<{ id: string; liveFantasyPoints?: number | null; fantasyPoints?: number | null }>;
+}): Record<string, { finalRank: number; fantasyPoints: number | null }> {
+  const points = (l: { liveFantasyPoints?: number | null; fantasyPoints?: number | null }) =>
+    l.liveFantasyPoints ?? l.fantasyPoints ?? 0;
+  const sorted = [...contest.lanes].sort((a, b) => {
+    const pa = points(a);
+    const pb = points(b);
+    if (pb !== pa) return pb - pa;
+    return a.id.localeCompare(b.id);
+  });
+  const result: Record<string, { finalRank: number; fantasyPoints: number | null }> = {};
+  for (let i = 0; i < sorted.length; i++) {
+    const lane = sorted[i];
+    const pt = points(lane);
+    const strictlyBetter = sorted.filter((l) => points(l) > pt).length;
+    const finalRank = strictlyBetter + 1;
+    result[lane.id] = {
+      finalRank,
+      fantasyPoints: pt !== 0 || lane.liveFantasyPoints != null || lane.fantasyPoints != null ? pt : null,
+    };
+  }
+  return result;
+}
+
 // --------------------
 // Page
 // --------------------
-export default async function AdminPage() {
+type AdminPageProps = { searchParams?: { autofill?: string } };
+
+export default async function AdminPage({ searchParams }: AdminPageProps) {
   const session = await getCurrentSession();
   if (!session?.user?.id || !session.user.isAdmin) redirect("/auth/login");
 
@@ -2283,18 +2441,42 @@ export default async function AdminPage() {
     (c) => c.status === ContestStatus.LOCKED && !c.archivedAt
   );
 
+  const autofillContestId = typeof searchParams?.autofill === "string" ? searchParams.autofill.trim() : null;
+  const autoFillByContestId: Record<string, Record<string, { finalRank: number; fantasyPoints: number | null }>> = {};
+  if (autofillContestId) {
+    const contest = lockedAwaitingSettlement.find((c) => c.id === autofillContestId);
+    if (contest && "lanes" in contest && Array.isArray(contest.lanes)) {
+      autoFillByContestId[contest.id] = computeAutoFillSettlement({
+        id: contest.id,
+        lanes: contest.lanes.map((l: { id: string; liveFantasyPoints?: number | null; fantasyPoints?: number | null }) => ({
+          id: l.id,
+          liveFantasyPoints: l.liveFantasyPoints ?? null,
+          fantasyPoints: l.fantasyPoints ?? null,
+        })),
+      });
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <CardSection title="Data providers (NCAA basketball)" right={null}>
+      <CardSection title="Data providers (SportsDataIO)" right={null}>
         <p className="text-xs text-track-600 mb-2">
-          Import CBB league, teams, and players from SportsDataIO so you can create contests from
+          Import league, teams, and players from SportsDataIO so you can create contests from
           game and build lanes. Then use{" "}
           <Link href="/admin/contest-from-game" className="text-amber-600 hover:underline">
             Create contest from game
           </Link>{" "}
-          and select the CBB league to load the schedule.
+          and select CBB, NBA, or NHL to load the schedule.
         </p>
-        <ImportCBBButton />
+        <div className="flex flex-wrap items-center gap-3">
+          <ImportCBBButton />
+          <ImportNBAButton />
+          <ImportNHLButton />
+        </div>
+        <p className="text-xs text-track-600 mt-3 mb-1">
+          Pull live stats from SportsDataIO for all active basketball contests (PUBLISHED or LOCKED, with external game linked).
+        </p>
+        <BulkPullLiveStatsButton />
       </CardSection>
 
       <CardSection title="House Rake Summary">
@@ -2502,7 +2684,8 @@ export default async function AdminPage() {
                   </form>
                 </div>
 
-                {(contest as any).sport === "BASKETBALL" && (
+                {((contest as any).sport === "BASKETBALL" ||
+                  (contest as any).sport === "HOCKEY") && (
                   <p className="mt-1 text-[11px] text-track-600">
                     External game:{" "}
                     {(contest as any).externalProvider && (contest as any).externalId ? (
@@ -2536,10 +2719,34 @@ export default async function AdminPage() {
                     View
                   </Link>
 
-                  {(contest as any).sport === "BASKETBALL" &&
+                  {((contest as any).sport === "BASKETBALL" ||
+                    (contest as any).sport === "HOCKEY") &&
                     (contest as any).externalProvider === "sportsdataio" &&
                     (contest as any).externalId && (
-                      <PullLiveStatsButton contestId={contest.id} />
+                      <PullLiveStatsButton
+                        contestId={contest.id}
+                        sport={(contest as any).sport}
+                      />
+                    )}
+
+                  {(contest as any).sport === "HOCKEY" &&
+                    !(contest as any).externalId && (
+                      <form action={linkContestToGameAction} className="inline-flex items-center gap-1">
+                        <input type="hidden" name="contestId" value={contest.id} />
+                        <input
+                          name="externalId"
+                          type="text"
+                          placeholder="SportsDataIO Game ID"
+                          className="w-32 rounded border border-track-200 bg-white px-1.5 py-0.5 text-xs text-track-800"
+                          required
+                        />
+                        <button
+                          type="submit"
+                          className="rounded bg-track-700 px-2 py-0.5 text-xs font-semibold text-white hover:bg-track-600"
+                        >
+                          Link to game
+                        </button>
+                      </form>
                     )}
 
                   <form action={publishContestAction}>
@@ -2564,6 +2771,17 @@ export default async function AdminPage() {
                     </button>
                   </form>
 
+                  <form action={unlockContestAction}>
+                    <input type="hidden" name="contestId" value={contest.id} />
+                    <button
+                      type="submit"
+                      className="rounded bg-track-100 px-3 py-1 text-sm text-track-700"
+                      disabled={contest.status !== ContestStatus.LOCKED}
+                    >
+                      Unlock
+                    </button>
+                  </form>
+
                   <form action={toggleArchiveContestAction}>
                     <input type="hidden" name="contestId" value={contest.id} />
                     <input type="hidden" name="archived" value="true" />
@@ -2574,6 +2792,10 @@ export default async function AdminPage() {
                       Archive
                     </button>
                   </form>
+
+                  <span className="ml-2 text-[10px] font-bold uppercase text-amber-500">
+                    UNLOCK BUILD ACTIVE
+                  </span>
                 </div>
               </div>
 
@@ -3456,51 +3678,101 @@ export default async function AdminPage() {
       <CardSection title="Settlement">
         <p className="text-sm text-track-600">
           Enter rank (1..N) for every lane and optional fantasy points. Contest must be locked.
+          Use &quot;Auto-fill from live results&quot; to pre-fill from current lane fantasy points for review, then Settle.
         </p>
 
         <div className="mt-4 space-y-4">
-          {lockedAwaitingSettlement.map((contest) => (
-            <form
-              key={contest.id}
-              action={settleAction}
-              className="rounded border border-track-200 p-3"
-            >
-              <input type="hidden" name="contestId" value={contest.id} />
+          {lockedAwaitingSettlement.map((contest) => {
+            const autoFill = autoFillByContestId[contest.id];
+            return (
+              <div key={contest.id} className="rounded border border-track-200 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium">{contest.title}</p>
+                  <Link
+                    href={`/admin?autofill=${encodeURIComponent(contest.id)}`}
+                    className="text-sm text-amber-600 underline hover:text-amber-500"
+                  >
+                    Auto-fill from live results
+                  </Link>
+                </div>
+                <p className="text-sm text-track-600">
+                  {contest.series?.name ?? "—"} · {contest.sport} · {formatDateTime(contest.startTime)}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {((contest as any).sport === "BASKETBALL" || (contest as any).sport === "HOCKEY") &&
+                    (contest as any).externalProvider === "sportsdataio" &&
+                    (contest as any).externalId && (
+                      <PullLiveStatsButton
+                        contestId={contest.id}
+                        sport={(contest as any).sport}
+                      />
+                    )}
+                  {(contest as any).sport === "HOCKEY" &&
+                    !(contest as any).externalId && (
+                      <form action={linkContestToGameAction} className="inline-flex items-center gap-1">
+                        <input type="hidden" name="contestId" value={contest.id} />
+                        <input
+                          name="externalId"
+                          type="text"
+                          placeholder="SportsDataIO Game ID"
+                          className="w-32 rounded border border-track-200 bg-white px-1.5 py-0.5 text-xs text-track-800"
+                          required
+                        />
+                        <button type="submit" className="rounded bg-track-700 px-2 py-0.5 text-xs font-semibold text-white hover:bg-track-600">
+                          Link to game
+                        </button>
+                      </form>
+                    )}
+                </div>
 
-              <p className="font-medium">{contest.title}</p>
-              <p className="text-sm text-track-600">
-                {contest.series?.name ?? "—"} · {contest.sport} · {formatDateTime(contest.startTime)}
-              </p>
+                <form action={settleAction} className="mt-3">
+                  <input type="hidden" name="contestId" value={contest.id} />
 
-              <div className="mt-3 space-y-2">
-                {contest.lanes.map((lane) => (
-                  <div key={lane.id} className="grid gap-2 md:grid-cols-4">
-                    <div className="md:col-span-2">{lane.name}</div>
+                  <div className="space-y-2">
+                    {contest.lanes.map((lane) => (
+                      <div key={lane.id} className="grid gap-2 md:grid-cols-4">
+                        <div className="md:col-span-2">{lane.name}</div>
 
-                    <input
-                      name={`rank_${lane.id}`}
-                      type="number"
-                      min={1}
-                      max={contest.lanes.length}
-                      placeholder="Final rank"
-                      required
-                    />
+                        <input
+                          name={`rank_${lane.id}`}
+                          type="number"
+                          min={1}
+                          max={contest.lanes.length}
+                          placeholder="Final rank"
+                          required
+                          defaultValue={autoFill?.[lane.id]?.finalRank}
+                        />
 
-                    <input
-                      name={`points_${lane.id}`}
-                      type="number"
-                      step="0.01"
-                      placeholder="Final fantasy points (optional)"
-                    />
+                        <input
+                          name={`points_${lane.id}`}
+                          type="number"
+                          step="0.01"
+                          placeholder="Final fantasy points (optional)"
+                          defaultValue={autoFill?.[lane.id]?.fantasyPoints ?? ""}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              <button type="submit" className="mt-3 rounded bg-track-800 px-3 py-1 text-white">
-                Settle Contest
-              </button>
-            </form>
-          ))}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="submit" className="rounded bg-track-800 px-3 py-1 text-white">
+                      Settle Contest
+                    </button>
+                  </div>
+                </form>
+
+                <form action={settleFromLiveResultsAction} className="mt-2">
+                  <input type="hidden" name="contestId" value={contest.id} />
+                  <button
+                    type="submit"
+                    className="rounded border border-amber-600 bg-amber-600/10 px-3 py-1 text-amber-200 hover:bg-amber-600/20"
+                  >
+                    Settle from live results (no review)
+                  </button>
+                </form>
+              </div>
+            );
+          })}
 
           {lockedAwaitingSettlement.length === 0 ? (
             <p className="text-sm text-track-600">No locked contests awaiting settlement.</p>

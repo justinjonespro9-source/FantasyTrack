@@ -48,10 +48,15 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [autoBuilding, setAutoBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const selectedContest = contests.find((c) => c.id === contestId) ?? null;
+  const isBasketballWithTeams =
+    selectedContest?.sport === "BASKETBALL" &&
+    selectedContest?.homeTeamId &&
+    selectedContest?.awayTeamId;
 
   const linkedTeamIds = useMemo(() => {
     if (!selectedContest) return [] as string[];
@@ -63,12 +68,28 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
 
   const leaguesForSport = useMemo(() => {
     if (!selectedContest) return leagues;
-    return leagues.filter((l) => l.sport === selectedContest.sport);
-  }, [leagues, selectedContest]);
+    const bySport = leagues.filter((l) => l.sport === selectedContest.sport);
+    // When contest has linked teams, only show leagues that contain at least one of those teams.
+    // Never show leagues from same-city other sports (e.g. no NBA when contest is NHL).
+    if (linkedTeamIds.length > 0) {
+      return bySport.filter((league) =>
+        league.teams.some((t) => linkedTeamIds.includes(t.id))
+      );
+    }
+    return bySport;
+  }, [leagues, selectedContest, linkedTeamIds]);
 
   const selectedLeague = leagues.find((l) => l.id === leagueId) ?? null;
 
-  const teamsForLeague = selectedLeague?.teams ?? [];
+  // When contest has home/away teams, only show those exact teams (strict team IDs).
+  // Do not show all teams in the league to avoid cross-league or same-city mix-ups.
+  const teamsForLeague = useMemo(() => {
+    if (!selectedLeague) return [];
+    if (linkedTeamIds.length > 0) {
+      return selectedLeague.teams.filter((t) => linkedTeamIds.includes(t.id));
+    }
+    return selectedLeague.teams;
+  }, [selectedLeague, linkedTeamIds]);
 
   const playersForSelectedTeams = useMemo(() => {
     if (!selectedLeague) return [];
@@ -83,12 +104,23 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
     );
   }, [selectedLeague, selectedTeamIds]);
 
+  // When contest or leagues change, keep leagueId valid: only allow leagues in leaguesForSport.
+  // If current league is wrong sport or doesn't contain contest's teams, clear it (safety guard).
+  useEffect(() => {
+    if (!selectedContest || !leagueId) return;
+    const valid = leaguesForSport.some((l) => l.id === leagueId);
+    if (!valid) {
+      setLeagueId("");
+      setSelectedTeamIds([]);
+      setSelectedPlayerIds([]);
+    }
+  }, [selectedContest, leagueId, leaguesForSport]);
+
   // When a contest with linked teams is selected, auto-select the league and teams
   useEffect(() => {
     if (!selectedContest || linkedTeamIds.length === 0) return;
 
-    // Find a league that contains at least one of the linked teams
-    const leagueWithTeams = leagues.find((league) =>
+    const leagueWithTeams = leaguesForSport.find((league) =>
       league.teams.some((team) => linkedTeamIds.includes(team.id))
     );
 
@@ -101,8 +133,8 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
       .map((team) => team.id);
 
     setSelectedTeamIds(teamIdsInLeague);
-    setSelectedPlayerIds([]); // players remain manual selection
-  }, [leagues, linkedTeamIds, selectedContest]);
+    setSelectedPlayerIds([]);
+  }, [leaguesForSport, linkedTeamIds, selectedContest]);
 
   const toggleTeam = (teamId: string) => {
     setSelectedTeamIds((prev) =>
@@ -149,6 +181,37 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
       setError(err?.message || "Unable to create lanes.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleAutoBuild() {
+    if (!contestId || !isBasketballWithTeams) return;
+    setAutoBuilding(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/contest-lanes/auto-build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contestId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        created?: number;
+        skipped?: number;
+        totalPlayers?: number;
+      };
+      if (!res.ok) {
+        throw new Error(data.error || "Unable to auto-build lanes.");
+      }
+      setMessage(
+        `Created ${data.created ?? 0} lane(s). ${data.skipped ?? 0} already had lanes. (${data.totalPlayers ?? 0} players on both teams.)`
+      );
+      router.refresh();
+    } catch (err: any) {
+      setError(err?.message || "Unable to auto-build lanes.");
+    } finally {
+      setAutoBuilding(false);
     }
   }
 
@@ -212,7 +275,11 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
             </p>
           ) : null}
           <div className="mt-2 max-h-60 space-y-1 overflow-y-auto rounded-md border border-neutral-800 bg-neutral-950/80 p-2 text-sm">
-            {teamsForLeague.length === 0 ? (
+            {linkedTeamIds.length > 0 && leaguesForSport.length === 0 ? (
+              <p className="text-xs text-amber-400">
+                No league in this sport has this contest&apos;s teams. Link the contest to a game (Create contest from game) or set home/away teams so the correct league and players are available.
+              </p>
+            ) : teamsForLeague.length === 0 ? (
               <p className="text-xs text-neutral-500">Select a league to see teams.</p>
             ) : (
               teamsForLeague.map((team) => {
@@ -287,7 +354,17 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
       {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {isBasketballWithTeams && (
+          <button
+            type="button"
+            onClick={handleAutoBuild}
+            disabled={autoBuilding || submitting}
+            className="rounded-full border border-amber-500/70 bg-amber-500/20 px-4 py-1.5 text-sm font-semibold text-amber-200 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {autoBuilding ? "Building…" : "Build lanes for all players in this game"}
+          </button>
+        )}
         <button
           type="submit"
           disabled={submitting}

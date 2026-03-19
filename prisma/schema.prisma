@@ -86,6 +86,21 @@ model User {
   shoutoutsCreated         Shoutout[]    @relation("ShoutoutCreatedByAdmin")
 
   seriesMemberships SeriesMembership[]
+
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  selector  String   @unique
+  tokenHash String
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Series {

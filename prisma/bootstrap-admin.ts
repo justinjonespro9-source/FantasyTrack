@@ -11,9 +11,9 @@ async function main() {
   const phoneEnv = process.env.ADMIN_PHONE?.trim();
   const startingGrantRaw = process.env.ADMIN_WALLET_GRANT?.trim();
 
-  if (!email || !password) {
+  if (!email) {
     console.error(
-      "ADMIN_EMAIL and ADMIN_PASSWORD are required. Example:\n" +
+      "ADMIN_EMAIL is required. Example:\n" +
         'ADMIN_EMAIL="you@example.com" ADMIN_PASSWORD="strong-password" npm run prisma:bootstrap-admin'
     );
     return;
@@ -36,6 +36,13 @@ async function main() {
   });
 
   if (!user) {
+    if (!password) {
+      console.error(
+        "Admin user does not exist and ADMIN_PASSWORD was not provided. Cannot create admin without a password."
+      );
+      return;
+    }
+
     console.log("Admin user not found. Creating new admin user.");
     const passwordHash = await bcrypt.hash(password, 10);
     user = await prisma.user.create({
@@ -49,11 +56,19 @@ async function main() {
       },
     });
   } else {
-    console.log("User already exists. Ensuring admin flag is set.");
-    if (!user.isAdmin) {
+    console.log("User already exists. Ensuring admin flag is set and password updated if provided.");
+    const updateData: { isAdmin: boolean; passwordHash?: string } = {
+      isAdmin: true,
+    };
+
+    if (password) {
+      updateData.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    if (!user.isAdmin || password) {
       user = await prisma.user.update({
         where: { id: user.id },
-        data: { isAdmin: true },
+        data: updateData,
       });
     }
   }

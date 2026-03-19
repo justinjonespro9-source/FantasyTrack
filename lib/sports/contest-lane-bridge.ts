@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/prisma";
 
-export async function createLanesFromPlayers(contestId: string, playerIds: string[]) {
-  if (!playerIds.length) return;
+export type CreateLanesResult = { created: number; skipped: number };
+
+export async function createLanesFromPlayers(
+  contestId: string,
+  playerIds: string[]
+): Promise<CreateLanesResult> {
+  if (!playerIds.length) return { created: 0, skipped: 0 };
 
   const uniquePlayerIds = Array.from(new Set(playerIds));
 
@@ -34,7 +39,11 @@ export async function createLanesFromPlayers(contestId: string, playerIds: strin
   );
 
   const playersToCreate = players.filter((p) => !existingPlayerIds.has(p.id));
-  if (playersToCreate.length === 0) return;
+  const skipped = uniquePlayerIds.filter((id) => existingPlayerIds.has(id)).length;
+
+  if (playersToCreate.length === 0) {
+    return { created: 0, skipped };
+  }
 
   await prisma.lane.createMany({
     data: playersToCreate.map((player) => {
@@ -52,5 +61,7 @@ export async function createLanesFromPlayers(contestId: string, playerIds: strin
       };
     }),
   });
+
+  return { created: playersToCreate.length, skipped };
 }
 

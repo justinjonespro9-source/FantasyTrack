@@ -4,6 +4,10 @@
 
 :root {
   color-scheme: dark;
+  /* FantasyTrack brand tokens */
+  --ft-gold-rgb: 212, 168, 74;
+  --ft-silver-rgb: 199, 200, 204;
+  --ft-bronze-rgb: 167, 112, 48;
 }
 
 body {
@@ -64,4 +68,75 @@ h2 {
 
 .rank-flash-down {
   animation: rank-flash-down 1.5s ease-out forwards;
+}
+
+/* Splash screen: initial load only, dark branded overlay */
+@keyframes splash-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes splash-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 32px rgba(var(--ft-gold-rgb), 0.2);
+  }
+  50% {
+    text-shadow: 0 0 48px rgba(var(--ft-gold-rgb), 0.35);
+  }
+}
+
+.splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0a0a0a;
+  pointer-events: none;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  animation: splash-fade-in 0.4s ease-out forwards;
+}
+
+.splash-content.splash-exit {
+  animation: splash-fade-in 0.4s ease-out reverse forwards;
+}
+
+.splash-title {
+  font-size: clamp(2.4rem, 6vw, 3.75rem);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  color: rgb(var(--ft-gold-rgb));
+  font-family: "Cinzel", "Trajan Pro", ui-serif, Georgia, "Times New Roman", serif;
+  margin: 0;
+  animation: splash-glow 2s ease-in-out infinite;
+}
+
+.splash-subtitle {
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--ft-silver-rgb));
+  margin: 0.6rem 0 0;
+}
+
+.splash-tagline {
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(var(--ft-bronze-rgb), 0.9);
 }

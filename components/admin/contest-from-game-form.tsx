@@ -41,6 +41,12 @@ function formatGameTime(iso: string): string {
   });
 }
 
+function isGameToday(startTime: string): boolean {
+  const d = new Date(startTime);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
 export default function ContestFromGameForm({ leagues, seriesList }: Props) {
   const [sport, setSport] = useState<string>("");
   const [leagueId, setLeagueId] = useState<string>("");
@@ -49,14 +55,115 @@ export default function ContestFromGameForm({ leagues, seriesList }: Props) {
   const [scheduleSport, setScheduleSport] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [creatingId, setCreatingId] = useState<string | null>(null);
+  const [bulkCreating, setBulkCreating] = useState(false);
+  const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(new Set());
+  const [todayOnly, setTodayOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [createdContestId, setCreatedContestId] = useState<string | null>(null);
+  const [bulkResult, setBulkResult] = useState<{
+    created: number;
+    skipped: number;
+    failed: number;
+    createdContests?: { id: string; title: string }[];
+    failedGames?: { externalId: string; reason: string }[];
+  } | null>(null);
 
   const leaguesForSport = useMemo(() => {
     if (!sport) return [];
     return leagues.filter((l) => l.sport === sport);
   }, [leagues, sport]);
+
+  const gamesToShow = useMemo(() => {
+    if (!todayOnly) return games;
+    return games.filter((g) => isGameToday(g.startTime));
+  }, [games, todayOnly]);
+
+  const selectedCount = useMemo(
+    () => gamesToShow.filter((g) => selectedGameIds.has(g.id)).length,
+    [gamesToShow, selectedGameIds]
+  );
+
+  function toggleGameSelection(id: string) {
+    setSelectedGameIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllShown() {
+    setSelectedGameIds(new Set(gamesToShow.map((g) => g.id)));
+  }
+
+  function selectNone() {
+    setSelectedGameIds(new Set());
+  }
+
+  async function createBulkContests() {
+    if (!seriesId || selectedCount === 0) {
+      setError(selectedCount === 0 ? "Select at least one game." : "Select a series first.");
+      return;
+    }
+    const sportToUse = scheduleSport || sport;
+    if (!sportToUse) {
+      setError("Sport is missing.");
+      return;
+    }
+    const toCreate = gamesToShow.filter((g) => selectedGameIds.has(g.id));
+    setBulkCreating(true);
+    setError(null);
+    setMessage(null);
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/admin/contest-from-game/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seriesId,
+          sport: sportToUse,
+          games: toCreate.map((g) => ({
+            startTime: g.startTime,
+            homeTeamId: g.homeTeamId,
+            awayTeamId: g.awayTeamId,
+            externalProvider: g.externalProvider,
+            externalId: g.externalId,
+            homeLabel: g.homeLabel,
+            awayLabel: g.awayLabel,
+          })),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        created?: number;
+        skipped?: number;
+        failed?: number;
+        createdContests?: { id: string; title: string }[];
+        skippedGames?: { externalId: string; reason: string }[];
+        failedGames?: { externalId: string; reason: string }[];
+        error?: string;
+      };
+      if (!res.ok) {
+        setError(data.error ?? `Bulk create failed (${res.status}).`);
+        return;
+      }
+      setBulkResult({
+        created: data.created ?? 0,
+        skipped: data.skipped ?? 0,
+        failed: data.failed ?? 0,
+        createdContests: data.createdContests,
+        failedGames: data.failedGames,
+      });
+      setMessage(
+        `Bulk: ${data.created ?? 0} created, ${data.skipped ?? 0} skipped (duplicates), ${data.failed ?? 0} failed.`
+      );
+      selectNone();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Bulk request failed.");
+    } finally {
+      setBulkCreating(false);
+    }
+  }
 
   async function loadSchedule() {
     if (!leagueId) {
@@ -68,6 +175,8 @@ export default function ContestFromGameForm({ leagues, seriesList }: Props) {
     setMessage(null);
     setGames([]);
     setScheduleSport("");
+    setSelectedGameIds(new Set());
+    setBulkResult(null);
     try {
       const res = await fetch(`/api/admin/schedule?leagueId=${encodeURIComponent(leagueId)}`);
       const data = (await res.json()) as {
@@ -235,16 +344,61 @@ export default function ContestFromGameForm({ leagues, seriesList }: Props) {
 
       {games.length > 0 ? (
         <div className="rounded-md border border-neutral-800 bg-neutral-950/80">
-          <p className="border-b border-neutral-800 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Imported games — create contest
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              Imported games — create contest
+            </p>
+            <label className="flex items-center gap-2 text-xs text-neutral-300">
+              <input
+                type="checkbox"
+                checked={todayOnly}
+                onChange={(e) => setTodayOnly(e.target.checked)}
+                className="rounded border-neutral-600"
+              />
+              Today&apos;s games only
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 px-3 py-2">
+            <button
+              type="button"
+              onClick={selectAllShown}
+              className="text-xs text-amber-400/90 underline hover:text-amber-300"
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              onClick={selectNone}
+              className="text-xs text-neutral-400 underline hover:text-neutral-300"
+            >
+              Select none
+            </button>
+            <span className="text-xs text-neutral-500">
+              {selectedCount} of {gamesToShow.length} selected
+            </span>
+            <button
+              type="button"
+              onClick={createBulkContests}
+              disabled={!seriesId || selectedCount === 0 || bulkCreating}
+              className="ml-2 rounded border border-amber-400/70 bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-400/30 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {bulkCreating ? "Creating…" : "Create contests for selected games"}
+            </button>
+          </div>
           <ul className="divide-y divide-neutral-800">
-            {games.map((game) => (
+            {gamesToShow.map((game) => (
               <li
                 key={game.id}
-                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+                className="flex flex-wrap items-center gap-2 px-3 py-2"
               >
-                <span className="text-sm text-neutral-100">
+                <input
+                  type="checkbox"
+                  checked={selectedGameIds.has(game.id)}
+                  onChange={() => toggleGameSelection(game.id)}
+                  className="rounded border-neutral-600"
+                  aria-label={`Select ${game.awayLabel} @ ${game.homeLabel}`}
+                />
+                <span className="min-w-0 flex-1 text-sm text-neutral-100">
                   {game.awayLabel} @ {game.homeLabel}
                 </span>
                 <span className="text-xs text-neutral-500">
@@ -261,6 +415,33 @@ export default function ContestFromGameForm({ leagues, seriesList }: Props) {
               </li>
             ))}
           </ul>
+          {bulkResult ? (
+            <div className="border-t border-neutral-800 px-3 py-2 text-sm">
+              <p className="font-medium text-neutral-200">
+                Created: {bulkResult.created} · Skipped (duplicates): {bulkResult.skipped} · Failed: {bulkResult.failed}
+              </p>
+              {bulkResult.createdContests && bulkResult.createdContests.length > 0 ? (
+                <p className="mt-1 text-xs text-amber-200/90">
+                  <Link href="/admin/contest-lanes" className="underline">
+                    Build lanes
+                  </Link>
+                  {" · "}
+                  <Link href="/admin" className="underline">
+                    Admin
+                  </Link>
+                </p>
+              ) : null}
+              {bulkResult.failedGames && bulkResult.failedGames.length > 0 ? (
+                <ul className="mt-2 text-xs text-red-300">
+                  {bulkResult.failedGames.map((f, i) => (
+                    <li key={i}>
+                      {f.externalId}: {f.reason}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

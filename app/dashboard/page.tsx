@@ -1,6 +1,7 @@
 import { ContestStatus } from "@prisma/client";
 import Link from "next/link";
 import { ClientOnly } from "@/components/client-only";
+import { DashboardOnboardingCard } from "@/components/dashboard-onboarding-card";
 import { SeriesStatusBanner } from "@/components/series-status-banner";
 import { formatCoins, formatDateTime } from "@/lib/format";
 import { autoLockContests, getGlobalLeaderboard, getSeriesLeaderboard } from "@/lib/market";
@@ -141,6 +142,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const allActiveContests = seriesDashboards.flatMap((d) => d.activeContests);
   allActiveContests.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
+  const openContestsCount = allActiveContests.length;
+  const settledTodayCount = seriesDashboards.reduce(
+    (sum, d) => sum + d.yesterdayResults.length,
+    0
+  );
+
+  const hasHistory = globalTop10.length > 0 || userSeries.length > 0;
+
   const contestSeriesById: Record<string, string> = {};
   seriesDashboards.forEach(({ series, activeContests }) => {
     activeContests.forEach((c: any) => {
@@ -157,6 +166,45 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       ) : null}
 
+      <ClientOnly>
+        <DashboardOnboardingCard hasHistory={hasHistory} />
+      </ClientOnly>
+
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+              My Track
+            </p>
+            <p className="text-xs text-neutral-300">
+              Join a live contest, enter a series, and track your results.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <div>
+              <p className="text-neutral-400">Live entries</p>
+              <p className="font-semibold text-neutral-50">—</p>
+            </div>
+            <div>
+              <p className="text-neutral-400">Open contests</p>
+              <p className="font-semibold text-neutral-50">
+                {openContestsCount ?? "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-neutral-400">Recently settled</p>
+              <p className="font-semibold text-neutral-50">
+                {settledTodayCount ?? "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-neutral-400">ROI</p>
+              <p className="font-semibold text-neutral-50">Coming soon</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Top row: Active Contests (left) + Series panel (right) */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         {/* Active Contests — primary focus */}
@@ -165,9 +213,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <h1 className="text-lg font-semibold text-neutral-50">Active Contests</h1>
           </div>
           {allActiveContests.length === 0 ? (
-            <p className="text-sm text-neutral-400">
-              No active contests right now. Join a series to see contests when they’re open.
-            </p>
+            <div className="space-y-2 text-sm text-neutral-300">
+              <p>No active contests right now.</p>
+              <p className="text-xs text-neutral-400">
+                When contests are open, they&apos;ll appear here. You can still join a
+                series now so you&apos;re ready when new contests post.
+              </p>
+              <Link
+                href="/series/join"
+                className="inline-flex items-center rounded-full border border-amber-400/70 bg-amber-400 px-3 py-1.5 text-xs font-semibold text-neutral-950 hover:bg-amber-300"
+              >
+                Join a Series
+              </Link>
+            </div>
           ) : (
             <div className="space-y-2.5">
               {allActiveContests.map((c) => (
@@ -406,7 +464,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 </div>
 
                 {activeContests.length === 0 ? (
-                  <p className="text-sm text-neutral-400">No active contests in this series.</p>
+                  <p className="text-sm text-neutral-400">
+                    No active contests in this series right now. New contests for this
+                    series will show up here as soon as they open.
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {activeContests.map((c) => (

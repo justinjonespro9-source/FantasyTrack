@@ -6,6 +6,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useTransition, type Rea
 import { ClientOnly } from "@/components/client-only";
 import { TicketDetailModal } from "@/components/tickets/ticket-detail-modal";
 import { LiveRaceBoard } from "@/components/live-race-board";
+import { ScoringBreakdownAccordion } from "@/components/scoring/scoring-breakdown-accordion";
 
 import {
   MIN_BET_AMOUNT,
@@ -19,6 +20,7 @@ import type { OddsPayload } from "@/lib/market";
 import { collapseWps, type BetRow } from "@/lib/wps";
 import { formatSportLabel } from "@/lib/sports";
 import { formatTrackConditionsLabel } from "@/lib/track-conditions";
+import type { ScoringBreakdown } from "@/lib/scoring-config";
 
 type LaneStatus = "ACTIVE" | "QUESTIONABLE" | "DOUBTFUL" | "SCRATCHED";
 
@@ -33,6 +35,8 @@ type LaneView = {
   /** Live-only in-race fantasy points; final points remain on fantasyPoints. */
   liveFantasyPoints?: number | null;
   status: LaneStatus;
+  /** Optional per-player scoring breakdown, e.g. basketball raw stats. */
+  scoringBreakdown?: ScoringBreakdown | null;
 };
 
 type MyBetView = {
@@ -306,6 +310,7 @@ export default function ContestBoard({
 
   // Inline slip opened under a specific odds row (live board)
   const [inlineSlipLaneId, setInlineSlipLaneId] = useState<string | null>(null);
+  const [openScoringLaneId, setOpenScoringLaneId] = useState<string | null>(null);
 
   const myBetsScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -499,6 +504,10 @@ export default function ContestBoard({
     selectedMarket === Market.WIN && singleValid ? getProjectedWinMultiple(parsedSingleAmount) : null;
 
   const projectedWpsWinMultiple = wpsValid ? getProjectedWinMultiple(parsedWpsAmount) : null;
+
+  const selectedRunnerLabel = selectedLane
+    ? formatLaneDisplayName(selectedLane.name, selectedLane.position, selectedLane.team)
+    : "—";
 
   const coinsUsedInContest = REQUIRED_TOTAL_WAGER_PER_CONTEST - odds.myCoinsRemainingInContest;
   const allocationProgress = Math.max(
@@ -808,9 +817,32 @@ export default function ContestBoard({
         </div>
       </div>
 
+      {isLoggedIn && (
+        <div className="rounded border border-neutral-700 bg-neutral-900/60 px-3 py-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-4 text-neutral-300">
+              <span>
+                Required: <span className="font-semibold text-neutral-100">{formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)}</span>
+              </span>
+              <span>
+                Wagered: <span className="font-semibold text-neutral-100">{formatCoins(coinsUsedInContest)}</span>
+              </span>
+              <span>
+                Left to Allocate: <span className="font-semibold text-neutral-100">{formatCoins(odds.myCoinsRemainingInContest)}</span>
+              </span>
+            </div>
+            {coinsUsedInContest >= REQUIRED_TOTAL_WAGER_PER_CONTEST && (
+              <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-200">
+                Allocation Complete
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded border border-neutral-800">
         <div className="max-h-[30rem] overflow-y-auto">
-          <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+          <table className="w-full table-auto text-left text-sm md:table-fixed md:min-w-[760px]">
           <colgroup>
             <col className="w-[110px]" />
             <col className="w-[220px]" />
@@ -934,7 +966,7 @@ export default function ContestBoard({
                     <p className="text-sm font-semibold text-neutral-100">
                       {formatCoins(winTotal)}
                     </p>
-                    <p className="text-[11px] text-neutral-500 md:block hidden">
+                    <p className="hidden text-[11px] text-neutral-500 md:block">
                       {formatMultiple(odds.estMultiples[lane.id]?.WIN ?? null)}
                     </p>
                   </td>
@@ -952,12 +984,30 @@ export default function ContestBoard({
                     <p className="text-sm font-semibold text-neutral-100">
                       {formatCoins(showTotal)}
                     </p>
-                    <p className="text-[11px] text-neutral-500 md:block hidden">
+                    <p className="hidden text-[11px] text-neutral-500 md:block">
                       {formatMultiple(odds.estMultiples[lane.id]?.SHOW ?? null)}
                     </p>
                   </td>
 
-                  <td className="px-1.5 py-1.5 align-top" />
+                  <td className="px-1.5 py-1.5 align-top">
+                    <div className="flex flex-col items-start">
+                      <span className="text-[11px] font-medium text-neutral-300">
+                        {((lane.liveFantasyPoints ?? lane.fantasyPoints) ?? 0)
+                          .toFixed(2)
+                          .replace(/\.?0+$/, "")}{" "}
+                        pts
+                      </span>
+                      <ScoringBreakdownAccordion
+                        breakdown={lane.scoringBreakdown}
+                        open={openScoringLaneId === lane.id}
+                        onToggle={() =>
+                          setOpenScoringLaneId(
+                            openScoringLaneId === lane.id ? null : lane.id
+                          )
+                        }
+                      />
+                    </div>
+                  </td>
                   </tr>
 
                   {inlineSlipLaneId === lane.id && (
@@ -1212,7 +1262,7 @@ export default function ContestBoard({
             </div>
 
             <p className="mt-2 text-xs text-neutral-400">
-              (For now) contest allocation target: {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)} total.
+              Contest allocation target: {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)} total.
             </p>
           </div>
 
@@ -1336,6 +1386,56 @@ export default function ContestBoard({
               </p>
             ) : null}
 
+            <div className="mt-3 rounded border border-neutral-800 bg-neutral-900/80 p-2 text-xs text-neutral-200">
+              <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                Bet summary
+              </h4>
+              <dl className="space-y-0.5">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-neutral-400">Runner</dt>
+                  <dd className="max-w-[11rem] truncate text-right font-medium">
+                    {selectedLane ? selectedRunnerLabel : "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-neutral-400">Market</dt>
+                  <dd className="text-right font-medium">
+                    {selectedMarket ?? "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-neutral-400">Wager</dt>
+                  <dd className="text-right font-medium">
+                    {Number.isFinite(parsedSingleAmount) && parsedSingleAmount > 0
+                      ? formatCoins(parsedSingleAmount)
+                      : "—"}
+                  </dd>
+                </div>
+                {selectedMarket === Market.WIN && projectedSingleWinMultiple !== null && (
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-neutral-400">Projected WIN multiple</dt>
+                    <dd className="text-right font-medium">
+                      ×{projectedSingleWinMultiple.toFixed(2)}
+                    </dd>
+                  </div>
+                )}
+                {selectedMarket === Market.WIN &&
+                  projectedSingleWinMultiple !== null &&
+                  Number.isFinite(parsedSingleAmount) &&
+                  parsedSingleAmount > 0 && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-neutral-400">Est. payout</dt>
+                      <dd className="text-right font-medium">
+                        {formatCoins(parsedSingleAmount * projectedSingleWinMultiple)}
+                      </dd>
+                    </div>
+                  )}
+              </dl>
+              <p className="mt-1 text-[11px] text-neutral-400">
+                Placing this bet may move the live odds and payout multiples, especially in thin markets.
+              </p>
+            </div>
+
             {selectedMarket === Market.WIN &&
             singleValid &&
             selectedLaneId &&
@@ -1438,7 +1538,13 @@ export default function ContestBoard({
           </div>
 
           {collapsedMyBets.length === 0 ? (
-            <p className="text-sm text-neutral-400">No bets yet for this contest.</p>
+            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3 text-sm text-neutral-300">
+              <p>You don&apos;t have any bets in this contest yet.</p>
+              <p className="mt-1 text-xs text-neutral-400">
+                As you place bets using the slip on the left, they&apos;ll appear here grouped by runner,
+                along with stake, payouts, and net results once the contest settles.
+              </p>
+            </div>
           ) : (
             <div className="space-y-4">
               {ticketsByLane.map((group) => {
@@ -1936,7 +2042,7 @@ export default function ContestBoard({
                 return (
                   <div
                     key={lane.id}
-                    className={`flex items-center justify-between rounded-xl px-3 py-3 ${rowClass}`}
+                    className={`flex items-center justify-between rounded-xl px-2.5 py-2.5 ${rowClass}`}
                   >
                     <div className="flex items-center gap-3">
                       <span

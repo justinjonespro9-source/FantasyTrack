@@ -108,7 +108,7 @@ const goldBtn = "rounded-full border border-amber-400 bg-amber-400 px-5 py-2 tex
 
 export default function FantasyTrackHomePage() {
   return (
-    <div className="-mx-4 -my-6 min-h-[calc(100vh-5rem)] bg-neutral-950 px-4 py-10 text-neutral-100">
+    <div className="-mx-4 -my-6 bg-neutral-950 px-4 py-8 text-neutral-100">
       {/* No duplicate header — top nav only from layout Nav */}
 
       <main className="mx-auto max-w-6xl lg:max-w-7xl">
@@ -169,7 +169,7 @@ export default function FantasyTrackHomePage() {
         </section>
 
         {/* Feature cards */}
-        <section className="mt-12 grid gap-4 md:grid-cols-3">
+        <section className="mt-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4">
             <h3 className="text-sm font-semibold text-neutral-50">Pick Your Runners</h3>
             <p className="mt-2 text-sm text-neutral-300">
@@ -191,6 +191,41 @@ export default function FantasyTrackHomePage() {
             <p className="mt-2 text-sm text-neutral-300">
               The race updates live as players accumulate fantasy scoring throughout the game.
             </p>
+          </div>
+        </section>
+
+        {/* Community CTA strip above footer */}
+        <section className="mt-8 mb-2 grid gap-3 text-xs text-neutral-300 sm:grid-cols-2">
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900/90 p-4">
+            <h2 className="text-sm font-semibold text-neutral-50">Join the FantasyTrack Discord</h2>
+            <p className="mt-1 text-xs text-neutral-400">
+              Join the official community for updates, contest talk, feedback, and early access news.
+            </p>
+            <div className="mt-2">
+              <Link
+                href="https://discord.gg/UYHWmy8j"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-xs font-semibold text-amber-300 hover:text-amber-200"
+              >
+                Join our Discord
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900/90 p-4">
+            <h2 className="text-sm font-semibold text-neutral-50">Invite Others</h2>
+            <p className="mt-1 text-xs text-neutral-400">
+              Know someone who’d love FantasyTrack? Share it and help us build the field.
+            </p>
+            <div className="mt-2">
+              <Link
+                href="mailto:?subject=Check%20out%20FantasyTrack&body=Join%20me%20on%20FantasyTrack%20%E2%80%94%20a%20free-to-play%20player%20performance%20market."
+                className="inline-flex items-center text-xs font-semibold text-amber-300 hover:text-amber-200"
+              >
+                Invite via email
+              </Link>
+            </div>
           </div>
         </section>
       </main>

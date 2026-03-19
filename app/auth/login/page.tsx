@@ -8,6 +8,8 @@ export default function LoginPage() {
       <LoginForm />
       <p className="text-center text-sm text-track-600">
         Need an account? <Link href="/auth/signup" className="text-track-800 underline">Sign up</Link>
+        {" · "}
+        <Link href="/auth/forgot-password" className="text-track-800 underline">Forgot password?</Link>
       </p>
       <p className="text-center text-xs text-track-500">
         By continuing, you agree to the{" "}

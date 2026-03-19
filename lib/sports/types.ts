@@ -1,5 +1,5 @@
 import type { SportKey } from "@/lib/sports";
-import type { BasketballRawStats } from "@/lib/scoring-config";
+import type { BasketballRawStats, HockeyRawStats } from "@/lib/scoring-config";
 
 export type ExternalId = string;
 
@@ -51,7 +51,7 @@ export type NormalizedPlayerGameStat = {
   playerId: ExternalId;
   gameId: ExternalId;
   teamId: ExternalId;
-  rawStats: BasketballRawStats;
+  rawStats: BasketballRawStats | HockeyRawStats;
 };
 
 /** Game state from BoxScore (status, period, 0–100 progress). Used for UI progress bar only. */

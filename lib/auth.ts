@@ -19,20 +19,44 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[auth] Missing email or password in credentials.", {
+              hasEmail: Boolean(credentials?.email),
+              hasPassword: Boolean(credentials?.password)
+            });
+          }
           return null;
         }
 
+        const rawEmail = credentials.email;
+        const normalizedEmail = rawEmail.toLowerCase().trim();
+
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email.toLowerCase().trim()
+            email: normalizedEmail
           }
         });
 
         if (!user?.passwordHash) {
+          console.log("[auth] User not found or missing passwordHash.", {
+            rawEmail,
+            normalizedEmail,
+            found: Boolean(user)
+          });
           return null;
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+
+        if (process.env.NODE_ENV === "development") {
+          console.log("[auth] Credentials authorize result:", {
+            rawEmail,
+            normalizedEmail,
+            found: Boolean(user),
+            isValid
+          });
+        }
+
         if (!isValid) {
           return null;
         }

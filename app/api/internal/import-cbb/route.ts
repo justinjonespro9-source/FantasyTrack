@@ -106,7 +106,7 @@ export async function POST() {
 
     let players: ExternalPlayer[];
     try {
-      players = await provider.getPlayers(t.id);
+      players = await provider.getPlayers(t.id, cbbLeague.id);
     } catch {
       continue;
     }

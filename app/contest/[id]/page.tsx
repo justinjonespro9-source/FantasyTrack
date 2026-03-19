@@ -13,6 +13,8 @@ import { SettledRaceBoard } from "@/components/settled-race-board";
 import { formatCoins, formatDateTime, formatOddsTo1 } from "@/lib/format";
 import { formatSportLabel } from "@/lib/sports";
 import { formatTrackConditionsLabel } from "@/lib/track-conditions";
+import { BuildLanesAllPlayersButton } from "@/components/admin/build-lanes-all-players-button";
+import { getBasketballScoringBreakdown } from "@/lib/scoring-config";
 
 type PageProps = {
   params: { id: string };
@@ -47,6 +49,26 @@ export default async function ContestPage({ params }: PageProps) {
 
   const isSettled = contest.status === ContestStatus.SETTLED;
   const isAdmin = Boolean(session?.user?.isAdmin);
+
+  const statusLabelMap: Record<string, string> = {
+    [ContestStatus.DRAFT]: "Not Open",
+    [ContestStatus.PUBLISHED]: "Open",
+    [ContestStatus.LOCKED]: "Locked",
+    [ContestStatus.SETTLED]: "Settled",
+    ARCHIVED: "Archived",
+  };
+
+  const statusHelpTextMap: Record<string, string> = {
+    [ContestStatus.DRAFT]: "This contest is not yet open for entry.",
+    [ContestStatus.PUBLISHED]: "You can enter and place bets until lock.",
+    [ContestStatus.LOCKED]: "Entries are closed. You can still track the live race.",
+    [ContestStatus.SETTLED]:
+      "Official results are posted. Review final standings and payouts.",
+    ARCHIVED: "This contest is no longer active.",
+  };
+
+  const statusLabel = statusLabelMap[contest.status] ?? contest.status;
+  const statusHelp = statusHelpTextMap[contest.status] ?? "";
 
   // -----------------------------
   // SETTLED MODE
@@ -120,6 +142,19 @@ export default async function ContestPage({ params }: PageProps) {
       winMultiple: settledOdds.estMultiples[lane.id]?.WIN ?? null,
       placeMultiple: settledOdds.estMultiples[lane.id]?.PLACE ?? null,
       showMultiple: settledOdds.estMultiples[lane.id]?.SHOW ?? null,
+
+      scoringBreakdown:
+        contest.sport === "BASKETBALL"
+          ? getBasketballScoringBreakdown({
+              points: lane.basketballPoints ?? 0,
+              rebounds: lane.basketballRebounds ?? 0,
+              assists: lane.basketballAssists ?? 0,
+              steals: lane.basketballSteals ?? 0,
+              blocks: lane.basketballBlocks ?? 0,
+              turnovers: lane.basketballTurnovers ?? 0,
+              threePointersMade: lane.basketballThreesMade ?? 0,
+            })
+          : undefined,
     }));
 
     const sportLabel = formatSportLabel(contest.sport as any);
@@ -171,6 +206,43 @@ export default async function ContestPage({ params }: PageProps) {
                 SETTLED
               </span>
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-2">
+          <div className="flex flex-wrap items-start justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span
+                className={[
+                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                  contest.status === ContestStatus.PUBLISHED &&
+                    "border-emerald-400/70 bg-emerald-500/10 text-emerald-200",
+                  contest.status === ContestStatus.LOCKED &&
+                    "border-amber-400/70 bg-amber-500/10 text-amber-200",
+                  contest.status === ContestStatus.SETTLED &&
+                    "border-neutral-500/70 bg-neutral-800/80 text-neutral-100",
+                  contest.status === ContestStatus.DRAFT &&
+                    "border-neutral-600/70 bg-neutral-900/80 text-neutral-200",
+                  (contest.status as any) === "ARCHIVED" &&
+                    "border-neutral-700/70 bg-neutral-900/80 text-neutral-300",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {statusLabel}
+              </span>
+              <p className="text-xs text-neutral-200">{statusHelp}</p>
+            </div>
+
+            {contest.series?.name && (
+              <p className="text-[11px] text-neutral-400">
+                Counts toward{" "}
+                <span className="font-semibold text-neutral-100">
+                  {contest.series.name}
+                </span>{" "}
+                leaderboard.
+              </p>
+            )}
           </div>
         </section>
 
@@ -427,6 +499,43 @@ export default async function ContestPage({ params }: PageProps) {
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
         <div className="space-y-4">
+          <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-2">
+            <div className="flex flex-wrap items-start justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span
+                  className={[
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                    contest.status === ContestStatus.PUBLISHED &&
+                      "border-emerald-400/70 bg-emerald-500/10 text-emerald-200",
+                    contest.status === ContestStatus.LOCKED &&
+                      "border-amber-400/70 bg-amber-500/10 text-amber-200",
+                    contest.status === ContestStatus.SETTLED &&
+                      "border-neutral-500/70 bg-neutral-800/80 text-neutral-100",
+                    contest.status === ContestStatus.DRAFT &&
+                      "border-neutral-600/70 bg-neutral-900/80 text-neutral-200",
+                    (contest.status as any) === "ARCHIVED" &&
+                      "border-neutral-700/70 bg-neutral-900/80 text-neutral-300",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {statusLabel}
+                </span>
+                <p className="text-xs text-neutral-200">{statusHelp}</p>
+              </div>
+
+              {contest.series?.name && (
+                <p className="text-[11px] text-neutral-400">
+                  Counts toward{" "}
+                  <span className="font-semibold text-neutral-100">
+                    {contest.series.name}
+                  </span>{" "}
+                  leaderboard.
+                </p>
+              )}
+            </div>
+          </section>
+
           <ContestBoard
             contestId={contest.id}
             title={contest.title}
@@ -435,7 +544,29 @@ export default async function ContestPage({ params }: PageProps) {
             sport={contest.sport}
             trackConditions={(contest as any).trackConditions ?? null}
             status={contest.status}
-            lanes={contest.lanes}
+            lanes={contest.lanes.map((lane: any) => ({
+              id: lane.id,
+              name: lane.name,
+              team: lane.team,
+              position: lane.position,
+              finalRank: lane.finalRank,
+              openingWinOddsTo1: lane.openingWinOddsTo1,
+              fantasyPoints: lane.fantasyPoints,
+              liveFantasyPoints: lane.liveFantasyPoints,
+              status: lane.status,
+              scoringBreakdown:
+                contest.sport === "BASKETBALL"
+                  ? getBasketballScoringBreakdown({
+                      points: lane.basketballPoints ?? 0,
+                      rebounds: lane.basketballRebounds ?? 0,
+                      assists: lane.basketballAssists ?? 0,
+                      steals: lane.basketballSteals ?? 0,
+                      blocks: lane.basketballBlocks ?? 0,
+                      turnovers: lane.basketballTurnovers ?? 0,
+                      threePointersMade: lane.basketballThreesMade ?? 0,
+                    })
+                  : undefined,
+            }))}
             initialOdds={odds}
             initialMyBets={myTickets.flatMap((t: any) => {
               const legs = t.legs ?? [];
@@ -481,6 +612,23 @@ export default async function ContestPage({ params }: PageProps) {
               Refunded funds may be reallocated before lock if time remains.
             </p>
           </section>
+
+          {isAdmin &&
+          contest.sport === "BASKETBALL" &&
+          (contest as { homeTeamId?: string | null; awayTeamId?: string | null }).homeTeamId &&
+          (contest as { homeTeamId?: string | null; awayTeamId?: string | null }).awayTeamId ? (
+            <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400 mb-2">
+                Admin — lanes
+              </p>
+              <BuildLanesAllPlayersButton
+                contestId={contest.id}
+                sport={contest.sport}
+                homeTeamId={(contest as { homeTeamId?: string | null }).homeTeamId ?? null}
+                awayTeamId={(contest as { awayTeamId?: string | null }).awayTeamId ?? null}
+              />
+            </section>
+          ) : null}
         </div>
 
         <div className="space-y-4">

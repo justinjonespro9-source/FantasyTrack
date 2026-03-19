@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { formatCoins, formatMultiple } from "@/lib/format";
+import type { ScoringBreakdown } from "@/lib/scoring-config";
+import { ScoringBreakdownAccordion } from "@/components/scoring/scoring-breakdown-accordion";
 
 type LaneStatus = "ACTIVE" | "QUESTIONABLE" | "DOUBTFUL" | "SCRATCHED";
 
@@ -19,6 +22,7 @@ type SettledLaneRow = {
   winMultiple: number | null;
   placeMultiple: number | null;
   showMultiple: number | null;
+  scoringBreakdown?: ScoringBreakdown | null;
 };
 
 function formatLaneDisplayName(
@@ -129,6 +133,8 @@ function podiumLabel(rank: number | null) {
 }
 
 export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
+  const [openScoringLaneId, setOpenScoringLaneId] = useState<string | null>(null);
+
   const sortedRows = [...rows].sort((a, b) => {
     const aRank = a.finalRank ?? 9999;
     const bRank = b.finalRank ?? 9999;
@@ -219,11 +225,20 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
                   </div>
                 </td>
 
-                {/* Pts column */}
+                {/* Pts column + scoring breakdown */}
                 <td className="px-3 py-2 align-top text-center">
                   <span className="inline-block min-w-[3.5rem] whitespace-nowrap text-xs font-medium text-neutral-300">
                     {formatFantasyPoints(lane.fantasyPoints)} pts
                   </span>
+                  <ScoringBreakdownAccordion
+                    breakdown={lane.scoringBreakdown}
+                    open={openScoringLaneId === lane.id}
+                    onToggle={() =>
+                      setOpenScoringLaneId(
+                        openScoringLaneId === lane.id ? null : lane.id
+                      )
+                    }
+                  />
                 </td>
 
                 <td className="px-3 py-2 align-top">
