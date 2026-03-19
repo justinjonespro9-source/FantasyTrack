@@ -90,6 +90,20 @@ function formatDateForAPI(date: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Numeric team ID → team key for resolving GamesByDate team ids to DB externalId. */
+export async function getCBBTeamIdMap(): Promise<Record<string, string>> {
+  const path = `v3/cbb/scores/${FORMAT}/teams`;
+  const data = (await sportsDataIOGet<CBBTeamRaw[]>({ path })) ?? [];
+  const list = Array.isArray(data) ? data : [];
+  const map: Record<string, string> = {};
+  for (const t of list) {
+    const numId = t.TeamID != null ? String(t.TeamID) : "";
+    const key = (t.Key ?? numId).trim() || numId;
+    if (numId && key) map[numId] = key;
+  }
+  return map;
+}
+
 export function getSportsDataIOCBBProvider(): {
   name: "sportsdataio";
   getLeagues(): Promise<ExternalLeague[]>;

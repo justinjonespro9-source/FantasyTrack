@@ -7,14 +7,21 @@ import type {
   LiveGameState,
   NormalizedPlayerGameStat,
 } from "@/lib/sports/types";
-import { getSportsDataIOCBBProvider } from "@/lib/sports/sportsdataio/cbb-provider";
-import { getSportsDataIONBAProvider } from "@/lib/sports/sportsdataio/nba-provider";
-import { getSportsDataIONHLProvider } from "@/lib/sports/sportsdataio/nhl-provider";
+import { getSportsDataIOCBBProvider, getCBBTeamIdMap } from "@/lib/sports/sportsdataio/cbb-provider";
+import { getSportsDataIONBAProvider, getNBATeamIdMap } from "@/lib/sports/sportsdataio/nba-provider";
+import { getSportsDataIONHLProvider, getNHLTeamIdMap } from "@/lib/sports/sportsdataio/nhl-provider";
 import { getCBBLeague, getNBALeague, getNHLLeague } from "@/lib/sports/sportsdataio/mappers";
 
 const CBB_LEAGUE_ID = "cbb";
 const NBA_LEAGUE_ID = "nba";
 const NHL_LEAGUE_ID = "nhl";
+
+/** Numeric team ID → team key for the given league. Used by schedule API to resolve game team ids to DB externalId. */
+export async function getSportsDataIOTeamIdMap(leagueId: string): Promise<Record<string, string>> {
+  if (leagueId === NBA_LEAGUE_ID) return getNBATeamIdMap();
+  if (leagueId === NHL_LEAGUE_ID) return getNHLTeamIdMap();
+  return getCBBTeamIdMap();
+}
 
 /**
  * Unified SportsDataIO provider: CBB + NBA.

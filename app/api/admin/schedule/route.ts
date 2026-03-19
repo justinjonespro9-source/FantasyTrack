@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { getSportsProvider } from "@/lib/sports/provider";
+import { getSportsDataIOTeamIdMap } from "@/lib/sports/sportsdataio/unified-provider";
 import type { ProviderName } from "@/lib/sports/types";
 
 const SCHEDULE_DAYS_PAST = 7;
@@ -55,6 +56,9 @@ export async function GET(req: NextRequest) {
   const provider = getSportsProvider(providerName);
   const externalGames = await provider.getSchedule(externalLeagueId, { start, end });
 
+  const teamIdMap =
+    providerName === "sportsdataio" ? await getSportsDataIOTeamIdMap(externalLeagueId) : {};
+
   const games: {
     id: string;
     startTime: string;
@@ -67,17 +71,19 @@ export async function GET(req: NextRequest) {
   }[] = [];
 
   for (const game of externalGames) {
+    const homeKey = teamIdMap[game.homeTeamId] ?? game.homeTeamId;
+    const awayKey = teamIdMap[game.awayTeamId] ?? game.awayTeamId;
     const [homeTeam, awayTeam] = await Promise.all([
       prisma.team.findFirst({
         where: {
-          externalId: game.homeTeamId,
+          externalId: homeKey,
           externalProvider: game.provider,
         },
         select: { id: true, name: true, market: true },
       }),
       prisma.team.findFirst({
         where: {
-          externalId: game.awayTeamId,
+          externalId: awayKey,
           externalProvider: game.provider,
         },
         select: { id: true, name: true, market: true },

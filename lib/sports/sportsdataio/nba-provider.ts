@@ -96,6 +96,20 @@ function formatDateForAPI(date: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Numeric team ID → team key (e.g. "1610612747" → "LAL") for resolving GamesByDate team ids to DB externalId. */
+export async function getNBATeamIdMap(): Promise<Record<string, string>> {
+  const path = `v3/nba/scores/${FORMAT}/teams`;
+  const data = (await sportsDataIOGet<NBATeamRaw[]>({ path })) ?? [];
+  const list = Array.isArray(data) ? data : [];
+  const map: Record<string, string> = {};
+  for (const t of list) {
+    const numId = t.TeamID != null ? String(t.TeamID) : "";
+    const key = (t.Key ?? numId).trim() || numId;
+    if (numId && key) map[numId] = key;
+  }
+  return map;
+}
+
 export function getSportsDataIONBAProvider(): {
   name: "sportsdataio";
   getLeagues(): Promise<ExternalLeague[]>;
