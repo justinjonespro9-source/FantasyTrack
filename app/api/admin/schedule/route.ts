@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
         where: {
           externalId: homeKey,
           externalProvider: game.provider,
+          leagueId: league.id,
         },
         select: { id: true, name: true, market: true },
       }),
@@ -85,6 +86,7 @@ export async function GET(req: NextRequest) {
         where: {
           externalId: awayKey,
           externalProvider: game.provider,
+          leagueId: league.id,
         },
         select: { id: true, name: true, market: true },
       }),
