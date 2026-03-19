@@ -25,6 +25,10 @@ export function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
+    // Schedule feeds are normalized to America/New_York in the ingest mappers,
+    // but some pages render on the server (which can default to UTC).
+    // Force Eastern so start times don't shift by the server's timezone.
+    timeZone: "America/New_York",
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
