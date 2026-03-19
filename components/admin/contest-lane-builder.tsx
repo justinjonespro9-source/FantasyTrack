@@ -70,9 +70,14 @@ export default function ContestLaneBuilder({ contests, leagues, initialContestId
     if (!selectedContest) return leagues;
     const bySport = leagues.filter((l) => l.sport === selectedContest.sport);
     // When contest has linked teams, only show leagues that contain at least one of those teams.
-    // Never show leagues from same-city other sports (e.g. no NBA when contest is NHL).
+    // Prefer the contest's sport for a clean UX, but if sport is mis-set (or imports differ),
+    // fall back to teams-based inference so we can still show the correct league/players.
     if (linkedTeamIds.length > 0) {
-      return bySport.filter((league) =>
+      const matchesBySport = bySport.filter((league) =>
+        league.teams.some((t) => linkedTeamIds.includes(t.id))
+      );
+      if (matchesBySport.length > 0) return matchesBySport;
+      return leagues.filter((league) =>
         league.teams.some((t) => linkedTeamIds.includes(t.id))
       );
     }
