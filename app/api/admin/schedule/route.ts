@@ -71,12 +71,17 @@ export async function GET(req: NextRequest) {
   }[] = [];
 
   for (const game of externalGames) {
-    const homeKey = teamIdMap[game.homeTeamId] ?? game.homeTeamId;
-    const awayKey = teamIdMap[game.awayTeamId] ?? game.awayTeamId;
+    const homeKey = (teamIdMap[game.homeTeamId] ?? game.homeTeamId).trim();
+    const awayKey = (teamIdMap[game.awayTeamId] ?? game.awayTeamId).trim();
+
+    // SportsDataIO team keys (e.g. "HOU") collide across leagues (NBA/NCAA).
+    // Scope stored Team.externalId by league so schedule resolution can't cross leagues.
+    const scopedHomeExternalId = `${externalLeagueId}:${homeKey}`;
+    const scopedAwayExternalId = `${externalLeagueId}:${awayKey}`;
     const [homeTeam, awayTeam] = await Promise.all([
       prisma.team.findFirst({
         where: {
-          externalId: homeKey,
+          externalId: scopedHomeExternalId,
           externalProvider: game.provider,
           leagueId: league.id,
         },
@@ -84,7 +89,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.team.findFirst({
         where: {
-          externalId: awayKey,
+          externalId: scopedAwayExternalId,
           externalProvider: game.provider,
           leagueId: league.id,
         },

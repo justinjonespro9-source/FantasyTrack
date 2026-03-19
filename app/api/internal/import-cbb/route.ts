@@ -85,9 +85,15 @@ export async function POST() {
   let playersProcessed = 0;
 
   for (const t of teams) {
+    // SportsDataIO team keys (e.g. "HOU") collide across leagues (NBA/NCAA).
+    // Scope stored Team.externalId by league so upserts can't overwrite across sports.
+    const scopedTeamExternalId = `${cbbLeague.id}:${t.id}`;
     const team = await prisma.team.upsert({
       where: {
-        externalProvider_externalId: { externalProvider: PROVIDER, externalId: t.id },
+        externalProvider_externalId: {
+          externalProvider: PROVIDER,
+          externalId: scopedTeamExternalId,
+        },
       },
       create: {
         leagueId: league.id,
@@ -95,7 +101,7 @@ export async function POST() {
         market: t.market ?? null,
         abbreviation: t.abbreviation ?? null,
         externalProvider: PROVIDER,
-        externalId: t.id,
+        externalId: scopedTeamExternalId,
       },
       update: {
         name: t.name,

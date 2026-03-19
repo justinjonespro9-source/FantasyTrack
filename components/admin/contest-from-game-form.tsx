@@ -35,10 +35,12 @@ type Props = {
 
 function formatGameTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString(undefined, {
+  return new Intl.DateTimeFormat("en-US", {
+    // Keep admin schedule displays consistent with `formatDateTime()` (ET)
+    timeZone: "America/New_York",
     dateStyle: "short",
     timeStyle: "short",
-  });
+  }).format(d);
 }
 
 function isGameToday(startTime: string): boolean {
