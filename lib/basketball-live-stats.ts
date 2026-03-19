@@ -1,8 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { getSportsProvider } from "@/lib/sports/provider";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
+import type { BasketballRawStats, HockeyRawStats } from "@/lib/scoring-config";
 
 export type PullResult = { updated: number; skipped: number };
+
+/** Type guard: BasketballRawStats has `points`; HockeyRawStats does not. */
+function isBasketballRawStats(
+  raw: BasketballRawStats | HockeyRawStats
+): raw is BasketballRawStats {
+  return "points" in raw;
+}
 
 /**
  * Pull live basketball stats for one contest from external provider (e.g. SportsDataIO).
@@ -63,6 +71,10 @@ export async function runBasketballLiveStatsPull(contestId: string): Promise<Pul
     }
 
     const raw = row.rawStats;
+    if (!isBasketballRawStats(raw)) {
+      skipped.push(row.playerId);
+      continue;
+    }
     const basketballPoints = raw.points ?? null;
     const basketballRebounds = raw.rebounds ?? null;
     const basketballAssists = raw.assists ?? null;
