@@ -46,6 +46,11 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        if (user.isSuspended) {
+          // Avoid account enumeration (still returns invalid credentials), but surface suspension message in UI.
+          throw new Error("This account has been suspended.");
+        }
+
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
 
         if (process.env.NODE_ENV === "development") {

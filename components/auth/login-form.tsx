@@ -26,6 +26,14 @@ export default function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
+      if (String(result.error).toLowerCase().includes("suspend")) {
+        setError("This account has been suspended.");
+        return;
+      }
+      if (result.error === "This account has been suspended.") {
+        setError(result.error);
+        return;
+      }
       setError("Invalid email or password.");
       return;
     }

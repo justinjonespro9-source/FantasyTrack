@@ -21,6 +21,7 @@ import { ImportNBAButton } from "@/components/admin/import-nba-button";
 import { ImportNHLButton } from "@/components/admin/import-nhl-button";
 import { PullLiveStatsButton } from "@/components/admin/pull-live-stats-button";
 import { BulkPullLiveStatsButton } from "@/components/admin/bulk-pull-live-stats-button";
+import UserSuspensionPanel from "@/components/admin/user-suspension-panel";
 import { computeHockeyFantasyPoints } from "@/lib/scoring-hockey";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
 import {
@@ -317,6 +318,7 @@ function AdminToolsGrid({
   shoutouts,
   grantCoinsAction,
   createShoutoutAction,
+  currentAdminId,
 }: {
   users: any[];
   seriesList: any[];
@@ -324,6 +326,7 @@ function AdminToolsGrid({
   shoutouts: any[];
   grantCoinsAction: (formData: FormData) => Promise<void>;
   createShoutoutAction: (formData: FormData) => Promise<void>;
+  currentAdminId: string;
 }) {
   return (
     <section className="grid gap-4 lg:grid-cols-2">
@@ -394,6 +397,10 @@ function AdminToolsGrid({
             </div>
           ))}
         </div>
+      </CardSection>
+
+      <CardSection title="User Accounts">
+        <UserSuspensionPanel users={users} currentAdminId={currentAdminId} />
       </CardSection>
     </section>
   );
@@ -2352,7 +2359,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     }),
     prisma.user.findMany({
       orderBy: { createdAt: "asc" },
-      select: { id: true, displayName: true, email: true },
+      select: {
+        id: true,
+        displayName: true,
+        email: true,
+        isSuspended: true,
+        suspendedAt: true,
+        suspensionReason: true,
+      },
     }),
     prisma.contest.findMany({
       orderBy: { startTime: "asc" },
@@ -2404,6 +2418,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       },
     }),
   ]);
+
+  const usersForSuspensionPanel = users.map((u) => ({
+    ...u,
+    suspendedAt: u.suspendedAt ? new Date(u.suspendedAt).toISOString() : null,
+    suspensionReason: u.suspensionReason ?? null,
+  }));
 
   const totalAdminRake = contests.reduce((sum, contest) => {
     const s = contest.settlementSummary;
@@ -3781,12 +3801,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </CardSection>
 
       <AdminToolsGrid
-        users={users}
+        users={usersForSuspensionPanel}
         seriesList={seriesList}
         activeContests={activeContests}
         shoutouts={shoutouts}
         grantCoinsAction={grantCoinsAction}
         createShoutoutAction={createShoutoutAction}
+        currentAdminId={session.user.id}
       />
     </div>
   );

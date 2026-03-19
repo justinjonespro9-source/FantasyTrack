@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCurrentSession } from "@/lib/session";
 
 const updateSchema = z
   .object({
@@ -16,7 +15,7 @@ const updateSchema = z
   );
 
 export async function PATCH(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getCurrentSession();
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

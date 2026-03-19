@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { getCurrentSession } from "@/lib/session";
 import { getContestOddsData } from "@/lib/market";
 
 type RouteContext = {
@@ -10,7 +9,7 @@ type RouteContext = {
 };
 
 export async function GET(_req: Request, context: RouteContext) {
-  const session = await getServerSession(authOptions);
+  const session = await getCurrentSession();
   const odds = await getContestOddsData(context.params.id, session?.user?.id ?? null);
 
   if (!odds) {
