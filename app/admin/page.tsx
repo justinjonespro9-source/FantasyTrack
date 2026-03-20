@@ -22,6 +22,7 @@ import { ImportNHLButton } from "@/components/admin/import-nhl-button";
 import { PullLiveStatsButton } from "@/components/admin/pull-live-stats-button";
 import { BulkPullLiveStatsButton } from "@/components/admin/bulk-pull-live-stats-button";
 import UserSuspensionPanel from "@/components/admin/user-suspension-panel";
+import CommishNotesManager from "@/components/admin/commish-notes-manager";
 import { computeHockeyFantasyPoints } from "@/lib/scoring-hockey";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
 import {
@@ -315,17 +316,13 @@ function AdminToolsGrid({
   users,
   seriesList,
   activeContests,
-  shoutouts,
   grantCoinsAction,
-  createShoutoutAction,
   currentAdminId,
 }: {
   users: any[];
   seriesList: any[];
   activeContests: any[];
-  shoutouts: any[];
   grantCoinsAction: (formData: FormData) => Promise<void>;
-  createShoutoutAction: (formData: FormData) => Promise<void>;
   currentAdminId: string;
 }) {
   return (
@@ -359,44 +356,7 @@ function AdminToolsGrid({
       </CardSection>
 
       <CardSection title="Commish Notes">
-        <form action={createShoutoutAction} className="space-y-2">
-          <select name="seriesId" required className="w-full">
-            <option value="">Select series</option>
-            {seriesList.map((series) => (
-              <option key={series.id} value={series.id}>
-                {series.name}
-              </option>
-            ))}
-          </select>
-
-          <select name="contestId" className="w-full">
-            <option value="">Optional contest</option>
-            {activeContests.map((contest) => (
-              <option key={contest.id} value={contest.id}>
-                {contest.title}
-              </option>
-            ))}
-          </select>
-
-          <textarea name="message" required placeholder="Note" className="min-h-24 w-full" />
-
-          <button type="submit" className="rounded bg-track-800 px-3 py-1 text-white">
-            Post note
-          </button>
-        </form>
-
-        <div className="mt-4 space-y-2 text-sm">
-          {shoutouts.map((shoutout) => (
-            <div key={shoutout.id} className="rounded border border-track-200 p-2">
-              <p>{shoutout.message}</p>
-              <p className="text-xs text-track-500">
-                {shoutout.series.name}
-                {shoutout.contest ? ` · ${shoutout.contest.title}` : ""}
-                {` · ${formatDateTime(shoutout.createdAt)}`}
-              </p>
-            </div>
-          ))}
-        </div>
+        <CommishNotesManager seriesList={seriesList} activeContests={activeContests} />
       </CardSection>
 
       <CardSection title="User Accounts">
@@ -2202,29 +2162,6 @@ async function grantCoinsAction(formData: FormData) {
   revalidatePath("/");
 }
 
-async function createShoutoutAction(formData: FormData) {
-  "use server";
-  const auth = await requireAdmin();
-
-  const seriesId = String(formData.get("seriesId") ?? "");
-  const contestIdRaw = String(formData.get("contestId") ?? "");
-  const message = String(formData.get("message") ?? "").trim();
-
-  if (!seriesId || !message) throw new Error("Series and message are required.");
-
-  await prisma.shoutout.create({
-    data: {
-      seriesId,
-      contestId: contestIdRaw || null,
-      message,
-      createdByAdminId: auth.user.id,
-    },
-  });
-
-  revalidatePath("/admin");
-  revalidatePath("/");
-}
-
 async function reopenSettlementAction(formData: FormData) {
   "use server";
   const auth = await requireAdmin();
@@ -2352,7 +2289,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   await autoLockContests();
 
-  const [seriesList, users, contests, shoutouts] = await Promise.all([
+  const [seriesList, users, contests] = await Promise.all([
     prisma.series.findMany({
       orderBy: { createdAt: "desc" },
       include: { contests: { orderBy: { startTime: "asc" } } },
@@ -2407,14 +2344,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             result: true,
           },
         },
-      },
-    }),
-    prisma.shoutout.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      include: {
-        series: { select: { name: true } },
-        contest: { select: { title: true } },
       },
     }),
   ]);
@@ -3804,9 +3733,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         users={usersForSuspensionPanel}
         seriesList={seriesList}
         activeContests={activeContests}
-        shoutouts={shoutouts}
         grantCoinsAction={grantCoinsAction}
-        createShoutoutAction={createShoutoutAction}
         currentAdminId={session.user.id}
       />
     </div>

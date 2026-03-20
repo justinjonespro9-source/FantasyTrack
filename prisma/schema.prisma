@@ -60,6 +60,11 @@ enum LegResult {
   VOID
 }
 
+enum ShoutoutScope {
+  GLOBAL
+  SERIES
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -541,12 +546,13 @@ model SettlementSummary {
 
 model Shoutout {
   id               String   @id @default(cuid())
-  seriesId         String
+  scope            ShoutoutScope @default(SERIES)
+  seriesId         String?
   contestId        String?
   message          String
   createdAt        DateTime @default(now())
   createdByAdminId String
-  series           Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  series           Series?  @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   contest          Contest? @relation(fields: [contestId], references: [id], onDelete: SetNull)
   createdByAdmin   User     @relation("ShoutoutCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Cascade)
 

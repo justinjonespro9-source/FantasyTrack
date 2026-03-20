@@ -1,4 +1,4 @@
-import { ContestStatus } from "@prisma/client";
+import { ContestStatus, ShoutoutScope } from "@prisma/client";
 import Link from "next/link";
 import { ClientOnly } from "@/components/client-only";
 import { DashboardOnboardingCard } from "@/components/dashboard-onboarding-card";
@@ -49,6 +49,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const [globalLeaderboardRows, globalShoutouts] = await Promise.all([
     getGlobalLeaderboard(false),
     prisma.shoutout.findMany({
+      where: { scope: ShoutoutScope.GLOBAL },
       orderBy: { createdAt: "desc" },
       take: 10,
       include: { contest: { select: { title: true } } },
@@ -103,7 +104,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           getSeriesLeaderboard(series.id, false),
 
           prisma.shoutout.findMany({
-            where: { seriesId: series.id },
+            where: { scope: ShoutoutScope.SERIES, seriesId: series.id },
             orderBy: { createdAt: "desc" },
             take: 5,
             include: { contest: { select: { title: true } } },
