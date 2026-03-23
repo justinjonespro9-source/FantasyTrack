@@ -70,7 +70,9 @@ export default async function SeriesIndexPage() {
                 <p className="mt-1 line-clamp-2 text-sm text-neutral-400">{series.description}</p>
               ) : null}
               <p className="mt-2 text-xs text-neutral-500">
-                {formatDateTime(series.startDate)} – {formatDateTime(series.endDate)}
+                {series.startDate && series.endDate
+                  ? `${formatDateTime(series.startDate)} – ${formatDateTime(series.endDate)}`
+                  : "Ongoing"}
               </p>
               <span className="mt-2 inline-block text-xs font-medium text-amber-200/80 hover:text-amber-200">
                 View series →

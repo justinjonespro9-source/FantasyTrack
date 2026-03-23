@@ -115,8 +115,8 @@ model PasswordResetToken {
 model Series {
   id          String   @id @default(cuid())
   name        String
-  startDate   DateTime
-  endDate     DateTime
+  startDate   DateTime?
+  endDate     DateTime?
   prizesText  String?
   isActive    Boolean  @default(false)
   isPrivate   Boolean  @default(false)

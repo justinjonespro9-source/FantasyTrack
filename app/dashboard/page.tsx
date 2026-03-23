@@ -302,7 +302,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   </div>
                 ) : (
                   <div className="mt-1 space-y-2">
-                    {userSeries.slice(0, 3).map((m) => (
+                    {userSeries.map((m) => (
                       <Link
                         key={m.id}
                         href={`/series/${m.series.id}`}
@@ -335,7 +335,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     Public Series
                   </p>
                   <div className="space-y-1.5">
-                    {publicSeriesForPanel.slice(0, 3).map((s) => (
+                    {publicSeriesForPanel.map((s) => (
                       <Link
                         key={s.id}
                         href={`/series/${s.id}`}
@@ -442,7 +442,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   <p className="mt-1 text-sm text-neutral-400">
                     <ClientOnly>
                       <span>
-                        {formatDateTime(series.startDate)} - {formatDateTime(series.endDate)}
+                        {series.startDate && series.endDate
+                          ? `${formatDateTime(series.startDate)} - ${formatDateTime(series.endDate)}`
+                          : "Ongoing"}
                       </span>
                     </ClientOnly>
                   </p>
