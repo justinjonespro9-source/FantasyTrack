@@ -5,6 +5,7 @@ import { getCurrentSession } from "@/lib/session";
 import { getContestOddsData, RuleError } from "@/lib/market";
 import { prisma } from "@/lib/prisma";
 import { placeTicket } from "@/lib/tickets/placeTicket";
+import { canUserAccessSeriesById } from "@/lib/series-access";
 import {
   REQUIRED_TOTAL_WAGER_PER_CONTEST,
   MAX_BET_AMOUNT,
@@ -79,6 +80,15 @@ export async function POST(req: Request, context: RouteContext) {
     });
 
     if (!contest) {
+      throw new RuleError("Contest not found.", 404);
+    }
+
+    const access = await canUserAccessSeriesById({
+      seriesId: contest.seriesId,
+      userId: session.user.id,
+      isAdmin: Boolean(session.user.isAdmin),
+    });
+    if (!access.canAccess) {
       throw new RuleError("Contest not found.", 404);
     }
 

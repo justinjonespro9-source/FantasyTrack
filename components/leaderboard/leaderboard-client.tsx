@@ -119,6 +119,9 @@ export function LeaderboardClient({
                 </button>
               ))}
           </div>
+          {!hasSeriesTabs ? (
+            <span className="text-[11px] text-neutral-500">No series leaderboards available yet.</span>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
             <button

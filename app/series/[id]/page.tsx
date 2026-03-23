@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { formatCoins, formatDateTime } from "@/lib/format";
 import { getSeriesLeaderboard } from "@/lib/market";
 import { resolvePrimaryBadgeForLeaderboard } from "@/lib/badges";
+import { getCurrentSession } from "@/lib/session";
+import { canUserAccessSeriesById } from "@/lib/series-access";
 
 type PageProps = {
   params: {
@@ -13,6 +15,16 @@ type PageProps = {
 };
 
 export default async function SeriesHubPage({ params }: PageProps) {
+  const session = await getCurrentSession();
+  const access = await canUserAccessSeriesById({
+    seriesId: params.id,
+    userId: session?.user?.id ?? null,
+    isAdmin: Boolean(session?.user?.isAdmin),
+  });
+  if (!access.exists || !access.canAccess) {
+    notFound();
+  }
+
   const series = await prisma.series.findUnique({
     where: { id: params.id },
   });

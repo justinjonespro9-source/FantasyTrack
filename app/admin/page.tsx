@@ -60,6 +60,14 @@ function parseOpeningWinOddsTo1(value: FormDataEntryValue | null): number | null
   return parsed;
 }
 
+function normalizeInviteCode(value: FormDataEntryValue | null): string | null {
+  const raw = String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  return raw || null;
+}
+
 function CardSection({
   title,
   children,
@@ -492,9 +500,14 @@ async function createSeriesAction(formData: FormData) {
   const endDate = String(formData.get("endDate") ?? "");
   const prizesText = String(formData.get("prizesText") ?? "").trim() || null;
   const isActive = formData.get("isActive") === "on";
+  const isPrivate = formData.get("isPrivate") === "on";
+  const inviteCode = normalizeInviteCode(formData.get("inviteCode"));
 
   if (!name || !startDate || !endDate) {
     throw new Error("Series name/start/end are required.");
+  }
+  if (isPrivate && !inviteCode) {
+    throw new Error("Private series require an invite code.");
   }
 
   await prisma.series.create({
@@ -504,6 +517,32 @@ async function createSeriesAction(formData: FormData) {
       endDate: new Date(endDate),
       prizesText,
       isActive,
+      isPrivate,
+      inviteCode,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+async function updateSeriesPrivacyAction(formData: FormData) {
+  "use server";
+  await requireAdmin();
+
+  const seriesId = String(formData.get("seriesId") ?? "");
+  const isPrivate = formData.get("isPrivate") === "on";
+  const inviteCode = normalizeInviteCode(formData.get("inviteCode"));
+  if (!seriesId) throw new Error("Missing seriesId");
+  if (isPrivate && !inviteCode) {
+    throw new Error("Private series require an invite code.");
+  }
+
+  await prisma.series.update({
+    where: { id: seriesId },
+    data: {
+      isPrivate,
+      inviteCode,
     },
   });
 
@@ -2474,9 +2513,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <input name="startDate" type="date" required />
           <input name="endDate" type="date" required />
           <input name="prizesText" placeholder="Prizes text (optional)" />
+          <input
+            name="inviteCode"
+            placeholder="Invite code (required for private)"
+            className="uppercase"
+          />
           <label className="flex items-center gap-2 text-sm">
             <input name="isActive" type="checkbox" />
             Active
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input name="isPrivate" type="checkbox" />
+            Private (invite-only)
           </label>
           <div>
             <button type="submit" className="rounded bg-track-800 px-3 py-1 text-white">
@@ -2496,16 +2544,38 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <p className="font-medium">{s.name}</p>
                   <p className="text-xs text-track-500">
                     {formatDateTime(s.startDate)} → {formatDateTime(s.endDate)} ·{" "}
-                    {s.isActive ? "Active" : "Inactive"}
+                    {s.isActive ? "Active" : "Inactive"} ·{" "}
+                    {s.isPrivate ? "Private" : "Public"}
                   </p>
+                  {s.inviteCode ? (
+                    <p className="text-xs text-track-500">Invite code: {s.inviteCode}</p>
+                  ) : null}
                 </div>
-                <form action={toggleSeriesActiveAction} className="flex items-center gap-2">
-                  <input type="hidden" name="seriesId" value={s.id} />
-                  <input type="hidden" name="active" value={(!s.isActive).toString()} />
-                  <button type="submit" className="rounded bg-track-100 px-3 py-1 text-track-700">
-                    {s.isActive ? "Set inactive" : "Set active"}
-                  </button>
-                </form>
+                <div className="flex flex-col gap-2">
+                  <form action={toggleSeriesActiveAction} className="flex items-center gap-2">
+                    <input type="hidden" name="seriesId" value={s.id} />
+                    <input type="hidden" name="active" value={(!s.isActive).toString()} />
+                    <button type="submit" className="rounded bg-track-100 px-3 py-1 text-track-700">
+                      {s.isActive ? "Set inactive" : "Set active"}
+                    </button>
+                  </form>
+                  <form action={updateSeriesPrivacyAction} className="flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="seriesId" value={s.id} />
+                    <label className="flex items-center gap-1 text-xs text-track-700">
+                      <input name="isPrivate" type="checkbox" defaultChecked={Boolean(s.isPrivate)} />
+                      Private
+                    </label>
+                    <input
+                      name="inviteCode"
+                      defaultValue={s.inviteCode ?? ""}
+                      placeholder="Invite code"
+                      className="w-32 uppercase"
+                    />
+                    <button type="submit" className="rounded bg-track-100 px-3 py-1 text-track-700">
+                      Save access
+                    </button>
+                  </form>
+                </div>
               </div>
             ))}
           </div>

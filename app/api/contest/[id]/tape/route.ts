@@ -1,12 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { TransactionType, TicketStatus } from "@prisma/client";
+import { getCurrentSession } from "@/lib/session";
+import { canUserAccessSeriesById } from "@/lib/series-access";
 
 export async function GET(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
+  const session = await getCurrentSession();
   const contestId = params.id;
+  const contest = await prisma.contest.findUnique({
+    where: { id: contestId },
+    select: { id: true, seriesId: true },
+  });
+  if (!contest) {
+    return NextResponse.json({ error: "Contest not found." }, { status: 404 });
+  }
+  const access = await canUserAccessSeriesById({
+    seriesId: contest.seriesId,
+    userId: session?.user?.id ?? null,
+    isAdmin: Boolean(session?.user?.isAdmin),
+  });
+  if (!access.canAccess) {
+    return NextResponse.json({ error: "Contest not found." }, { status: 404 });
+  }
 
   // Last 50 BET txs, but only for SUBMITTED tickets + non-voided legs
   const rows = await prisma.transaction.findMany({

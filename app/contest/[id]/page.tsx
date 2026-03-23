@@ -15,6 +15,7 @@ import { formatSportLabel } from "@/lib/sports";
 import { formatTrackConditionsLabel } from "@/lib/track-conditions";
 import { BuildLanesAllPlayersButton } from "@/components/admin/build-lanes-all-players-button";
 import { getBasketballScoringBreakdown } from "@/lib/scoring-config";
+import { canUserAccessSeriesById } from "@/lib/series-access";
 
 type PageProps = {
   params: { id: string };
@@ -33,6 +34,16 @@ function marketBadgeClass(market: string) {
   }
 }
 
+function computeTicketProfit(stake: number, payout: number | null | undefined): number | null {
+  if (payout == null) return null;
+  return payout - stake;
+}
+
+function computeTicketRoi(stake: number, profit: number | null): number | null {
+  if (!stake || stake <= 0 || profit == null) return null;
+  return profit / stake;
+}
+
 export default async function ContestPage({ params }: PageProps) {
   const session = await getCurrentSession();
   const userId = session?.user?.id ?? null;
@@ -41,11 +52,17 @@ export default async function ContestPage({ params }: PageProps) {
     where: { id: params.id },
     include: {
       lanes: true,
-      series: { select: { id: true, name: true } },
+      series: { select: { id: true, name: true, isPrivate: true } },
     },
   });
 
   if (!contest) notFound();
+  const seriesAccess = await canUserAccessSeriesById({
+    seriesId: contest.series.id,
+    userId,
+    isAdmin: Boolean(session?.user?.isAdmin),
+  });
+  if (!seriesAccess.canAccess) notFound();
 
   const isSettled = contest.status === ContestStatus.SETTLED;
   const isAdmin = Boolean(session?.user?.isAdmin);
@@ -124,6 +141,77 @@ export default async function ContestPage({ params }: PageProps) {
       (sum: number, tx: any) => sum + (tx.amount ?? 0),
       0
     );
+
+    const winningTicketsRaw = await prisma.ticket.findMany({
+      where: {
+        contestId: contest.id,
+        payoutAmount: { gt: 0 },
+      },
+      orderBy: [{ payoutAmount: "desc" }, { placedAt: "asc" }],
+      include: {
+        user: { select: { id: true, displayName: true } },
+        legs: {
+          orderBy: { id: "asc" },
+          include: {
+            lane: { select: { id: true, name: true, status: true } },
+          },
+        },
+      },
+    });
+
+    const winningTickets = winningTicketsRaw.map((t: any) => {
+      const stake = t.stakeAmount ?? 0;
+      const payout = t.payoutAmount ?? 0;
+      const profit = computeTicketProfit(stake, payout) ?? 0;
+      const roi = computeTicketRoi(stake, profit);
+      const multiple = stake > 0 ? payout / stake : null;
+      const legs = Array.isArray(t.legs) ? t.legs : [];
+      const markets = Array.from(new Set(legs.map((leg: any) => String(leg.market ?? "—"))));
+      return {
+        id: t.id,
+        userId: t.userId,
+        displayName: t.user?.displayName ?? "Unknown",
+        stake,
+        payout,
+        profit,
+        roi,
+        multiple,
+        placedAt: t.placedAt as Date,
+        result: t.result ?? null,
+        markets,
+        legs: legs.map((leg: any) => ({
+          id: leg.id,
+          market: String(leg.market ?? "—"),
+          laneName: leg.lane?.name ?? leg.laneNameSnap ?? "—",
+          refunded: leg.lane?.status === "SCRATCHED",
+        })),
+      };
+    });
+
+    const winningTicketCount = winningTickets.length;
+    const biggestPayoutTicket =
+      winningTickets.length > 0
+        ? winningTickets.reduce((best, t) => (t.payout > best.payout ? t : best), winningTickets[0])
+        : null;
+    const bestRoiTicket =
+      winningTickets.length > 0
+        ? winningTickets.reduce((best, t) => {
+            const bestRoi = best.roi ?? -Infinity;
+            const nextRoi = t.roi ?? -Infinity;
+            return nextRoi > bestRoi ? t : best;
+          }, winningTickets[0])
+        : null;
+    const marketWinCounts = new Map<string, number>();
+    for (const t of winningTickets) {
+      for (const m of t.markets) {
+        const market = String(m);
+        marketWinCounts.set(market, (marketWinCounts.get(market) ?? 0) + 1);
+      }
+    }
+    const mostCommonWinningMarket =
+      marketWinCounts.size > 0
+        ? [...marketWinCounts.entries()].sort((a, b) => b[1] - a[1])[0]
+        : null;
 
     const settledRows = lanesByFinalRank.map((lane: any) => ({
       id: lane.id,
@@ -255,6 +343,152 @@ export default async function ContestPage({ params }: PageProps) {
           </div>
 
           <SettledRaceBoard rows={settledRows} />
+        </section>
+
+        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+          <div className="mb-3">
+            <h2 className="text-base font-semibold text-neutral-50">Winner&apos;s Circle</h2>
+            <p className="text-sm text-neutral-300">
+              See who cashed in this race and what tickets paid.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-neutral-400">Winning Tickets</p>
+              <p className="mt-1 text-lg font-semibold text-neutral-50">{winningTicketCount}</p>
+            </div>
+            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-neutral-400">Biggest Payout</p>
+              <p className="mt-1 text-sm text-neutral-100">
+                {biggestPayoutTicket ? (
+                  <>
+                    {formatCoins(biggestPayoutTicket.payout)} · {biggestPayoutTicket.displayName}
+                  </>
+                ) : (
+                  "—"
+                )}
+              </p>
+            </div>
+            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-neutral-400">Best ROI</p>
+              <p className="mt-1 text-sm text-neutral-100">
+                {bestRoiTicket && bestRoiTicket.roi != null ? (
+                  <>
+                    {(bestRoiTicket.roi * 100).toFixed(1)}% · {bestRoiTicket.displayName}
+                  </>
+                ) : (
+                  "—"
+                )}
+              </p>
+            </div>
+            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-neutral-400">Most Hit Market</p>
+              <p className="mt-1 text-sm text-neutral-100">
+                {mostCommonWinningMarket ? (
+                  <>
+                    {mostCommonWinningMarket[0]} ({mostCommonWinningMarket[1]})
+                  </>
+                ) : (
+                  "—"
+                )}
+              </p>
+            </div>
+          </div>
+
+          {winningTickets.length === 0 ? (
+            <p className="mt-4 text-sm text-neutral-400">No winning tickets recorded for this contest.</p>
+          ) : (
+            <div className="mt-4 overflow-x-auto rounded border border-neutral-800 bg-neutral-950">
+              <p className="border-b border-neutral-800 px-3 py-2 text-[11px] text-neutral-500 sm:hidden">
+                Swipe to view full winner details.
+              </p>
+              <table className="w-full min-w-[980px] text-left text-sm text-neutral-100">
+                <thead className="bg-neutral-900 text-neutral-400">
+                  <tr>
+                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">User</th>
+                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">Bet Type</th>
+                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">Selections</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">Stake</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">Payout</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">Profit</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">ROI</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">Multiple</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {winningTickets.map((t) => {
+                    const isBiggestPayout = biggestPayoutTicket?.id === t.id;
+                    const isBestRoi = bestRoiTicket?.id === t.id && t.roi != null;
+                    return (
+                    <tr
+                      key={t.id}
+                      className={[
+                        "border-t border-neutral-800 align-top",
+                        isBiggestPayout ? "bg-emerald-500/5" : "",
+                        !isBiggestPayout && isBestRoi ? "bg-amber-500/5" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium text-neutral-50">{t.displayName}</span>
+                          {isBiggestPayout ? (
+                            <span className="rounded-full border border-emerald-400/70 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
+                              Biggest Payout
+                            </span>
+                          ) : null}
+                          {isBestRoi ? (
+                            <span className="rounded-full border border-amber-400/70 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+                              Best ROI
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-[11px] text-neutral-500">{formatDateTime(t.placedAt)}</div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {t.markets.map((m) => {
+                            const market = String(m);
+                            return (
+                            <span
+                              key={`${t.id}-${market}`}
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold leading-none ${marketBadgeClass(
+                                market
+                              )}`}
+                            >
+                              {market}
+                            </span>
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <ul className="space-y-1">
+                          {t.legs.map((leg: any) => (
+                            <li key={leg.id} className={leg.refunded ? "text-neutral-500 line-through" : ""}>
+                              {leg.laneName} <span className="text-neutral-500">({leg.market})</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCoins(t.stake)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCoins(t.payout)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCoins(t.profit)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {t.roi != null ? `${(t.roi * 100).toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {t.multiple != null ? `${t.multiple.toFixed(2)}x` : "—"}
+                      </td>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">

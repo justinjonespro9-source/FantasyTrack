@@ -1,0 +1,2 @@
+ALTER TABLE "Series"
+ADD COLUMN "isPrivate" BOOLEAN NOT NULL DEFAULT false;

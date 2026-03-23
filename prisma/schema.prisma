@@ -119,6 +119,7 @@ model Series {
   endDate     DateTime
   prizesText  String?
   isActive    Boolean  @default(false)
+  isPrivate   Boolean  @default(false)
   createdAt   DateTime @default(now())
   inviteCode  String?  @unique
   description String?
