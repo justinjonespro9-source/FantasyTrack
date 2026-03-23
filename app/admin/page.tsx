@@ -23,6 +23,7 @@ import { PullLiveStatsButton } from "@/components/admin/pull-live-stats-button";
 import { BulkPullLiveStatsButton } from "@/components/admin/bulk-pull-live-stats-button";
 import UserSuspensionPanel from "@/components/admin/user-suspension-panel";
 import CommishNotesManager from "@/components/admin/commish-notes-manager";
+import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 import { computeHockeyFantasyPoints } from "@/lib/scoring-hockey";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
 import {
@@ -503,18 +504,27 @@ async function createSeriesAction(formData: FormData) {
   const isPrivate = formData.get("isPrivate") === "on";
   const inviteCode = normalizeInviteCode(formData.get("inviteCode"));
 
-  if (!name || !startDate || !endDate) {
-    throw new Error("Series name/start/end are required.");
+  if (!name) {
+    throw new Error("Series name is required.");
   }
   if (isPrivate && !inviteCode) {
     throw new Error("Private series require an invite code.");
   }
 
+  const parsedStartDate = startDate ? new Date(startDate) : null;
+  const parsedEndDate = endDate ? new Date(endDate) : null;
+  if (parsedStartDate && Number.isNaN(parsedStartDate.getTime())) {
+    throw new Error("Invalid start date.");
+  }
+  if (parsedEndDate && Number.isNaN(parsedEndDate.getTime())) {
+    throw new Error("Invalid end date.");
+  }
+
   await prisma.series.create({
     data: {
       name,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
       prizesText,
       isActive,
       isPrivate,
@@ -565,6 +575,32 @@ async function toggleSeriesActiveAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/");
+}
+
+async function deleteSeriesAction(formData: FormData) {
+  "use server";
+  await requireAdmin();
+
+  const seriesId = String(formData.get("seriesId") ?? "");
+  if (!seriesId) throw new Error("Missing seriesId");
+
+  const [contestCount, ticketCount, membershipCount, transactionCount] = await Promise.all([
+    prisma.contest.count({ where: { seriesId } }),
+    prisma.ticket.count({ where: { seriesId } }),
+    prisma.seriesMembership.count({ where: { seriesId } }),
+    prisma.transaction.count({ where: { seriesId } }),
+  ]);
+
+  if (contestCount > 0 || ticketCount > 0 || membershipCount > 0 || transactionCount > 0) {
+    throw new Error(
+      `Cannot delete series with related data (contests: ${contestCount}, tickets: ${ticketCount}, memberships: ${membershipCount}, transactions: ${transactionCount}).`
+    );
+  }
+
+  await prisma.series.delete({ where: { id: seriesId } });
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/series");
 }
 
 async function createContestAction(formData: FormData) {
@@ -2508,10 +2544,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </CardSection>
 
       <CardSection title="Series">
+        <div className="mb-3 rounded border border-amber-400/80 bg-amber-500/15 px-3 py-2 text-sm font-semibold uppercase tracking-wide text-amber-200">
+          PRIVATE SERIES LIVE TEST
+        </div>
         <form action={createSeriesAction} className="grid gap-3 md:grid-cols-2">
           <input name="name" placeholder="Series name" required />
-          <input name="startDate" type="date" required />
-          <input name="endDate" type="date" required />
+          <input name="startDate" type="date" />
+          <input name="endDate" type="date" />
           <input name="prizesText" placeholder="Prizes text (optional)" />
           <input
             name="inviteCode"
@@ -2543,7 +2582,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <div>
                   <p className="font-medium">{s.name}</p>
                   <p className="text-xs text-track-500">
-                    {formatDateTime(s.startDate)} → {formatDateTime(s.endDate)} ·{" "}
+                    {s.startDate && s.endDate
+                      ? `${formatDateTime(s.startDate)} → ${formatDateTime(s.endDate)}`
+                      : "Ongoing"}{" "}
+                    ·{" "}
                     {s.isActive ? "Active" : "Inactive"} ·{" "}
                     {s.isPrivate ? "Private" : "Public"}
                   </p>
@@ -2574,6 +2616,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     <button type="submit" className="rounded bg-track-100 px-3 py-1 text-track-700">
                       Save access
                     </button>
+                  </form>
+                  <form action={deleteSeriesAction} className="flex items-center gap-2">
+                    <input type="hidden" name="seriesId" value={s.id} />
+                    <ConfirmSubmitButton
+                      confirmMessage="Delete this series permanently? This cannot be undone."
+                      className="rounded bg-red-700 px-3 py-1 text-white"
+                    >
+                      Delete series
+                    </ConfirmSubmitButton>
                   </form>
                 </div>
               </div>
