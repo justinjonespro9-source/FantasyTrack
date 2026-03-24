@@ -2553,9 +2553,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </CardSection>
 
       <CardSection title="Series">
-        <div className="mb-3 rounded border border-amber-400/80 bg-amber-500/15 px-3 py-2 text-sm font-semibold uppercase tracking-wide text-amber-200">
-          PRIVATE SERIES LIVE TEST
-        </div>
         <form action={createSeriesAction} className="grid gap-3 md:grid-cols-2">
           <input name="name" placeholder="Series name" required />
           <input name="startDate" type="date" />

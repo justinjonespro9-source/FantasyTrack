@@ -65,7 +65,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     ? await prisma.seriesMembership.findMany({
         where: { userId },
         include: {
-          series: { select: { id: true, name: true, description: true, inviteCode: true } },
+          series: { select: { id: true, name: true, description: true, inviteCode: true, isPrivate: true } },
         },
         orderBy: { createdAt: "desc" },
       })
@@ -73,7 +73,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   // For the dashboard Series module, avoid duplicating joined series in the Public Series preview.
   const userSeriesIds = new Set(userSeries.map((m) => m.series.id));
-  const publicSeriesForPanel = seriesToShow.filter((s) => !userSeriesIds.has(s.id));
+  const availableSeriesForPanel = seriesToShow.filter((s) => !userSeriesIds.has(s.id));
+  const publicSeriesForPanel = availableSeriesForPanel.filter((s) => !Boolean((s as any).isPrivate));
+  const privateSeriesForPanel = availableSeriesForPanel.filter((s) => Boolean((s as any).isPrivate));
 
   const now = new Date();
 
@@ -346,6 +348,34 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       </Link>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Private Series */}
+              {privateSeriesForPanel.length > 0 && (
+                <div className="border-t border-neutral-800 pt-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                    Private Series (Invite Only)
+                  </p>
+                  <div className="space-y-1.5">
+                    {privateSeriesForPanel.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between rounded border border-neutral-800 bg-neutral-950/80 px-2.5 py-1.5 text-xs text-neutral-200"
+                      >
+                        <span className="truncate font-medium">{s.name}</span>
+                        <span className="rounded-full border border-amber-500/60 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+                          Invite Only
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <Link
+                    href="/series/join"
+                    className="mt-2 inline-flex items-center rounded-full border border-amber-400/70 bg-amber-400 px-3 py-1 text-xs font-semibold text-neutral-950 hover:bg-amber-300"
+                  >
+                    Join with Code
+                  </Link>
                 </div>
               )}
             </div>
