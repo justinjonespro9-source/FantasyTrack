@@ -24,6 +24,7 @@ import { BulkPullLiveStatsButton } from "@/components/admin/bulk-pull-live-stats
 import UserSuspensionPanel from "@/components/admin/user-suspension-panel";
 import CommishNotesManager from "@/components/admin/commish-notes-manager";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
+import ReminderEmailPanel from "@/components/admin/reminder-email-panel";
 import { computeHockeyFantasyPoints } from "@/lib/scoring-hockey";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
 import {
@@ -591,10 +592,14 @@ async function deleteSeriesAction(formData: FormData) {
     prisma.transaction.count({ where: { seriesId } }),
   ]);
 
-  if (contestCount > 0 || ticketCount > 0 || membershipCount > 0 || transactionCount > 0) {
+  if (contestCount > 0 || ticketCount > 0 || transactionCount > 0) {
     throw new Error(
       `Cannot delete series with related data (contests: ${contestCount}, tickets: ${ticketCount}, memberships: ${membershipCount}, transactions: ${transactionCount}).`
     );
+  }
+
+  if (membershipCount > 0) {
+    await prisma.seriesMembership.deleteMany({ where: { seriesId } });
   }
 
   await prisma.series.delete({ where: { id: seriesId } });
@@ -2541,6 +2546,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           Create series/contests, manage lanes, settle markets, grant bankroll, and post commish
           notes.
         </p>
+      </CardSection>
+
+      <CardSection title="Reminder Emails">
+        <ReminderEmailPanel />
       </CardSection>
 
       <CardSection title="Series">

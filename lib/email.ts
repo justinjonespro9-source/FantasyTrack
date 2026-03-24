@@ -7,6 +7,18 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
+function assertResendConfigured() {
+  if (!resend || !RESEND_API_KEY) {
+    if (process.env.NODE_ENV === "development") {
+      return false;
+    }
+    throw new Error(
+      "RESEND_API_KEY is not configured. Emails cannot be sent."
+    );
+  }
+  return true;
+}
+
 export async function sendPasswordResetEmail(opts: {
   to: string;
   email: string;
@@ -15,7 +27,7 @@ export async function sendPasswordResetEmail(opts: {
 }): Promise<void> {
   const resetUrl = getResetUrl(opts.email, opts.selector, opts.token);
 
-  if (!resend || !RESEND_API_KEY) {
+  if (!assertResendConfigured()) {
     if (process.env.NODE_ENV === "development") {
       console.warn(
         "[email] RESEND_API_KEY not set. Password reset email not sent. Reset link:",
@@ -23,12 +35,14 @@ export async function sendPasswordResetEmail(opts: {
       );
       return;
     }
-    throw new Error(
-      "RESEND_API_KEY is not configured. Password reset emails cannot be sent."
-    );
   }
 
-  await resend.emails.send({
+  const client = resend;
+  if (!client) {
+    throw new Error("RESEND_API_KEY is not configured. Password reset emails cannot be sent.");
+  }
+
+  await client.emails.send({
     from: "FantasyTrack <no-reply@auth.fantasytrack.app>",
     to: opts.to,
     subject: "Reset your FantasyTrack password",
@@ -48,6 +62,34 @@ function getResetUrl(email: string, selector: string, token: string): string {
   url.searchParams.set("token", token);
   url.searchParams.set("email", email);
   return url.toString();
+}
+
+export async function sendReminderEmail(opts: {
+  to: string;
+  subject: string;
+  message: string;
+}): Promise<void> {
+  if (!assertResendConfigured()) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[email] RESEND_API_KEY not set. Reminder email not sent:",
+        opts.to
+      );
+      return;
+    }
+  }
+
+  const client = resend;
+  if (!client) {
+    throw new Error("RESEND_API_KEY is not configured. Reminder emails cannot be sent.");
+  }
+
+  await client.emails.send({
+    from: "The Commish <commish@auth.fantasytrack.app>",
+    to: opts.to,
+    subject: opts.subject,
+    text: opts.message,
+  });
 }
 
 /**
