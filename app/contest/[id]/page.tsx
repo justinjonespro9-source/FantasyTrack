@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { ContestLiveTape } from "@/components/contest-live-tape";
 import { getCurrentSession } from "@/lib/session";
 import { SettledRaceBoard } from "@/components/settled-race-board";
-import { formatCoins, formatDateTime, formatOddsTo1 } from "@/lib/format";
+import { formatCoins, formatDateTime, formatOpeningWinOddsCaption } from "@/lib/format";
 import { formatSportLabel } from "@/lib/sports";
 import { formatTrackConditionsLabel } from "@/lib/track-conditions";
 import { BuildLanesAllPlayersButton } from "@/components/admin/build-lanes-all-players-button";
@@ -595,8 +595,8 @@ export default async function ContestPage({ params }: PageProps) {
                               const fallbackPerLeg = Math.floor(stake / (legs.length || 1));
 
                               const oddsLabel =
-                                leg.market === "WIN" && leg.oddsTo1Snap != null
-                                  ? formatOddsTo1(leg.oddsTo1Snap)
+                                leg.market === "WIN"
+                                  ? formatOpeningWinOddsCaption(leg.oddsTo1Snap)
                                   : null;
 
                               const refunded = leg.lane?.status === "SCRATCHED";
@@ -813,11 +813,6 @@ export default async function ContestPage({ params }: PageProps) {
                   .filter((tx: any) => tx.type === TransactionType.PAYOUT)
                   .reduce((sum: number, tx: any) => sum + (tx.amount ?? 0), 0);
 
-                const lockedMultiple =
-                  leg.market === "WIN" && leg.oddsTo1Snap != null && Number.isFinite(leg.oddsTo1Snap)
-                    ? leg.oddsTo1Snap + 1
-                    : null;
-
                 return {
                   id: leg.id,
                   ticketId: t.id ?? null,
@@ -828,7 +823,6 @@ export default async function ContestPage({ params }: PageProps) {
                   createdAt,
                   refunded: leg.lane?.status === "SCRATCHED",
                   payout,
-                  lockedMultiple,
                 };
               });
             })}

@@ -20,8 +20,8 @@ type LiveRaceBoardProps = {
   sport?: string | null;
   startTime?: string | Date | null;
   endTime?: string | Date | null;
-  /** Logged-in user's locked WIN multiple per lane (from ticket legs). Shown as "Locked Nx". */
-  lockedMultipleByLaneId?: Record<string, number> | null;
+  /** Lanes where the logged-in user has a non-refunded wager (any market). Neutral highlight only. */
+  userPickLaneIds?: Record<string, boolean> | null;
   /** From live BoxScore pull (0–100). When set, progress bar uses this instead of time. */
   liveGameProgress?: number | null;
   /** From live BoxScore pull (e.g. InProgress, Final). Used for progress label when present. */
@@ -183,10 +183,6 @@ function MovementIndicator({ movement, delta }: { movement: Movement; delta: num
 
 const HIGHLIGHT_DURATION_MS = 1500;
 
-function formatLockedMultiple(multiple: number) {
-  return Number.isInteger(multiple) ? `${multiple}x` : `${multiple.toFixed(1)}x`;
-}
-
 export function LiveRaceBoard({
   contestId: _contestId,
   title,
@@ -194,7 +190,7 @@ export function LiveRaceBoard({
   sport,
   startTime,
   endTime,
-  lockedMultipleByLaneId,
+  userPickLaneIds,
   liveGameProgress,
   liveGameStatus,
 }: LiveRaceBoardProps) {
@@ -409,14 +405,14 @@ export function LiveRaceBoard({
                         {formatFantasyPoints(lane.fantasyPoints)}
                         <span className="ml-1 text-[11px] font-normal text-neutral-400">pts</span>
                       </div>
-                      {lockedMultipleByLaneId?.[lane.id] != null && (
+                      {userPickLaneIds?.[lane.id] ? (
                         <span
-                          className="rounded border border-amber-400/60 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200"
-                          title="Your locked WIN odds (pre-race)"
+                          className="rounded border border-sky-400/50 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-100"
+                          title="You have a wager on this lane. WIN payouts are pool-priced at lock — we do not store a personal locked price per bet unless shown as locked final odds."
                         >
-                          Locked {formatLockedMultiple(lockedMultipleByLaneId[lane.id])}
+                          Your pick
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
@@ -467,9 +463,19 @@ export function LiveRaceBoard({
                         </span>
                       )}
                     </div>
-                    <span className="shrink-0 text-xs font-semibold text-neutral-100">
-                      {formatFantasyPoints(lane.fantasyPoints)}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {userPickLaneIds?.[lane.id] ? (
+                        <span
+                          className="rounded border border-sky-400/50 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-sky-100"
+                          title="You have a wager on this lane. WIN payouts are pool-priced at lock — we do not store a personal locked price per bet unless shown as locked final odds."
+                        >
+                          Your pick
+                        </span>
+                      ) : null}
+                      <span className="text-xs font-semibold text-neutral-100">
+                        {formatFantasyPoints(lane.fantasyPoints)}
+                      </span>
+                    </div>
                   </div>
                   );
                 })}

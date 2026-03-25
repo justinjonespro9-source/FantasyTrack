@@ -49,8 +49,6 @@ type MyBetView = {
   createdAt: string;
   refunded: boolean;
   payout?: number | null;
-  /** WIN leg locked multiple (oddsTo1Snap + 1) for live race board display. */
-  lockedMultiple?: number | null;
 };
 
 type ContestBoardProps = {
@@ -377,22 +375,13 @@ export default function ContestBoard({
     return groups;
   }, [collapsedMyBets, laneTotals]);
 
-  /** Per-lane best locked WIN multiple for live race board (user's bets only). */
-  const lockedMultipleByLaneId = useMemo(() => {
-    const map = new Map<string, number>();
+  /** Lanes where the user has any active (non-refunded) wager — for neutral leaderboard highlight. */
+  const userPickLaneIds = useMemo(() => {
+    const out: Record<string, boolean> = {};
     for (const b of myBets) {
-      if (
-        b.lockedMultiple != null &&
-        Number.isFinite(b.lockedMultiple) &&
-        !b.refunded
-      ) {
-        const existing = map.get(b.laneId);
-        if (existing === undefined || b.lockedMultiple > existing) {
-          map.set(b.laneId, b.lockedMultiple);
-        }
-      }
+      if (!b.refunded) out[b.laneId] = true;
     }
-    return Object.fromEntries(map);
+    return out;
   }, [myBets]);
 
   useEffect(() => {
@@ -776,7 +765,7 @@ export default function ContestBoard({
           fantasyPoints: lane.liveFantasyPoints ?? lane.fantasyPoints ?? null,
           status: lane.status,
         }))}
-        lockedMultipleByLaneId={isLoggedIn ? lockedMultipleByLaneId : undefined}
+        userPickLaneIds={isLoggedIn ? userPickLaneIds : undefined}
         liveGameProgress={liveGameProgress ?? undefined}
         liveGameStatus={liveGameStatus ?? undefined}
       />
@@ -854,7 +843,12 @@ export default function ContestBoard({
 
           <thead className="sticky top-0 z-10 bg-neutral-900/95 text-[10px] font-semibold uppercase tracking-wide text-neutral-300">
             <tr>
-              <th className="px-2.5 py-1.5 text-left">Odds</th>
+              <th
+                className="px-2.5 py-1.5 text-left"
+                title="LIVE = current WIN pool estimate (moves with wagers). OPEN = posted opening line when the WIN pool is empty. Final market WIN odds are fixed at lock."
+              >
+                To-win (est.)
+              </th>
               <th className="px-2.5 py-1.5 text-left">Runner</th>
               <th className="px-2.5 py-1.5 text-left">
                 WIN
@@ -1191,8 +1185,8 @@ export default function ContestBoard({
       </div>
 
       <p className="text-xs text-neutral-400">
-        OPEN = opening estimate (no pool yet). LIVE = crowd-priced based on the current pool. Your wager
-        will move the number.
+        OPEN = posted opening line while the WIN pool is empty. LIVE = estimated WIN payout from the
+        current pool (parimutuel — moves as others wager). Final market WIN odds are fixed at lock.
       </p>
 
       <div className="mt-4 flex gap-2 rounded-lg border border-neutral-800 bg-neutral-900/80 p-1 text-xs font-semibold text-neutral-300 md:hidden">

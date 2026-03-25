@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatCoins, formatDateTime } from "@/lib/format";
+import { formatCoins, formatDateTime, formatOddsTo1, formatOpeningWinOddsCaption } from "@/lib/format";
 
 type TicketDetailResponse = {
   ticket: {
@@ -51,11 +51,6 @@ function shortId(id: string) {
 
 function clsx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
-}
-
-function formatOddsTo1(oddsTo1: number | null | undefined) {
-  if (oddsTo1 == null) return "—";
-  return `${oddsTo1}-1`;
 }
 
 export function TicketDetailModal({
@@ -258,7 +253,8 @@ export function TicketDetailModal({
                       <tbody>
                         {ticket.legs.map((l) => {
                           const laneLabel = l.laneNameSnap || l.lane?.name || "—";
-                          const oddsLabel = l.market === "WIN" ? formatOddsTo1(l.oddsTo1Snap) : null;
+                          const oddsLabel =
+                            l.market === "WIN" ? formatOpeningWinOddsCaption(l.oddsTo1Snap) : null;
                           const refunded = l.isVoided || Boolean(l.voidReason);
 
                           return (
@@ -374,9 +370,14 @@ function CopyTicketBlock({
     "",
     ...ticket.legs.map((l) => {
       const lane = l.laneNameSnap || l.lane?.name || "—";
-      const odds = l.oddsTo1Snap == null ? "—" : `${l.oddsTo1Snap}-1`;
+      const odds =
+        l.market === "WIN"
+          ? l.oddsTo1Snap == null
+            ? "no open-odds snapshot"
+            : `open ${formatOddsTo1(l.oddsTo1Snap)}`
+          : "—";
       const voidTag = l.isVoided ? " (VOID)" : "";
-      return `${l.market} • ${lane} • ${l.amount} • locked ${odds}${voidTag}`;
+      return `${l.market} • ${lane} • ${l.amount} • ${odds}${voidTag}`;
     }),
   ].join("\n");
 

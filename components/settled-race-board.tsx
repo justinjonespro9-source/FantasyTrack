@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatCoins, formatMultiple } from "@/lib/format";
+import { formatCoins, formatMultiple, formatOddsTo1 } from "@/lib/format";
 import type { ScoringBreakdown } from "@/lib/scoring-config";
 import { ScoringBreakdownAccordion } from "@/components/scoring/scoring-breakdown-accordion";
 
@@ -68,16 +68,14 @@ function renderLaneStatus(status: LaneStatus) {
   }
 }
 
-function formatSettledOdds(winMultiple: number | null, openingWinOddsTo1: number | null) {
+function settledWinOddsPrimary(winMultiple: number | null, openingWinOddsTo1: number | null): string {
   if (winMultiple != null) {
     const oddsTo1 = winMultiple - 1;
-    return oddsTo1 >= 1 ? `${oddsTo1.toFixed(0)}-1` : `${winMultiple.toFixed(2)}x`;
+    return oddsTo1 >= 1 ? formatOddsTo1(oddsTo1) : `${winMultiple.toFixed(2)}x`;
   }
-
   if (openingWinOddsTo1 != null) {
-    return `${openingWinOddsTo1.toFixed(0)}-1`;
+    return formatOddsTo1(openingWinOddsTo1);
   }
-
   return "—";
 }
 
@@ -153,7 +151,7 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
         <thead className="text-left">
           <tr>
             <th className="min-w-[7rem] border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
-              Odds
+              WIN (final / open)
             </th>
             <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
               Player
@@ -188,9 +186,14 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
               >
                 <td className="min-w-[7rem] px-3 py-2 align-top">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="shrink-0 whitespace-nowrap text-lg font-bold text-amber-200 tabular-nums">
-                      {formatSettledOdds(lane.winMultiple, lane.openingWinOddsTo1)}
-                    </span>
+                    <div className="min-w-0 shrink">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">
+                        {lane.winMultiple != null ? "Final pool" : lane.openingWinOddsTo1 != null ? "Opening line" : ""}
+                      </p>
+                      <span className="shrink-0 whitespace-nowrap text-lg font-bold text-amber-200 tabular-nums">
+                        {settledWinOddsPrimary(lane.winMultiple, lane.openingWinOddsTo1)}
+                      </span>
+                    </div>
                     {lane.finalRank && lane.finalRank <= 3 ? (
                       <span
                         className={

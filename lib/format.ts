@@ -21,6 +21,12 @@ export function formatOddsTo1(oddsTo1?: number | null): string {
   return `${rounded}\u20131`;
 }
 
+/** Opening WIN line snapshot (e.g. at wager time). Not final pool / locked payout unless stored separately. */
+export function formatOpeningWinOddsCaption(oddsTo1?: number | null): string | null {
+  if (oddsTo1 == null) return null;
+  return `Open odds: ${formatOddsTo1(oddsTo1)}`;
+}
+
 export function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
