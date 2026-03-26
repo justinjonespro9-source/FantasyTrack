@@ -48,7 +48,7 @@ export default function SiteFooter() {
               X
             </Link>
             <Link
-              href="https://discord.gg/UYHWmy8j"
+              href="https://discord.gg/JUshZthE"
               target="_blank"
               rel="noopener noreferrer"
               className="text-neutral-400 hover:text-amber-300"
