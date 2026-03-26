@@ -96,6 +96,27 @@ model User {
   seriesMemberships SeriesMembership[]
 
   passwordResetTokens PasswordResetToken[]
+  externalProviderTokensUpdated ExternalProviderToken[] @relation("ExternalProviderTokenUpdatedByUser")
+}
+
+model ExternalProviderToken {
+  id       String @id @default(cuid())
+  provider String @unique
+
+  accessTokenEnc  String
+  refreshTokenEnc String?
+  tokenType       String?
+  scope           String?
+  expiresAt       DateTime?
+  externalAccountId   String?
+  externalUsername    String?
+  externalDisplayName String?
+
+  updatedByUserId String?
+  updatedByUser   User? @relation("ExternalProviderTokenUpdatedByUser", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model PasswordResetToken {

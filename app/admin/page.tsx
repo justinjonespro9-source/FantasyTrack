@@ -25,6 +25,7 @@ import UserSuspensionPanel from "@/components/admin/user-suspension-panel";
 import CommishNotesManager from "@/components/admin/commish-notes-manager";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 import ReminderEmailPanel from "@/components/admin/reminder-email-panel";
+import XPostComposer from "@/components/admin/x-post-composer";
 import { computeHockeyFantasyPoints } from "@/lib/scoring-hockey";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
 import {
@@ -2427,6 +2428,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       },
     }),
   ]);
+  const xConnection = await prisma.externalProviderToken.findUnique({
+    where: { provider: "x" },
+    select: {
+      provider: true,
+      scope: true,
+      tokenType: true,
+      expiresAt: true,
+      updatedAt: true,
+      externalUsername: true,
+      externalDisplayName: true,
+    },
+  });
 
   const usersForSuspensionPanel = users.map((u) => ({
     ...u,
@@ -2546,6 +2559,86 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           Create series/contests, manage lanes, settle markets, grant bankroll, and post commish
           notes.
         </p>
+      </CardSection>
+
+      <CardSection title="X Connection">
+        {xConnection ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-emerald-400/70 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-200">
+                X Connected
+              </span>
+            </div>
+            <div className="rounded border border-track-200 bg-track-50 p-2">
+              <p className="text-[11px] uppercase tracking-wide text-track-500">Connected As</p>
+              <p className="font-medium text-track-900">
+                {xConnection.externalUsername ? `@${xConnection.externalUsername}` : "—"}
+              </p>
+              {xConnection.externalDisplayName ? (
+                <p className="text-xs text-track-600">{xConnection.externalDisplayName}</p>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+              <div className="rounded border border-track-200 bg-track-50 p-2">
+                <p className="text-[11px] uppercase tracking-wide text-track-500">Provider</p>
+                <p className="font-medium text-track-900">{xConnection.provider}</p>
+              </div>
+              <div className="rounded border border-track-200 bg-track-50 p-2">
+                <p className="text-[11px] uppercase tracking-wide text-track-500">Token Type</p>
+                <p className="font-medium text-track-900">{xConnection.tokenType ?? "—"}</p>
+              </div>
+              <div className="rounded border border-track-200 bg-track-50 p-2 sm:col-span-2">
+                <p className="text-[11px] uppercase tracking-wide text-track-500">Scope</p>
+                <p className="font-medium text-track-900 break-all">{xConnection.scope ?? "—"}</p>
+              </div>
+              <div className="rounded border border-track-200 bg-track-50 p-2">
+                <p className="text-[11px] uppercase tracking-wide text-track-500">Expires At</p>
+                <p className="font-medium text-track-900">
+                  {xConnection.expiresAt ? formatDateTime(xConnection.expiresAt) : "—"}
+                </p>
+              </div>
+              <div className="rounded border border-track-200 bg-track-50 p-2">
+                <p className="text-[11px] uppercase tracking-wide text-track-500">Updated At</p>
+                <p className="font-medium text-track-900">{formatDateTime(xConnection.updatedAt)}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-neutral-400/70 bg-neutral-500/10 px-2.5 py-0.5 text-xs font-semibold text-neutral-200">
+                Not Connected
+              </span>
+            </div>
+            <p className="text-sm text-neutral-300">
+              Connect FantasyTrack to X for future admin posting features.
+            </p>
+            <a
+              href="/api/admin/x/auth/start"
+              className="inline-flex items-center rounded border border-amber-500/60 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-200 hover:bg-amber-500/20"
+            >
+              Connect X
+            </a>
+          </div>
+        )}
+      </CardSection>
+
+      <CardSection title="Post to X">
+        {xConnection ? (
+          <XPostComposer connectedUsername={xConnection.externalUsername ?? null} />
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-neutral-300">
+              X is not connected yet. Connect an account first to publish posts.
+            </p>
+            <a
+              href="/api/admin/x/auth/start"
+              className="inline-flex items-center rounded border border-amber-500/60 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-200 hover:bg-amber-500/20"
+            >
+              Connect X
+            </a>
+          </div>
+        )}
       </CardSection>
 
       <CardSection title="Reminder Emails">
