@@ -294,6 +294,7 @@ model Lane {
   hockeyShootoutGoals      Int?
   hockeyGoalsAgainst Int?
   hockeyShutouts     Int?
+  hockeyWins         Int?
   hockeyOvertimeLosses Int?
   // Basketball live stats
   basketballPoints      Int?

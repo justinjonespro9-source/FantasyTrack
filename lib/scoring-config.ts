@@ -24,6 +24,7 @@ export type HockeyRawStats = {
   saves?: number | null;
   goalsAgainst?: number | null;
   shutouts?: number | null;
+  wins?: number | null;
   overtimeLosses?: number | null;
 };
 
@@ -181,11 +182,12 @@ export const HOCKEY_SCORING_RULES: ScoringRuleSection[] = [
   {
     title: "Eligible Position: Goalie",
     items: [
-      "Save = +0.7 pts",
-      "Goal against = -3.5 pts",
+      "Win = +5 pts",
+      "OT Loss = +2 pts",
       "Shutout = +5 pts",
-      "Overtime loss = +2 pts",
-      "35+ saves = +3 pts",
+      "Save = +0.7 pts",
+      "Goal Against = -3.5 pts",
+      "35+ Saves = +3 pts",
     ],
   },
 ];
@@ -201,6 +203,7 @@ export function computeHockeyFantasyPointsFromRaw(raw: HockeyRawStats): number {
   const saves = raw.saves ?? 0;
   const goalsAgainst = raw.goalsAgainst ?? 0;
   const shutouts = raw.shutouts ?? 0;
+  const wins = raw.wins ?? 0;
   const overtimeLosses = raw.overtimeLosses ?? 0;
 
   // Base skater scoring
@@ -222,6 +225,7 @@ export function computeHockeyFantasyPointsFromRaw(raw: HockeyRawStats): number {
   total += saves * 0.7;
   total += goalsAgainst * -3.5;
   total += shutouts * 5;
+  total += wins * 5;
   total += overtimeLosses * 2;
 
   // Goalie bonuses

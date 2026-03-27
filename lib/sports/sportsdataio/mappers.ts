@@ -349,8 +349,27 @@ export type NHLPlayerGameRaw = {
   Saves?: number | null;
   GoalsAgainst?: number | null;
   Shutout?: number | null;
+  Wins?: number | null;
+  GoaltendingDecision?: string | null;
+  Decision?: string | null;
   OvertimeLosses?: number | null;
 };
+
+function deriveNhlGoalieWins(raw: NHLPlayerGameRaw): number | undefined {
+  if (typeof raw.Wins === "number" && Number.isFinite(raw.Wins)) {
+    return raw.Wins;
+  }
+
+  // Fallback: some feeds expose only a decision marker for goalie rows.
+  const decision = String(raw.GoaltendingDecision ?? raw.Decision ?? "")
+    .trim()
+    .toUpperCase();
+  if (decision === "W" || decision === "WIN") {
+    return 1;
+  }
+
+  return undefined;
+}
 
 export function getNHLLeague(): ExternalLeague {
   return {
@@ -427,6 +446,7 @@ export function mapNHLPlayerGameToNormalizedStat(raw: NHLPlayerGameRaw): Normali
     saves: raw.Saves ?? undefined,
     goalsAgainst: raw.GoalsAgainst ?? undefined,
     shutouts: raw.Shutout ?? undefined,
+    wins: deriveNhlGoalieWins(raw),
     overtimeLosses: raw.OvertimeLosses ?? undefined,
   };
 

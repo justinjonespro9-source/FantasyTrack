@@ -82,6 +82,7 @@ export async function runHockeyLiveStatsPull(contestId: string): Promise<HockeyP
     const hockeySaves = raw.saves ?? null;
     const hockeyGoalsAgainst = raw.goalsAgainst ?? null;
     const hockeyShutouts = raw.shutouts ?? null;
+    const hockeyWins = raw.wins ?? null;
     const hockeyOvertimeLosses = raw.overtimeLosses ?? null;
 
     const liveFantasyPoints = computeHockeyFantasyPoints({
@@ -95,6 +96,7 @@ export async function runHockeyLiveStatsPull(contestId: string): Promise<HockeyP
       saves: hockeySaves ?? 0,
       goalsAgainst: hockeyGoalsAgainst ?? 0,
       shutouts: hockeyShutouts ?? 0,
+      wins: hockeyWins ?? 0,
       overtimeLosses: hockeyOvertimeLosses ?? 0,
     });
 
@@ -111,6 +113,7 @@ export async function runHockeyLiveStatsPull(contestId: string): Promise<HockeyP
         hockeySaves,
         hockeyGoalsAgainst,
         hockeyShutouts,
+        hockeyWins,
         hockeyOvertimeLosses,
         liveFantasyPoints,
       } as any,

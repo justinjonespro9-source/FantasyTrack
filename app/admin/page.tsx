@@ -807,6 +807,7 @@ async function updateHockeyLiveStatsAction(formData: FormData) {
     let hockeyShootoutGoals = lane?.hockeyShootoutGoals ?? 0;
     let hockeyGoalsAgainst = lane?.hockeyGoalsAgainst ?? 0;
     let hockeyShutouts = lane?.hockeyShutouts ?? 0;
+    let hockeyWins = lane?.hockeyWins ?? 0;
     let hockeyOvertimeLosses = lane?.hockeyOvertimeLosses ?? 0;
 
     switch (statKeyRaw) {
@@ -840,6 +841,9 @@ async function updateHockeyLiveStatsAction(formData: FormData) {
       case "SHUTOUT":
         hockeyShutouts = Math.max(0, hockeyShutouts + delta);
         break;
+      case "WIN":
+        hockeyWins = Math.max(0, hockeyWins + delta);
+        break;
       case "OTL":
         hockeyOvertimeLosses = Math.max(0, hockeyOvertimeLosses + delta);
         break;
@@ -859,6 +863,7 @@ async function updateHockeyLiveStatsAction(formData: FormData) {
       saves: hockeySaves,
       goalsAgainst: hockeyGoalsAgainst,
       shutouts: hockeyShutouts,
+      wins: hockeyWins,
       overtimeLosses: hockeyOvertimeLosses,
     });
 
@@ -875,6 +880,7 @@ async function updateHockeyLiveStatsAction(formData: FormData) {
         hockeyShootoutGoals,
         hockeyGoalsAgainst,
         hockeyShutouts,
+        hockeyWins,
         hockeyOvertimeLosses,
         liveFantasyPoints,
       } as any,
@@ -906,6 +912,7 @@ async function updateHockeyLiveStatsAction(formData: FormData) {
   const hockeyShootoutGoals = parseIntField("hockeyShootoutGoals");
   const hockeyGoalsAgainst = parseIntField("hockeyGoalsAgainst");
   const hockeyShutouts = parseIntField("hockeyShutouts");
+  const hockeyWins = parseIntField("hockeyWins");
   const hockeyOvertimeLosses = parseIntField("hockeyOvertimeLosses");
 
   const liveFantasyPoints = computeHockeyFantasyPoints({
@@ -919,6 +926,7 @@ async function updateHockeyLiveStatsAction(formData: FormData) {
     saves: hockeySaves ?? 0,
     goalsAgainst: hockeyGoalsAgainst ?? 0,
     shutouts: hockeyShutouts ?? 0,
+    wins: hockeyWins ?? 0,
     overtimeLosses: hockeyOvertimeLosses ?? 0,
   });
 
@@ -932,6 +940,7 @@ async function updateHockeyLiveStatsAction(formData: FormData) {
       hockeyBlocks,
       hockeyGoalsAgainst,
       hockeyShutouts,
+      hockeyWins,
       hockeyOvertimeLosses,
       liveFantasyPoints,
     } as any,
@@ -979,6 +988,7 @@ async function resetHockeyLiveStatsAction(formData: FormData) {
       hockeyAssists: null,
       hockeyShotsOnGoal: null,
       hockeySaves: null,
+      hockeyWins: null,
       hockeyBlocks: null,
     } as any,
   });
@@ -3418,6 +3428,25 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                                         type="submit"
                                         name="stat"
                                         value="SHUTOUT"
+                                        className="rounded bg-track-100 px-1 py-0.5 text-[10px] font-semibold text-track-700"
+                                      >
+                                        +1
+                                      </button>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-neutral-300">W</span>
+                                      <input
+                                        name="hockeyWins"
+                                        type="number"
+                                        min={0}
+                                        step={1}
+                                        defaultValue={(lane as any).hockeyWins ?? ""}
+                                        className="w-12 rounded border border-track-200 bg-neutral-900 px-1 py-0.5 text-right text-neutral-100"
+                                      />
+                                      <button
+                                        type="submit"
+                                        name="stat"
+                                        value="WIN"
                                         className="rounded bg-track-100 px-1 py-0.5 text-[10px] font-semibold text-track-700"
                                       >
                                         +1
