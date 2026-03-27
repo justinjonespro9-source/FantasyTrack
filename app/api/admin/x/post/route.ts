@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
-import { decryptSecret } from "@/lib/crypto-secrets";
-
-const X_POST_URL = "https://api.twitter.com/2/tweets";
+import { publishPostToConnectedX, XPostError } from "@/lib/x/post";
 
 export async function POST(req: NextRequest) {
   const session = await getCurrentSession();
@@ -27,67 +25,17 @@ export async function POST(req: NextRequest) {
   }
 
   const text = String(body?.text ?? "").trim();
-  if (!text) {
-    return NextResponse.json({ error: "Post text is required." }, { status: 400 });
-  }
-  if (text.length > 280) {
-    return NextResponse.json({ error: "Post text must be 280 characters or fewer." }, { status: 400 });
-  }
-
-  const tokenRow = await prisma.externalProviderToken.findUnique({
-    where: { provider: "x" },
-    select: {
-      accessTokenEnc: true,
-      externalUsername: true,
-    },
-  });
-  if (!tokenRow?.accessTokenEnc) {
-    return NextResponse.json(
-      { error: "X is not connected. Connect your account first." },
-      { status: 400 }
-    );
-  }
-
-  let accessToken: string;
   try {
-    accessToken = decryptSecret(tokenRow.accessTokenEnc);
-  } catch {
-    return NextResponse.json(
-      { error: "Stored X token could not be read. Please reconnect X." },
-      { status: 500 }
-    );
+    const result = await publishPostToConnectedX(text);
+    return NextResponse.json({
+      ok: true,
+      postId: result.postId,
+      username: result.username,
+    });
+  } catch (err) {
+    if (err instanceof XPostError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    return NextResponse.json({ error: "Failed to publish to X." }, { status: 500 });
   }
-
-  const xResponse = await fetch(X_POST_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ text }),
-    cache: "no-store",
-  });
-
-  const xBody = (await xResponse.json().catch(() => ({}))) as {
-    data?: { id?: string };
-    errors?: Array<{ detail?: string; message?: string }>;
-    title?: string;
-    detail?: string;
-  };
-
-  if (!xResponse.ok) {
-    const reason =
-      xBody?.errors?.[0]?.detail ||
-      xBody?.errors?.[0]?.message ||
-      xBody?.detail ||
-      xBody?.title ||
-      `X API request failed (${xResponse.status}).`;
-    return NextResponse.json({ error: reason }, { status: 400 });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    postId: xBody?.data?.id ?? null,
-    username: tokenRow.externalUsername ?? null,
-  });
 }

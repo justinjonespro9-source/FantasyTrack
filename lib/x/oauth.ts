@@ -95,11 +95,19 @@ export async function exchangeCodeForTokens(args: {
     cache: "no-store",
   });
 
+  const raw = await response.text();
+
   if (!response.ok) {
-    throw new Error(`X token exchange failed (${response.status}).`);
+    throw new Error(`X token exchange failed (${response.status}): ${raw}`);
   }
 
-  const data = (await response.json()) as Partial<XTokenResponse>;
+  let data: Partial<XTokenResponse>;
+  try {
+    data = JSON.parse(raw) as Partial<XTokenResponse>;
+  } catch {
+    throw new Error(`X token exchange returned non-JSON: ${raw}`);
+  }
+
   if (!data.access_token || !data.token_type) {
     throw new Error("X token exchange response missing required fields.");
   }
@@ -114,26 +122,46 @@ export async function exchangeCodeForTokens(args: {
 }
 
 export async function fetchXAccountIdentity(accessToken: string): Promise<{
-  id: string | null;
-  username: string | null;
-  displayName: string | null;
+  id: string;
+  username: string;
+  displayName: string;
 }> {
-  const response = await fetch("https://api.twitter.com/2/users/me", {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    cache: "no-store",
-  });
+  const response = await fetch(
+    "https://api.twitter.com/2/users/me?user.fields=username,name",
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  const raw = await response.text();
 
   if (!response.ok) {
-    return { id: null, username: null, displayName: null };
+    throw new Error(`X identity fetch failed (${response.status}): ${raw}`);
   }
 
-  const body = (await response.json()) as XMeResponse;
+  let body: XMeResponse;
+  try {
+    body = JSON.parse(raw) as XMeResponse;
+  } catch {
+    throw new Error(`X identity fetch returned non-JSON: ${raw}`);
+  }
+
+  const id = body.data?.id?.trim();
+  const username = body.data?.username?.trim();
+  const displayName = body.data?.name?.trim();
+
+  if (!id || !username) {
+    throw new Error(`X identity response missing id/username: ${raw}`);
+  }
+
   return {
-    id: body.data?.id ?? null,
-    username: body.data?.username ?? null,
-    displayName: body.data?.name ?? null,
+    id,
+    username,
+    displayName: displayName || username,
   };
 }
+

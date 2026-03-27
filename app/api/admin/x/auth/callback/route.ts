@@ -116,7 +116,8 @@ export async function GET(req: NextRequest) {
     response.cookies.set(STATE_COOKIE, "", clearCookie);
     response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
     return response;
-  } catch {
+  } catch (error) {
+    console.error("[x/oauth/callback] failure", error);
     const target = redirectUrl(req, "/admin", { xAuth: "error", xReason: "token_exchange_failed" });
     logRedirect("error_token_exchange", target.pathname + target.search);
     const response = NextResponse.redirect(target);

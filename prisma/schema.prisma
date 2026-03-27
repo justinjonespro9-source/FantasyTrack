@@ -65,6 +65,16 @@ enum ShoutoutScope {
   SERIES
 }
 
+enum XPostType {
+  LOCK_REMINDER
+  SETTLEMENT_RECAP
+}
+
+enum XPostStatus {
+  POSTED
+  FAILED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -259,6 +269,7 @@ model Contest {
   transactions      Transaction[]
   settlementSummary SettlementSummary?
   shoutouts         Shoutout[]
+  xPostLogs         XPostLog[]
 
   homeTeam Team? @relation("HomeTeamContests", fields: [homeTeamId], references: [id])
   awayTeam Team? @relation("AwayTeamContests", fields: [awayTeamId], references: [id])
@@ -271,6 +282,24 @@ model Contest {
   @@index([status, startTime])
   @@index([homeTeamId])
   @@index([awayTeamId])
+}
+
+model XPostLog {
+  id           String      @id @default(cuid())
+  contestId    String
+  postType     XPostType
+  status       XPostStatus
+  postId       String?
+  errorMessage String?
+  postedText   String
+  createdAt    DateTime    @default(now())
+  postedAt     DateTime?
+
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+
+  @@unique([contestId, postType])
+  @@index([postType, createdAt])
+  @@index([status, createdAt])
 }
 
 model Lane {
