@@ -73,6 +73,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   // For the dashboard Series module, avoid duplicating joined series in the Public Series preview.
   const userSeriesIds = new Set(userSeries.map((m) => m.series.id));
+  const isAdmin = Boolean(session?.user?.isAdmin);
+  /** Private-series contests only for members + admins; omit from discovery for everyone else. */
+  const visibleSeriesForDashboard = seriesToShow.filter(
+    (s) => isAdmin || !s.isPrivate || userSeriesIds.has(s.id)
+  );
   const availableSeriesForPanel = seriesToShow.filter((s) => !userSeriesIds.has(s.id));
   const publicSeriesForPanel = availableSeriesForPanel.filter((s) => !Boolean((s as any).isPrivate));
   const privateSeriesForPanel = availableSeriesForPanel.filter((s) => Boolean((s as any).isPrivate));
@@ -80,7 +85,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const now = new Date();
 
   const seriesDashboards = await Promise.all(
-    seriesToShow.map(async (series) => {
+    visibleSeriesForDashboard.map(async (series) => {
       const [activeContests, contestsForSeries, leaderboardRows, shoutouts, settledContests, yesterdayResults] =
         await Promise.all([
           prisma.contest.findMany({

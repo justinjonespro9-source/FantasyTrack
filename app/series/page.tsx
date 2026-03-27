@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/format";
+import { getCurrentSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function SeriesIndexPage() {
+  const session = await getCurrentSession();
+  const userId = session?.user?.id ?? null;
+  const isAdmin = Boolean(session?.user?.isAdmin);
+
   const activeSeries = await prisma.series.findMany({
     where: { isActive: true },
     orderBy: { startDate: "desc" },
@@ -21,6 +26,21 @@ export default async function SeriesIndexPage() {
         });
 
   const seriesList = activeSeries.length > 0 ? activeSeries : fallbackSeries;
+
+  const memberSeriesIds = userId
+    ? new Set(
+        (
+          await prisma.seriesMembership.findMany({
+            where: { userId },
+            select: { seriesId: true },
+          })
+        ).map((m) => m.seriesId)
+      )
+    : new Set<string>();
+
+  const visibleSeriesList = seriesList.filter(
+    (s) => isAdmin || !s.isPrivate || memberSeriesIds.has(s.id)
+  );
 
   return (
     <div className="space-y-6">
@@ -45,7 +65,7 @@ export default async function SeriesIndexPage() {
       </div>
 
       {/* Series cards */}
-      {seriesList.length === 0 ? (
+      {visibleSeriesList.length === 0 ? (
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-6 text-center">
           <p className="text-sm text-neutral-400">
             No series yet. Check back later or join a private series with an invite code.
@@ -59,7 +79,7 @@ export default async function SeriesIndexPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {seriesList.map((series) => (
+          {visibleSeriesList.map((series) => (
             <Link
               key={series.id}
               href={`/series/${series.id}`}

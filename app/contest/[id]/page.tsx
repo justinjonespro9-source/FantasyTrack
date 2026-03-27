@@ -62,7 +62,55 @@ export default async function ContestPage({ params }: PageProps) {
     userId,
     isAdmin: Boolean(session?.user?.isAdmin),
   });
-  if (!seriesAccess.canAccess) notFound();
+  if (!seriesAccess.canAccess) {
+    return (
+      <div className="mx-auto max-w-lg space-y-6 px-4 py-12">
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Private series
+          </p>
+          <h1 className="mt-2 text-xl font-semibold text-neutral-50">This contest is invite-only</h1>
+          <p className="mt-3 text-sm text-neutral-400">
+            {contest.title ? (
+              <>
+                <span className="text-neutral-300">“{contest.title}”</span> is part of{" "}
+              </>
+            ) : (
+              "This contest is part of "
+            )}
+            {contest.series?.name ? (
+              <span className="font-medium text-neutral-200">{contest.series.name}</span>
+            ) : (
+              "a private, invite-only series"
+            )}
+            . Join the series with an invite code to view contests and enter.
+          </p>
+          {!userId ? (
+            <p className="mt-2 text-sm text-neutral-500">
+              <Link href="/auth/login" className="text-amber-200 underline hover:text-amber-100">
+                Sign in
+              </Link>{" "}
+              if you already belong to this series.
+            </p>
+          ) : null}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/series/join"
+              className="rounded-full border border-amber-400/70 bg-amber-400 px-5 py-2 text-sm font-semibold text-neutral-950 hover:bg-amber-300"
+            >
+              Join with code
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-full border border-neutral-600 bg-neutral-900 px-4 py-2 text-sm text-neutral-100 hover:border-amber-400/60"
+            >
+              Back to dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isSettled = contest.status === ContestStatus.SETTLED;
   const isAdmin = Boolean(session?.user?.isAdmin);
@@ -263,6 +311,11 @@ export default async function ContestPage({ params }: PageProps) {
                 </span>
               </p>
               <div className="mt-1 flex flex-wrap gap-2">
+                {contest.series?.isPrivate ? (
+                  <span className="rounded-full border border-violet-400/50 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
+                    Invite only
+                  </span>
+                ) : null}
                 <span className="rounded-full border border-neutral-700 bg-neutral-950/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-100">
                   {sportLabel}
                 </span>
@@ -299,7 +352,12 @@ export default async function ContestPage({ params }: PageProps) {
 
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-2">
           <div className="flex flex-wrap items-start justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {contest.series?.isPrivate ? (
+                <span className="inline-flex items-center rounded-full border border-violet-400/50 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
+                  Invite only
+                </span>
+              ) : null}
               <span
                 className={[
                   "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
@@ -735,7 +793,12 @@ export default async function ContestPage({ params }: PageProps) {
         <div className="space-y-4">
           <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-2">
             <div className="flex flex-wrap items-start justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {contest.series?.isPrivate ? (
+                  <span className="inline-flex items-center rounded-full border border-violet-400/50 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
+                    Invite only
+                  </span>
+                ) : null}
                 <span
                   className={[
                     "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
