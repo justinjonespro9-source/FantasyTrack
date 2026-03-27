@@ -18,13 +18,36 @@ function redirectUrl(req: NextRequest, pathname: string, search?: Record<string,
   return url;
 }
 
-function logRedirect(outcome: string, pathname: string) {
-  console.log("[x/oauth/callback] redirect", { outcome, pathname });
+/** TEMP: debug — never log authorization code. */
+function sanitizeCallbackUrlForLog(url: URL): string {
+  const u = new URL(url.toString());
+  if (u.searchParams.has("code")) u.searchParams.set("code", "[REDACTED]");
+  if (u.searchParams.has("state")) u.searchParams.set("state", "[REDACTED]");
+  return u.toString();
 }
 
 export async function GET(req: NextRequest) {
+  console.log("[X CALLBACK] route hit", {
+    method: req.method,
+    callbackUrlSanitized: sanitizeCallbackUrlForLog(req.nextUrl),
+    origin: req.nextUrl.origin,
+    host: req.headers.get("host"),
+    nodeEnv: process.env.NODE_ENV,
+  });
+
+  console.log("[X CALLBACK] env present (booleans only)", {
+    X_CLIENT_ID: Boolean(process.env.X_CLIENT_ID?.trim()),
+    X_CLIENT_SECRET: Boolean(process.env.X_CLIENT_SECRET?.trim()),
+    X_REDIRECT_URI: Boolean(process.env.X_REDIRECT_URI?.trim()),
+  });
+  const redirectUriEnv = process.env.X_REDIRECT_URI?.trim();
+  if (redirectUriEnv) {
+    console.log("[X CALLBACK] X_REDIRECT_URI in use (must match Twitter app + start flow)", redirectUriEnv);
+  }
+
   const session = await getCurrentSession();
   if (!session?.user?.id) {
+    console.error("[X CALLBACK] abort: no session user");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -33,14 +56,33 @@ export async function GET(req: NextRequest) {
     select: { isAdmin: true },
   });
   if (!dbUser?.isAdmin) {
-    logRedirect("forbidden_json", "/api/admin/x/auth/callback");
+    console.error("[X CALLBACK] abort: user is not admin", { userId: session.user.id });
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  console.log("[X CALLBACK] admin session ok", { userId: session.user.id });
 
   const code = req.nextUrl.searchParams.get("code");
   const returnedState = req.nextUrl.searchParams.get("state");
   const storedState = req.cookies.get(STATE_COOKIE)?.value;
   const codeVerifier = req.cookies.get(VERIFIER_COOKIE)?.value;
+
+  const hasCode = Boolean(code);
+  const hasReturnedState = Boolean(returnedState);
+  const hasStoredState = Boolean(storedState);
+  const hasVerifier = Boolean(codeVerifier);
+  const stateMatches = Boolean(returnedState && storedState && returnedState === storedState);
+
+  console.log("[X CALLBACK] OAuth query + cookie snapshot", {
+    hasCode,
+    hasReturnedState,
+    hasStoredState: hasStoredState,
+    hasPkceVerifierCookie: hasVerifier,
+    stateMatches,
+    returnedStateLength: returnedState?.length ?? 0,
+    storedStateLength: storedState?.length ?? 0,
+    verifierLength: codeVerifier?.length ?? 0,
+  });
 
   const clearCookie = {
     httpOnly: true,
@@ -57,8 +99,17 @@ export async function GET(req: NextRequest) {
     !codeVerifier ||
     returnedState !== storedState;
   if (invalid) {
+    console.error("[X CALLBACK] validation failed — redirecting with state_mismatch", {
+      missingCode: !code,
+      missingReturnedState: !returnedState,
+      missingStoredStateCookie: !storedState,
+      missingPkceVerifierCookie: !codeVerifier,
+      stateMismatch: hasReturnedState && hasStoredState ? returnedState !== storedState : undefined,
+    });
     const target = redirectUrl(req, "/admin", { xAuth: "error", xReason: "state_mismatch" });
-    logRedirect("error_state_mismatch", target.pathname + target.search);
+    console.log("[X CALLBACK] final redirect (error)", {
+      destination: target.pathname + target.search,
+    });
     const response = NextResponse.redirect(target);
     response.cookies.set(STATE_COOKIE, "", clearCookie);
     response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
@@ -66,10 +117,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    console.log("[X CALLBACK] token exchange: delegating to lib (see [X OAUTH] logs)");
     const tokenResponse = await exchangeCodeForTokens({
       code,
       codeVerifier,
     });
+
+    console.log("[X CALLBACK] token exchange completed; starting user profile fetch (see [X OAUTH] logs)");
     const xIdentity = await fetchXAccountIdentity(tokenResponse.access_token);
 
     const expiresAt =
@@ -77,49 +131,65 @@ export async function GET(req: NextRequest) {
         ? new Date(Date.now() + tokenResponse.expires_in * 1000)
         : null;
 
-    await prisma.externalProviderToken.upsert({
-      where: { provider: X_PROVIDER_KEY },
-      create: {
-        provider: X_PROVIDER_KEY,
-        accessTokenEnc: encryptSecret(tokenResponse.access_token),
-        refreshTokenEnc: tokenResponse.refresh_token
-          ? encryptSecret(tokenResponse.refresh_token)
-          : null,
-        tokenType: tokenResponse.token_type ?? null,
-        scope: tokenResponse.scope ?? null,
-        expiresAt,
-        externalAccountId: xIdentity.id,
-        externalUsername: xIdentity.username,
-        externalDisplayName: xIdentity.displayName,
-        updatedByUserId: session.user.id,
-      },
-      update: {
-        accessTokenEnc: encryptSecret(tokenResponse.access_token),
-        refreshTokenEnc: tokenResponse.refresh_token
-          ? encryptSecret(tokenResponse.refresh_token)
-          : null,
-        tokenType: tokenResponse.token_type ?? null,
-        scope: tokenResponse.scope ?? null,
-        expiresAt,
-        externalAccountId: xIdentity.id,
-        externalUsername: xIdentity.username,
-        externalDisplayName: xIdentity.displayName,
-        updatedByUserId: session.user.id,
-      },
+    console.log("[X CALLBACK] DB upsert externalProviderToken start", {
+      provider: X_PROVIDER_KEY,
+      externalAccountId: xIdentity.id,
+      username: xIdentity.username,
     });
+
+    try {
+      await prisma.externalProviderToken.upsert({
+        where: { provider: X_PROVIDER_KEY },
+        create: {
+          provider: X_PROVIDER_KEY,
+          accessTokenEnc: encryptSecret(tokenResponse.access_token),
+          refreshTokenEnc: tokenResponse.refresh_token
+            ? encryptSecret(tokenResponse.refresh_token)
+            : null,
+          tokenType: tokenResponse.token_type ?? null,
+          scope: tokenResponse.scope ?? null,
+          expiresAt,
+          externalAccountId: xIdentity.id,
+          externalUsername: xIdentity.username,
+          externalDisplayName: xIdentity.displayName,
+          updatedByUserId: session.user.id,
+        },
+        update: {
+          accessTokenEnc: encryptSecret(tokenResponse.access_token),
+          refreshTokenEnc: tokenResponse.refresh_token
+            ? encryptSecret(tokenResponse.refresh_token)
+            : null,
+          tokenType: tokenResponse.token_type ?? null,
+          scope: tokenResponse.scope ?? null,
+          expiresAt,
+          externalAccountId: xIdentity.id,
+          externalUsername: xIdentity.username,
+          externalDisplayName: xIdentity.displayName,
+          updatedByUserId: session.user.id,
+        },
+      });
+      console.log("[X CALLBACK] DB upsert success");
+    } catch (dbErr) {
+      console.error("[X CALLBACK] DB upsert failed", dbErr);
+      throw dbErr;
+    }
 
     // Lightweight page: avoids loading the full /admin dashboard (heavy queries + autoLockContests).
     // For raw JSON instead, redirect to `/api/admin/x/auth/complete` (admin-only).
     const target = redirectUrl(req, "/admin/x-oauth-done");
-    logRedirect("success", target.pathname);
+    console.log("[X CALLBACK] final redirect (success)", {
+      destination: target.pathname + target.search,
+    });
     const response = NextResponse.redirect(target);
     response.cookies.set(STATE_COOKIE, "", clearCookie);
     response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
     return response;
   } catch (error) {
-    console.error("[x/oauth/callback] failure", error);
+    console.error("[X CALLBACK] failure after validation (token, profile, or DB)", error);
     const target = redirectUrl(req, "/admin", { xAuth: "error", xReason: "token_exchange_failed" });
-    logRedirect("error_token_exchange", target.pathname + target.search);
+    console.log("[X CALLBACK] final redirect (error)", {
+      destination: target.pathname + target.search,
+    });
     const response = NextResponse.redirect(target);
     response.cookies.set(STATE_COOKIE, "", clearCookie);
     response.cookies.set(VERIFIER_COOKIE, "", clearCookie);

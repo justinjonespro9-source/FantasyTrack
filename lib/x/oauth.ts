@@ -4,6 +4,12 @@ const X_AUTHORIZE_URL = "https://twitter.com/i/oauth2/authorize";
 const X_TOKEN_URL = "https://api.twitter.com/2/oauth2/token";
 export const X_PROVIDER_KEY = "x";
 
+/** TEMP: debug — truncate bodies for Vercel logs; never log tokens. */
+function truncateForLog(s: string, max = 400): string {
+  if (s.length <= max) return s;
+  return `${s.slice(0, max)}…`;
+}
+
 const DEFAULT_SCOPES = ["tweet.read", "tweet.write", "users.read", "offline.access"];
 
 function requiredEnv(name: "X_CLIENT_ID" | "X_CLIENT_SECRET" | "X_REDIRECT_URI"): string {
@@ -76,6 +82,13 @@ export async function exchangeCodeForTokens(args: {
   const clientSecret = requiredEnv("X_CLIENT_SECRET");
   const redirectUri = requiredEnv("X_REDIRECT_URI");
 
+  console.log("[X OAUTH] token exchange start", {
+    tokenUrl: X_TOKEN_URL,
+    redirectUriUsed: redirectUri,
+    codeLength: args.code.length,
+    codeVerifierLength: args.codeVerifier.length,
+  });
+
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code: args.code,
@@ -85,32 +98,55 @@ export async function exchangeCodeForTokens(args: {
   });
 
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-  const response = await fetch(X_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${basic}`,
-    },
-    body: body.toString(),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(X_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basic}`,
+      },
+      body: body.toString(),
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("[X OAUTH] token exchange fetch threw (network)", err);
+    throw err;
+  }
 
   const raw = await response.text();
 
   if (!response.ok) {
+    console.error("[X OAUTH] token exchange HTTP error", {
+      status: response.status,
+      bodySnippet: truncateForLog(raw),
+    });
     throw new Error(`X token exchange failed (${response.status}): ${raw}`);
   }
+
+  console.log("[X OAUTH] token exchange HTTP ok", { status: response.status });
 
   let data: Partial<XTokenResponse>;
   try {
     data = JSON.parse(raw) as Partial<XTokenResponse>;
-  } catch {
+  } catch (parseErr) {
+    console.error("[X OAUTH] token exchange non-JSON body", { bodySnippet: truncateForLog(raw) });
     throw new Error(`X token exchange returned non-JSON: ${raw}`);
   }
 
   if (!data.access_token || !data.token_type) {
+    console.error("[X OAUTH] token exchange JSON missing access_token or token_type", {
+      keys: Object.keys(data),
+    });
     throw new Error("X token exchange response missing required fields.");
   }
+
+  console.log("[X OAUTH] token exchange success (no secrets logged)", {
+    tokenType: data.token_type,
+    hasRefreshToken: Boolean(data.refresh_token),
+    expiresIn: data.expires_in,
+    scope: data.scope,
+  });
 
   return {
     token_type: data.token_type,
@@ -126,27 +162,38 @@ export async function fetchXAccountIdentity(accessToken: string): Promise<{
   username: string;
   displayName: string;
 }> {
-  const response = await fetch(
-    "https://api.twitter.com/2/users/me?user.fields=username,name",
-    {
+  const meUrl = "https://api.twitter.com/2/users/me?user.fields=username,name";
+  console.log("[X OAUTH] user profile fetch start", { url: meUrl });
+
+  let response: Response;
+  try {
+    response = await fetch(meUrl, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
       cache: "no-store",
-    }
-  );
+    });
+  } catch (err) {
+    console.error("[X OAUTH] user profile fetch threw (network)", err);
+    throw err;
+  }
 
   const raw = await response.text();
 
   if (!response.ok) {
+    console.error("[X OAUTH] user profile fetch HTTP error", {
+      status: response.status,
+      bodySnippet: truncateForLog(raw),
+    });
     throw new Error(`X identity fetch failed (${response.status}): ${raw}`);
   }
 
   let body: XMeResponse;
   try {
     body = JSON.parse(raw) as XMeResponse;
-  } catch {
+  } catch (parseErr) {
+    console.error("[X OAUTH] user profile non-JSON body", { bodySnippet: truncateForLog(raw) });
     throw new Error(`X identity fetch returned non-JSON: ${raw}`);
   }
 
@@ -155,8 +202,17 @@ export async function fetchXAccountIdentity(accessToken: string): Promise<{
   const displayName = body.data?.name?.trim();
 
   if (!id || !username) {
+    console.error("[X OAUTH] user profile missing id/username in JSON", {
+      bodySnippet: truncateForLog(raw),
+    });
     throw new Error(`X identity response missing id/username: ${raw}`);
   }
+
+  console.log("[X OAUTH] user profile fetch success", {
+    externalAccountId: id,
+    username,
+    hasDisplayName: Boolean(displayName),
+  });
 
   return {
     id,
