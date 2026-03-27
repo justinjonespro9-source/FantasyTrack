@@ -44,7 +44,8 @@ export async function GET() {
     response.cookies.set(STATE_COOKIE, state, common);
     response.cookies.set(VERIFIER_COOKIE, codeVerifier, common);
     return response;
-  } catch {
+  } catch (error) {
+    console.error("[x/oauth/start] failure", error);
     return NextResponse.json({ error: "Unable to start X OAuth." }, { status: 500 });
   }
 }
