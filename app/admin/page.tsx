@@ -2374,7 +2374,13 @@ function computeAutoFillSettlement(contest: {
 // Page
 // --------------------
 type AdminPageProps = {
-  searchParams?: { autofill?: string; xAuth?: string; xReason?: string; xDetail?: string };
+  searchParams?: {
+    autofill?: string;
+    xAuth?: string;
+    xReason?: string;
+    xStage?: string;
+    xDetail?: string;
+  };
 };
 
 /** Only allow reflected xDetail through to the DOM (alphanumeric, underscore, dot, hyphen). */
@@ -2384,6 +2390,12 @@ function safeXOAuthDetailForBanner(raw: string | undefined): string | null {
   return /^[a-zA-Z0-9_.-]+$/.test(s) ? s : null;
 }
 
+function safeXOAuthStageForBanner(raw: string | undefined): string | null {
+  const s = String(raw ?? "").trim();
+  if (s === "profile_fetch" || s === "db_upsert") return s;
+  return null;
+}
+
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const session = await getCurrentSession();
   if (!session?.user?.id || !session.user.isAdmin) redirect("/auth/login");
@@ -2391,12 +2403,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const xOAuthErrorFromRedirect =
     searchParams?.xAuth === "error" ? (searchParams?.xReason ?? "unknown") : null;
   const xOAuthDetailFromRedirect = safeXOAuthDetailForBanner(searchParams?.xDetail);
+  const xOAuthStageFromRedirect = safeXOAuthStageForBanner(searchParams?.xStage);
 
   console.log("[X ADMIN UI] admin page load (X debug)", {
     adminUserId: session.user.id,
     xOAuthRedirectError: xOAuthErrorFromRedirect,
     xAuthParam: searchParams?.xAuth ?? null,
     xReasonParam: searchParams?.xReason ?? null,
+    xStageParam: searchParams?.xStage ?? null,
+    xStageSafeForBanner: xOAuthStageFromRedirect,
     xDetailParamRawPresent: Boolean(searchParams?.xDetail?.trim()),
     xDetailSafeForBanner: xOAuthDetailFromRedirect,
   });
@@ -2627,6 +2642,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               saved if you see <span className="font-mono">state_mismatch</span> or{" "}
               <span className="font-mono">token_exchange_failed</span>.
             </p>
+            {xOAuthStageFromRedirect ? (
+              <p className="mt-2 text-red-100/95">
+                Stage:{" "}
+                <span className="rounded bg-red-950/80 px-1.5 py-0.5 font-mono text-xs">
+                  {xOAuthStageFromRedirect}
+                </span>
+                <span className="ml-2 text-xs text-red-200/80">
+                  ({xOAuthStageFromRedirect === "profile_fetch" ? "after token exchange" : "saving token row"})
+                </span>
+              </p>
+            ) : null}
             {xOAuthDetailFromRedirect ? (
               <p className="mt-2 text-red-100/95">
                 Detail:{" "}

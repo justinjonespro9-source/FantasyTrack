@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "crypto";
+import { Prisma } from "@prisma/client";
 
 const X_AUTHORIZE_URL = "https://twitter.com/i/oauth2/authorize";
 const X_TOKEN_URL = "https://api.twitter.com/2/oauth2/token";
@@ -48,6 +49,62 @@ export function sanitizeTokenExchangeErrorForUrl(error: unknown): string {
   }
 
   return "unknown".slice(0, MAX);
+}
+
+/**
+ * TEMP: short safe token for /admin URL when X users/me (profile) step fails.
+ * Never includes API response bodies.
+ */
+export function sanitizeProfileFetchErrorForUrl(error: unknown): string {
+  const MAX = 80;
+  const msg = error instanceof Error ? error.message : String(error);
+
+  const httpMatch = msg.match(/^X identity fetch failed \((\d+)\):/);
+  if (httpMatch) {
+    const n = Number(httpMatch[1]);
+    if (n === 401) return "unauthorized".slice(0, MAX);
+    if (n === 403) return "forbidden".slice(0, MAX);
+    if (n === 404) return "not_found".slice(0, MAX);
+    if (n === 429) return "http_429".slice(0, MAX);
+    return `http_${n}`.slice(0, MAX);
+  }
+
+  if (msg.includes("X identity fetch returned non-JSON")) {
+    return "non_json_response".slice(0, MAX);
+  }
+  if (msg.includes("X identity response missing id/username")) {
+    return "unknown".slice(0, MAX);
+  }
+
+  if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|fetch failed|network/i.test(msg)) {
+    return "network_error".slice(0, MAX);
+  }
+
+  return "unknown".slice(0, MAX);
+}
+
+/**
+ * TEMP: short safe token for /admin URL when ExternalProviderToken upsert fails.
+ */
+export function sanitizeDbUpsertErrorForUrl(error: unknown): string {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2002") return "unique_constraint";
+    if (error.code === "P2011") return "null_constraint";
+    return "prisma_error";
+  }
+  if (error instanceof Prisma.PrismaClientValidationError) {
+    return "prisma_error";
+  }
+
+  const msg = error instanceof Error ? error.message : String(error);
+  if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|connection|server has closed|P1001|P1002|P1017/i.test(msg)) {
+    return "db_connection";
+  }
+  if (/column .* does not exist|Unknown column|does not exist in the current database/i.test(msg)) {
+    return "missing_column";
+  }
+
+  return "unknown";
 }
 
 const DEFAULT_SCOPES = ["tweet.read", "tweet.write", "users.read", "offline.access"];

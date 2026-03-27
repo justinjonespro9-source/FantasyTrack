@@ -6,6 +6,8 @@ import { encryptSecret } from "@/lib/crypto-secrets";
 import {
   exchangeCodeForTokens,
   fetchXAccountIdentity,
+  sanitizeDbUpsertErrorForUrl,
+  sanitizeProfileFetchErrorForUrl,
   sanitizeTokenExchangeErrorForUrl,
   X_PROVIDER_KEY,
 } from "@/lib/x/oauth";
@@ -147,83 +149,31 @@ export async function GET(req: NextRequest) {
     return response;
   }
 
+  const tokenContext = {
+    hasAccessToken: Boolean(tokenResponse.access_token),
+    hasRefreshToken: Boolean(tokenResponse.refresh_token),
+  };
+
+  let xIdentity: Awaited<ReturnType<typeof fetchXAccountIdentity>>;
   try {
     console.log("[X CALLBACK] token exchange completed; starting user profile fetch (see [X OAUTH] logs)");
-    const xIdentity = await fetchXAccountIdentity(tokenResponse.access_token);
-
-    const expiresAt =
-      typeof tokenResponse.expires_in === "number"
-        ? new Date(Date.now() + tokenResponse.expires_in * 1000)
-        : null;
-
-    console.log("[X CALLBACK] DB upsert externalProviderToken start", {
-      provider: X_PROVIDER_KEY,
-      externalAccountId: xIdentity.id,
-      username: xIdentity.username,
+    xIdentity = await fetchXAccountIdentity(tokenResponse.access_token);
+  } catch (profileErr) {
+    console.error("[X CALLBACK] profile fetch failed", {
+      ...tokenContext,
+      hasExternalAccountId: false,
+      hasUsername: false,
+      hasDisplayName: false,
     });
-
-    try {
-      await prisma.externalProviderToken.upsert({
-        where: { provider: X_PROVIDER_KEY },
-        create: {
-          provider: X_PROVIDER_KEY,
-          accessTokenEnc: encryptSecret(tokenResponse.access_token),
-          refreshTokenEnc: tokenResponse.refresh_token
-            ? encryptSecret(tokenResponse.refresh_token)
-            : null,
-          tokenType: tokenResponse.token_type ?? null,
-          scope: tokenResponse.scope ?? null,
-          expiresAt,
-          externalAccountId: xIdentity.id,
-          externalUsername: xIdentity.username,
-          externalDisplayName: xIdentity.displayName,
-          updatedByUserId: session.user.id,
-        },
-        update: {
-          accessTokenEnc: encryptSecret(tokenResponse.access_token),
-          refreshTokenEnc: tokenResponse.refresh_token
-            ? encryptSecret(tokenResponse.refresh_token)
-            : null,
-          tokenType: tokenResponse.token_type ?? null,
-          scope: tokenResponse.scope ?? null,
-          expiresAt,
-          externalAccountId: xIdentity.id,
-          externalUsername: xIdentity.username,
-          externalDisplayName: xIdentity.displayName,
-          updatedByUserId: session.user.id,
-        },
-      });
-      console.log("[X CALLBACK] DB upsert success", {
-        provider: X_PROVIDER_KEY,
-        updatedByUserId: session.user.id,
-        externalUsernameWritten: Boolean(xIdentity.username?.trim()),
-      });
-    } catch (dbErr) {
-      console.error("[X CALLBACK] DB upsert failed", dbErr);
-      throw dbErr;
-    }
-
-    try {
-      revalidatePath("/admin");
-      console.log("[X CALLBACK] revalidatePath(/admin) after successful X token save");
-    } catch (revErr) {
-      console.error("[X CALLBACK] revalidatePath(/admin) failed (non-fatal)", revErr);
-    }
-
-    // Lightweight page: avoids loading the full /admin dashboard (heavy queries + autoLockContests).
-    // For raw JSON instead, redirect to `/api/admin/x/auth/complete` (admin-only).
-    const target = redirectUrl(req, "/admin/x-oauth-done");
-    console.log("[X CALLBACK] final redirect (success)", {
-      destination: target.pathname + target.search,
+    console.error(profileErr);
+    const xDetail = sanitizeProfileFetchErrorForUrl(profileErr);
+    const target = redirectUrl(req, "/admin", {
+      xAuth: "error",
+      xReason: "oauth_callback_failed",
+      xStage: "profile_fetch",
+      xDetail,
     });
-    const response = NextResponse.redirect(target);
-    response.cookies.set(STATE_COOKIE, "", clearCookie);
-    response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
-    return response;
-  } catch (error) {
-    console.error("[X CALLBACK] failure after token exchange (profile or DB)", error);
-    const target = redirectUrl(req, "/admin", { xAuth: "error", xReason: "oauth_callback_failed" });
-    console.log("[X CALLBACK] final redirect (error)", {
+    console.log("[X CALLBACK] final redirect (error, profile_fetch)", {
       destination: target.pathname + target.search,
     });
     const response = NextResponse.redirect(target);
@@ -231,4 +181,93 @@ export async function GET(req: NextRequest) {
     response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
     return response;
   }
+
+  const expiresAt =
+    typeof tokenResponse.expires_in === "number"
+      ? new Date(Date.now() + tokenResponse.expires_in * 1000)
+      : null;
+
+  console.log("[X CALLBACK] DB upsert externalProviderToken start", {
+    provider: X_PROVIDER_KEY,
+    externalAccountId: xIdentity.id,
+    username: xIdentity.username,
+  });
+
+  try {
+    await prisma.externalProviderToken.upsert({
+      where: { provider: X_PROVIDER_KEY },
+      create: {
+        provider: X_PROVIDER_KEY,
+        accessTokenEnc: encryptSecret(tokenResponse.access_token),
+        refreshTokenEnc: tokenResponse.refresh_token
+          ? encryptSecret(tokenResponse.refresh_token)
+          : null,
+        tokenType: tokenResponse.token_type ?? null,
+        scope: tokenResponse.scope ?? null,
+        expiresAt,
+        externalAccountId: xIdentity.id,
+        externalUsername: xIdentity.username,
+        externalDisplayName: xIdentity.displayName,
+        updatedByUserId: session.user.id,
+      },
+      update: {
+        accessTokenEnc: encryptSecret(tokenResponse.access_token),
+        refreshTokenEnc: tokenResponse.refresh_token
+          ? encryptSecret(tokenResponse.refresh_token)
+          : null,
+        tokenType: tokenResponse.token_type ?? null,
+        scope: tokenResponse.scope ?? null,
+        expiresAt,
+        externalAccountId: xIdentity.id,
+        externalUsername: xIdentity.username,
+        externalDisplayName: xIdentity.displayName,
+        updatedByUserId: session.user.id,
+      },
+    });
+    console.log("[X CALLBACK] DB upsert success", {
+      provider: X_PROVIDER_KEY,
+      updatedByUserId: session.user.id,
+      externalUsernameWritten: Boolean(xIdentity.username?.trim()),
+    });
+  } catch (dbErr) {
+    console.error("[X CALLBACK] DB upsert failed", {
+      ...tokenContext,
+      hasExternalAccountId: Boolean(xIdentity.id?.trim()),
+      hasUsername: Boolean(xIdentity.username?.trim()),
+      hasDisplayName: Boolean(xIdentity.displayName?.trim()),
+    });
+    console.error(dbErr);
+    const xDetail = sanitizeDbUpsertErrorForUrl(dbErr);
+    const target = redirectUrl(req, "/admin", {
+      xAuth: "error",
+      xReason: "oauth_callback_failed",
+      xStage: "db_upsert",
+      xDetail,
+    });
+    console.log("[X CALLBACK] final redirect (error, db_upsert)", {
+      destination: target.pathname + target.search,
+    });
+    const response = NextResponse.redirect(target);
+    response.cookies.set(STATE_COOKIE, "", clearCookie);
+    response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
+    return response;
+  }
+
+  try {
+    revalidatePath("/admin");
+    console.log("[X CALLBACK] revalidatePath(/admin) after successful X token save");
+  } catch (revErr) {
+    console.error("[X CALLBACK] revalidatePath(/admin) failed (non-fatal)", revErr);
+  }
+
+  // Lightweight page: avoids loading the full /admin dashboard (heavy queries + autoLockContests).
+  // For raw JSON instead, redirect to `/api/admin/x/auth/complete` (admin-only).
+  const target = redirectUrl(req, "/admin/x-oauth-done");
+  console.log("[X CALLBACK] final redirect (success)", {
+    destination: target.pathname + target.search,
+  });
+  const response = NextResponse.redirect(target);
+  response.cookies.set(STATE_COOKIE, "", clearCookie);
+  response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
+  return response;
 }
