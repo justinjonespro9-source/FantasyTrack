@@ -2450,7 +2450,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       externalDisplayName: true,
     },
   });
-
+  const hasUsableXConnection = Boolean(xConnection?.externalUsername);
+  
+  const isConnected = hasUsableXConnection;
+  const isIncomplete = Boolean(xConnection) && !hasUsableXConnection;
+  const connectedX = isConnected ? xConnection! : null;
   const usersForSuspensionPanel = users.map((u) => ({
     ...u,
     suspendedAt: u.suspendedAt ? new Date(u.suspendedAt).toISOString() : null,
@@ -2572,80 +2576,88 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </CardSection>
 
       <CardSection title="X Connection">
-        {xConnection ? (
-          <div className="space-y-3">
+        {isConnected ? (
+          (() => {
+            const x = connectedX!;
+            return <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-emerald-400/70 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-200">
                 X Connected
               </span>
             </div>
+
             <div className="rounded border border-track-200 bg-track-50 p-2">
               <p className="text-[11px] uppercase tracking-wide text-track-500">Connected As</p>
-              <p className="font-medium text-track-900">
-                {xConnection.externalUsername ? `@${xConnection.externalUsername}` : "—"}
-              </p>
-              {xConnection.externalDisplayName ? (
-                <p className="text-xs text-track-600">{xConnection.externalDisplayName}</p>
-              ) : null}
+              <p className="font-medium text-track-900">@{x.externalUsername}</p>
+              <p className="text-xs text-track-600">{x.externalDisplayName}</p>
             </div>
+
             <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               <div className="rounded border border-track-200 bg-track-50 p-2">
                 <p className="text-[11px] uppercase tracking-wide text-track-500">Provider</p>
-                <p className="font-medium text-track-900">{xConnection.provider}</p>
+                <p className="font-medium text-track-900">{x.provider}</p>
               </div>
               <div className="rounded border border-track-200 bg-track-50 p-2">
                 <p className="text-[11px] uppercase tracking-wide text-track-500">Token Type</p>
-                <p className="font-medium text-track-900">{xConnection.tokenType ?? "—"}</p>
+                <p className="font-medium text-track-900">{x.tokenType ?? "—"}</p>
               </div>
               <div className="rounded border border-track-200 bg-track-50 p-2 sm:col-span-2">
                 <p className="text-[11px] uppercase tracking-wide text-track-500">Scope</p>
-                <p className="font-medium text-track-900 break-all">{xConnection.scope ?? "—"}</p>
+                <p className="font-medium text-track-900 break-all">{x.scope ?? "—"}</p>
               </div>
               <div className="rounded border border-track-200 bg-track-50 p-2">
                 <p className="text-[11px] uppercase tracking-wide text-track-500">Expires At</p>
                 <p className="font-medium text-track-900">
-                  {xConnection.expiresAt ? formatDateTime(xConnection.expiresAt) : "—"}
+                  {x.expiresAt ? formatDateTime(x.expiresAt) : "—"}
                 </p>
               </div>
               <div className="rounded border border-track-200 bg-track-50 p-2">
                 <p className="text-[11px] uppercase tracking-wide text-track-500">Updated At</p>
-                <p className="font-medium text-track-900">{formatDateTime(xConnection.updatedAt)}</p>
+                <p className="font-medium text-track-900">{formatDateTime(x.updatedAt)}</p>
               </div>
             </div>
-          </div>
+          </div>;
+          })()
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-neutral-400/70 bg-neutral-500/10 px-2.5 py-0.5 text-xs font-semibold text-neutral-200">
-                Not Connected
+                {isIncomplete ? "Connection Incomplete" : "Not Connected"}
               </span>
             </div>
             <p className="text-sm text-neutral-300">
-              Connect FantasyTrack to X for future admin posting features.
+              {isIncomplete
+                ? "Connection incomplete — please reconnect your X account."
+                : "Connect FantasyTrack to X for future admin posting features."}
             </p>
             <a
               href="/api/admin/x/auth/start"
               className="inline-flex items-center rounded border border-amber-500/60 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-200 hover:bg-amber-500/20"
             >
-              Connect X
+              {isIncomplete ? "Reconnect X" : "Connect X"}
             </a>
           </div>
         )}
       </CardSection>
 
       <CardSection title="Post to X">
-        {xConnection ? (
-          <XPostComposer connectedUsername={xConnection.externalUsername ?? null} />
+        {isConnected ? (
+          (() => {
+            const x = connectedX!;
+            return <XPostComposer connectedUsername={x.externalUsername ?? null} />;
+          })()
         ) : (
           <div className="space-y-2">
             <p className="text-sm text-neutral-300">
-              X is not connected yet. Connect an account first to publish posts.
+              {isIncomplete
+                ? "X connection is incomplete. Reconnect your account before publishing posts."
+                : "X is not connected yet. Connect an account first to publish posts."}
             </p>
             <a
               href="/api/admin/x/auth/start"
               className="inline-flex items-center rounded border border-amber-500/60 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-200 hover:bg-amber-500/20"
             >
-              Connect X
+              {isIncomplete ? "Reconnect X" : "Connect X"}
             </a>
           </div>
         )}
