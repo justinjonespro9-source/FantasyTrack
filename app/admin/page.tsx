@@ -2373,48 +2373,30 @@ function computeAutoFillSettlement(contest: {
 // --------------------
 // Page
 // --------------------
-type AdminPageProps = {
-  searchParams?: {
-    autofill?: string;
-    xAuth?: string;
-    xReason?: string;
-    xStage?: string;
-    xDetail?: string;
-  };
+const X_OAUTH_ERROR_USER_MESSAGE: Record<string, string> = {
+  session:
+    "We couldn’t verify the sign-in flow with X. Please try connecting again from this page.",
+  token:
+    "X did not finish authorizing the app. Please try again. If it keeps happening, confirm your X developer app settings and callback URL.",
+  profile:
+    "We couldn’t read your X profile. Please try again and ensure the app is allowed to access your account.",
+  save:
+    "We couldn’t save your X connection. Please try again. If this continues, check that the database is reachable and server encryption settings are configured.",
 };
 
-/** Only allow reflected xDetail through to the DOM (alphanumeric, underscore, dot, hyphen). */
-function safeXOAuthDetailForBanner(raw: string | undefined): string | null {
-  const s = String(raw ?? "").trim();
-  if (!s || s.length > 80) return null;
-  return /^[a-zA-Z0-9_.-]+$/.test(s) ? s : null;
+function xOAuthErrorBannerMessage(raw: string | undefined): string | null {
+  const code = String(raw ?? "").trim();
+  if (!code || !(code in X_OAUTH_ERROR_USER_MESSAGE)) return null;
+  return X_OAUTH_ERROR_USER_MESSAGE[code] ?? null;
 }
 
-function safeXOAuthStageForBanner(raw: string | undefined): string | null {
-  const s = String(raw ?? "").trim();
-  if (s === "profile_fetch" || s === "db_upsert") return s;
-  return null;
-}
+type AdminPageProps = { searchParams?: { autofill?: string; x_oauth_error?: string } };
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const session = await getCurrentSession();
   if (!session?.user?.id || !session.user.isAdmin) redirect("/auth/login");
 
-  const xOAuthErrorFromRedirect =
-    searchParams?.xAuth === "error" ? (searchParams?.xReason ?? "unknown") : null;
-  const xOAuthDetailFromRedirect = safeXOAuthDetailForBanner(searchParams?.xDetail);
-  const xOAuthStageFromRedirect = safeXOAuthStageForBanner(searchParams?.xStage);
-
-  console.log("[X ADMIN UI] admin page load (X debug)", {
-    adminUserId: session.user.id,
-    xOAuthRedirectError: xOAuthErrorFromRedirect,
-    xAuthParam: searchParams?.xAuth ?? null,
-    xReasonParam: searchParams?.xReason ?? null,
-    xStageParam: searchParams?.xStage ?? null,
-    xStageSafeForBanner: xOAuthStageFromRedirect,
-    xDetailParamRawPresent: Boolean(searchParams?.xDetail?.trim()),
-    xDetailSafeForBanner: xOAuthDetailFromRedirect,
-  });
+  const xOAuthBannerText = xOAuthErrorBannerMessage(searchParams?.x_oauth_error);
 
   await autoLockContests();
 
@@ -2479,7 +2461,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const xConnection = await prisma.externalProviderToken.findUnique({
     where: { provider: X_PROVIDER_KEY },
     select: {
-      id: true,
       provider: true,
       scope: true,
       tokenType: true,
@@ -2487,21 +2468,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       updatedAt: true,
       externalUsername: true,
       externalDisplayName: true,
-      externalAccountId: true,
-      updatedByUserId: true,
     },
-  });
-
-  console.log("[X ADMIN UI] externalProviderToken lookup result", {
-    adminUserId: session.user.id,
-    providerQueried: X_PROVIDER_KEY,
-    callbackAndPostAlsoUseProviderKey: X_PROVIDER_KEY === "x",
-    rowExists: Boolean(xConnection),
-    rowId: xConnection?.id ?? null,
-    hasExternalUsername: Boolean(xConnection?.externalUsername?.trim()),
-    externalUsernameLength: xConnection?.externalUsername?.length ?? 0,
-    rowUpdatedByUserId: xConnection?.updatedByUserId ?? null,
-    sameUserAsThisAdminSession: xConnection?.updatedByUserId === session.user.id,
   });
 
   const hasUsableXConnection = Boolean(xConnection?.externalUsername?.trim());
@@ -2630,37 +2597,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </CardSection>
 
       <CardSection title="X Connection">
-        {xOAuthErrorFromRedirect ? (
+        {xOAuthBannerText ? (
           <div
             className="mb-3 rounded border border-red-400/50 bg-red-950/40 px-3 py-2 text-sm text-red-100"
             role="status"
           >
-            <p className="font-semibold">X OAuth returned to admin with an error</p>
-            <p className="mt-1 text-red-200/90">
-              Reason: <span className="font-mono text-xs">{xOAuthErrorFromRedirect}</span> — check
-              Vercel logs for <span className="font-mono">[X CALLBACK]</span> lines. Token was not
-              saved if you see <span className="font-mono">state_mismatch</span> or{" "}
-              <span className="font-mono">token_exchange_failed</span>.
-            </p>
-            {xOAuthStageFromRedirect ? (
-              <p className="mt-2 text-red-100/95">
-                Stage:{" "}
-                <span className="rounded bg-red-950/80 px-1.5 py-0.5 font-mono text-xs">
-                  {xOAuthStageFromRedirect}
-                </span>
-                <span className="ml-2 text-xs text-red-200/80">
-                  ({xOAuthStageFromRedirect === "profile_fetch" ? "after token exchange" : "saving token row"})
-                </span>
-              </p>
-            ) : null}
-            {xOAuthDetailFromRedirect ? (
-              <p className="mt-2 text-red-100/95">
-                Detail:{" "}
-                <span className="rounded bg-red-950/80 px-1.5 py-0.5 font-mono text-xs">
-                  {xOAuthDetailFromRedirect}
-                </span>
-              </p>
-            ) : null}
+            <p className="font-semibold">Couldn’t connect X</p>
+            <p className="mt-1 text-red-200/90">{xOAuthBannerText}</p>
           </div>
         ) : null}
         {isConnected ? (
