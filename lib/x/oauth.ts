@@ -10,6 +10,46 @@ function truncateForLog(s: string, max = 400): string {
   return `${s.slice(0, max)}…`;
 }
 
+/**
+ * TEMP: short safe token for /admin URL when token exchange fails.
+ * Uses OAuth `error` codes from JSON only — never error_description, tokens, or raw bodies.
+ */
+export function sanitizeTokenExchangeErrorForUrl(error: unknown): string {
+  const MAX = 80;
+  const msg = error instanceof Error ? error.message : String(error);
+
+  const httpMatch = msg.match(/^X token exchange failed \((\d+)\):\s*([\s\S]*)$/);
+  if (httpMatch) {
+    const status = httpMatch[1];
+    const body = httpMatch[2].trim();
+    try {
+      const j = JSON.parse(body) as { error?: string };
+      if (typeof j.error === "string") {
+        const code = j.error.trim();
+        if (/^[a-z][a-z0-9_]*$/i.test(code) && code.length <= 64) {
+          return code.slice(0, MAX);
+        }
+      }
+    } catch {
+      /* body not JSON */
+    }
+    return `http_${status}`.slice(0, MAX);
+  }
+
+  if (msg.includes("X token exchange returned non-JSON")) {
+    return "non_json_response".slice(0, MAX);
+  }
+  if (msg.includes("X token exchange response missing required fields")) {
+    return "missing_token_fields".slice(0, MAX);
+  }
+
+  if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|fetch failed|network/i.test(msg)) {
+    return "network_error".slice(0, MAX);
+  }
+
+  return "unknown".slice(0, MAX);
+}
+
 const DEFAULT_SCOPES = ["tweet.read", "tweet.write", "users.read", "offline.access"];
 
 function requiredEnv(name: "X_CLIENT_ID" | "X_CLIENT_SECRET" | "X_REDIRECT_URI"): string {

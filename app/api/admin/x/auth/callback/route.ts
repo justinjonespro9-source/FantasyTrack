@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { encryptSecret } from "@/lib/crypto-secrets";
-import { exchangeCodeForTokens, fetchXAccountIdentity, X_PROVIDER_KEY } from "@/lib/x/oauth";
+import {
+  exchangeCodeForTokens,
+  fetchXAccountIdentity,
+  sanitizeTokenExchangeErrorForUrl,
+  X_PROVIDER_KEY,
+} from "@/lib/x/oauth";
 
 const STATE_COOKIE = "ft_x_oauth_state";
 const VERIFIER_COOKIE = "ft_x_pkce_verifier";
@@ -116,13 +122,32 @@ export async function GET(req: NextRequest) {
     return response;
   }
 
+  let tokenResponse: Awaited<ReturnType<typeof exchangeCodeForTokens>>;
   try {
     console.log("[X CALLBACK] token exchange: delegating to lib (see [X OAUTH] logs)");
-    const tokenResponse = await exchangeCodeForTokens({
+    tokenResponse = await exchangeCodeForTokens({
       code,
       codeVerifier,
     });
+  } catch (tokenErr) {
+    console.error("[X CALLBACK] token exchange failed", tokenErr);
+    const xDetail = sanitizeTokenExchangeErrorForUrl(tokenErr);
+    console.log("[X CALLBACK] redirect after token exchange failure (safe detail only)", { xDetail });
+    const target = redirectUrl(req, "/admin", {
+      xAuth: "error",
+      xReason: "token_exchange_failed",
+      xDetail,
+    });
+    console.log("[X CALLBACK] final redirect (error)", {
+      destination: target.pathname + target.search,
+    });
+    const response = NextResponse.redirect(target);
+    response.cookies.set(STATE_COOKIE, "", clearCookie);
+    response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
+    return response;
+  }
 
+  try {
     console.log("[X CALLBACK] token exchange completed; starting user profile fetch (see [X OAUTH] logs)");
     const xIdentity = await fetchXAccountIdentity(tokenResponse.access_token);
 
@@ -168,10 +193,21 @@ export async function GET(req: NextRequest) {
           updatedByUserId: session.user.id,
         },
       });
-      console.log("[X CALLBACK] DB upsert success");
+      console.log("[X CALLBACK] DB upsert success", {
+        provider: X_PROVIDER_KEY,
+        updatedByUserId: session.user.id,
+        externalUsernameWritten: Boolean(xIdentity.username?.trim()),
+      });
     } catch (dbErr) {
       console.error("[X CALLBACK] DB upsert failed", dbErr);
       throw dbErr;
+    }
+
+    try {
+      revalidatePath("/admin");
+      console.log("[X CALLBACK] revalidatePath(/admin) after successful X token save");
+    } catch (revErr) {
+      console.error("[X CALLBACK] revalidatePath(/admin) failed (non-fatal)", revErr);
     }
 
     // Lightweight page: avoids loading the full /admin dashboard (heavy queries + autoLockContests).
@@ -185,8 +221,8 @@ export async function GET(req: NextRequest) {
     response.cookies.set(VERIFIER_COOKIE, "", clearCookie);
     return response;
   } catch (error) {
-    console.error("[X CALLBACK] failure after validation (token, profile, or DB)", error);
-    const target = redirectUrl(req, "/admin", { xAuth: "error", xReason: "token_exchange_failed" });
+    console.error("[X CALLBACK] failure after token exchange (profile or DB)", error);
+    const target = redirectUrl(req, "/admin", { xAuth: "error", xReason: "oauth_callback_failed" });
     console.log("[X CALLBACK] final redirect (error)", {
       destination: target.pathname + target.search,
     });
