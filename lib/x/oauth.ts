@@ -121,6 +121,56 @@ export async function exchangeCodeForTokens(args: {
   };
 }
 
+/**
+ * OAuth2 refresh_token grant — same token URL as authorization_code exchange.
+ */
+export async function refreshXAccessToken(refreshToken: string): Promise<XTokenResponse> {
+  const clientId = requiredEnv("X_CLIENT_ID");
+  const clientSecret = requiredEnv("X_CLIENT_SECRET");
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: clientId,
+  });
+
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+  const response = await fetch(X_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${basic}`,
+    },
+    body: body.toString(),
+    cache: "no-store",
+  });
+
+  const raw = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`X refresh token failed (${response.status})`);
+  }
+
+  let data: Partial<XTokenResponse>;
+  try {
+    data = JSON.parse(raw) as Partial<XTokenResponse>;
+  } catch {
+    throw new Error("X refresh returned non-JSON");
+  }
+
+  if (!data.access_token || !data.token_type) {
+    throw new Error("X refresh response missing required fields");
+  }
+
+  return {
+    token_type: data.token_type,
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    scope: data.scope,
+    expires_in: data.expires_in,
+  };
+}
+
 export async function fetchXAccountIdentity(accessToken: string): Promise<{
   id: string;
   username: string;
