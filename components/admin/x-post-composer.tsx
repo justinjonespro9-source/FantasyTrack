@@ -32,25 +32,56 @@ export default function XPostComposer({
     }
 
     setSubmitting(true);
+    console.log("[X POST UI] submitting", { textLength: trimmed.length });
+
     try {
       const response = await fetch("/api/admin/x/post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: trimmed }),
       });
-      const payload = (await response.json().catch(() => ({}))) as {
+
+      const raw = await response.text();
+      let payload = {} as {
         error?: string;
         postId?: string | null;
+        username?: string | null;
       };
+      if (raw.trim()) {
+        try {
+          payload = JSON.parse(raw) as typeof payload;
+        } catch {
+          console.error("[X POST UI] response not JSON", {
+            httpStatus: response.status,
+            bodyLength: raw.length,
+          });
+        }
+      }
+
+      console.log("[X POST UI] response", {
+        httpStatus: response.status,
+        ok: response.ok,
+        hasErrorField: Boolean(payload.error),
+        hasPostId: Boolean(payload.postId),
+      });
 
       if (!response.ok) {
-        setError(payload.error ?? "Failed to publish to X.");
+        const fallback =
+          response.status >= 500
+            ? "Server error while publishing. Please try again."
+            : `Could not publish (${response.status}).`;
+        setError(payload.error?.trim() || fallback);
         return;
       }
 
       setText("");
-      setSuccess(payload.postId ? `Posted to X. Post ID: ${payload.postId}` : "Posted to X.");
-    } catch {
+      setSuccess(
+        payload.postId
+          ? `Posted to X. Post ID: ${payload.postId}`
+          : "Posted to X."
+      );
+    } catch (e) {
+      console.error("[X POST UI] fetch threw", e);
       setError("Network error while posting to X.");
     } finally {
       setSubmitting(false);

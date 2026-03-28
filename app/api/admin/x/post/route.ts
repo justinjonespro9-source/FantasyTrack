@@ -4,8 +4,11 @@ import { getCurrentSession } from "@/lib/session";
 import { publishPostToConnectedX, XPostError } from "@/lib/x/post";
 
 export async function POST(req: NextRequest) {
+  console.log("[X POST API] POST /api/admin/x/post hit", { path: req.nextUrl.pathname });
+
   const session = await getCurrentSession();
   if (!session?.user?.id) {
+    console.error("[X POST API] unauthorized: no session");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -14,6 +17,7 @@ export async function POST(req: NextRequest) {
     select: { isAdmin: true },
   });
   if (!dbUser?.isAdmin) {
+    console.error("[X POST API] forbidden: not admin", { userId: session.user.id });
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -21,12 +25,19 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
+    console.error("[X POST API] invalid JSON body");
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
   const text = String(body?.text ?? "").trim();
+  console.log("[X POST API] invoking publish", { textLength: text.length });
+
   try {
     const result = await publishPostToConnectedX(text);
+    console.log("[X POST API] publish ok", {
+      hasPostId: Boolean(result.postId),
+      hasUsername: Boolean(result.username),
+    });
     return NextResponse.json({
       ok: true,
       postId: result.postId,
@@ -34,8 +45,16 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     if (err instanceof XPostError) {
+      console.error("[X POST API] publish failed (XPostError)", {
+        status: err.status,
+        messageLength: err.message.length,
+      });
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    return NextResponse.json({ error: "Failed to publish to X." }, { status: 500 });
+    console.error("[X POST API] publish failed (unexpected)", err);
+    return NextResponse.json(
+      { error: "Something went wrong while publishing. Please try again." },
+      { status: 500 }
+    );
   }
 }
