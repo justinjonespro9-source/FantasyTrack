@@ -25,6 +25,11 @@ export class XPostError extends Error {
   }
 }
 
+/** Contests inherit visibility from their series; private series must not post to X. */
+export type PublishPostToXResult =
+  | { success: true; postId: string | null; username: string | null }
+  | { success: false; reason: "private_contest" };
+
 type ParsedTweetResponse = {
   xBody: {
     data?: { id?: string };
@@ -140,10 +145,10 @@ function throwIfTweetError(xResponse: Response, parsed: ParsedTweetResponse): vo
   );
 }
 
-export async function publishPostToConnectedX(text: string): Promise<{
-  postId: string | null;
-  username: string | null;
-}> {
+export async function publishPostToConnectedX(
+  text: string,
+  options?: { contestId?: string }
+): Promise<PublishPostToXResult> {
   const normalized = String(text ?? "").trim();
   if (!normalized) {
     throw new XPostError("Post text is required.", 400);
@@ -152,9 +157,25 @@ export async function publishPostToConnectedX(text: string): Promise<{
     throw new XPostError("Post text must be 280 characters or fewer.", 400);
   }
 
+  const contestIdOpt = options?.contestId?.trim();
+  if (contestIdOpt) {
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestIdOpt },
+      select: { series: { select: { isPrivate: true } } },
+    });
+    if (!contest) {
+      throw new XPostError("Contest not found.", 404);
+    }
+    if (contest.series.isPrivate) {
+      console.log("[X POST SEND] skipped private contest", { contestId: contestIdOpt });
+      return { success: false, reason: "private_contest" };
+    }
+  }
+
   console.log("[X POST SEND] publish start", {
     textLength: normalized.length,
     provider: X_PROVIDER_KEY,
+    hasContestGuard: Boolean(contestIdOpt),
   });
 
   const tokenRow = await prisma.externalProviderToken.findUnique({
@@ -248,6 +269,7 @@ export async function publishPostToConnectedX(text: string): Promise<{
   });
 
   return {
+    success: true,
     postId: parsed.xBody?.data?.id ?? null,
     username: tokenRow.externalUsername ?? null,
   };

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { text?: string };
+  let body: { text?: string; contestId?: string };
   try {
     body = await req.json();
   } catch {
@@ -30,15 +30,32 @@ export async function POST(req: NextRequest) {
   }
 
   const text = String(body?.text ?? "").trim();
-  console.log("[X POST API] invoking publish", { textLength: text.length });
+  const contestId =
+    typeof body.contestId === "string" && body.contestId.trim() ? body.contestId.trim() : undefined;
+  console.log("[X POST API] invoking publish", {
+    textLength: text.length,
+    hasContestId: Boolean(contestId),
+  });
 
   try {
-    const result = await publishPostToConnectedX(text);
+    const result = await publishPostToConnectedX(text, contestId ? { contestId } : undefined);
+    if (!result.success) {
+      console.log("[X POST API] publish skipped (private contest)");
+      return NextResponse.json(
+        {
+          success: false,
+          reason: result.reason,
+          error: "Cannot post to X for a contest in a private series.",
+        },
+        { status: 403 }
+      );
+    }
     console.log("[X POST API] publish ok", {
       hasPostId: Boolean(result.postId),
       hasUsername: Boolean(result.username),
     });
     return NextResponse.json({
+      success: true,
       ok: true,
       postId: result.postId,
       username: result.username,

@@ -41,7 +41,11 @@ async function reservePostLog(contestId: string, postType: XPostType, postedText
   }
 }
 
-async function runLockReminders(now: Date, failures: FailureItem[]): Promise<number> {
+async function runLockReminders(
+  now: Date,
+  failures: FailureItem[],
+  skippedPrivate: { count: number }
+): Promise<number> {
   const in45 = new Date(now.getTime() + LOCK_REMINDER_MINUTES * 60_000);
   const contests = await prisma.contest.findMany({
     where: {
@@ -58,19 +62,43 @@ async function runLockReminders(now: Date, failures: FailureItem[]): Promise<num
       id: true,
       title: true,
       startTime: true,
-      series: { select: { name: true } },
+      series: { select: { name: true, isPrivate: true } },
     },
     orderBy: { startTime: "asc" },
   });
 
   let posted = 0;
   for (const contest of contests) {
+    if (contest.series?.isPrivate) {
+      console.log("[X POST SEND] skipped private contest", {
+        contestId: contest.id,
+        postType: "LOCK_REMINDER",
+      });
+      skippedPrivate.count += 1;
+      continue;
+    }
+
     const postedText = buildLockReminderPost(contest);
     const reserved = await reservePostLog(contest.id, XPostType.LOCK_REMINDER, postedText);
     if (!reserved) continue;
 
     try {
-      const result = await publishPostToConnectedX(postedText);
+      const result = await publishPostToConnectedX(postedText, { contestId: contest.id });
+      if (!result.success) {
+        await prisma.xPostLog.update({
+          where: { id: reserved.id },
+          data: {
+            status: XPostStatus.FAILED,
+            errorMessage: "private_contest",
+          },
+        });
+        failures.push({
+          contestId: contest.id,
+          postType: XPostType.LOCK_REMINDER,
+          error: "private_contest",
+        });
+        continue;
+      }
       await prisma.xPostLog.update({
         where: { id: reserved.id },
         data: {
@@ -97,7 +125,11 @@ async function runLockReminders(now: Date, failures: FailureItem[]): Promise<num
   return posted;
 }
 
-async function runSettlementRecaps(now: Date, failures: FailureItem[]): Promise<number> {
+async function runSettlementRecaps(
+  now: Date,
+  failures: FailureItem[],
+  skippedPrivate: { count: number }
+): Promise<number> {
   const threshold = new Date(now.getTime() - SETTLEMENT_RECAP_DELAY_MINUTES * 60_000);
   const contests = await prisma.contest.findMany({
     where: {
@@ -113,7 +145,7 @@ async function runSettlementRecaps(now: Date, failures: FailureItem[]): Promise<
     select: {
       id: true,
       title: true,
-      series: { select: { name: true } },
+      series: { select: { name: true, isPrivate: true } },
       lanes: {
         where: { finalRank: { not: null, lte: 3 } },
         select: { name: true, finalRank: true, fantasyPoints: true },
@@ -125,6 +157,15 @@ async function runSettlementRecaps(now: Date, failures: FailureItem[]): Promise<
 
   let posted = 0;
   for (const contest of contests) {
+    if (contest.series?.isPrivate) {
+      console.log("[X POST SEND] skipped private contest", {
+        contestId: contest.id,
+        postType: "SETTLEMENT_RECAP",
+      });
+      skippedPrivate.count += 1;
+      continue;
+    }
+
     const podium = contest.lanes
       .filter((l) => l.finalRank != null)
       .slice(0, 3)
@@ -139,7 +180,22 @@ async function runSettlementRecaps(now: Date, failures: FailureItem[]): Promise<
     if (!reserved) continue;
 
     try {
-      const result = await publishPostToConnectedX(postedText);
+      const result = await publishPostToConnectedX(postedText, { contestId: contest.id });
+      if (!result.success) {
+        await prisma.xPostLog.update({
+          where: { id: reserved.id },
+          data: {
+            status: XPostStatus.FAILED,
+            errorMessage: "private_contest",
+          },
+        });
+        failures.push({
+          contestId: contest.id,
+          postType: XPostType.SETTLEMENT_RECAP,
+          error: "private_contest",
+        });
+        continue;
+      }
       await prisma.xPostLog.update({
         where: { id: reserved.id },
         data: {
@@ -172,15 +228,17 @@ export async function POST(req: NextRequest) {
   }
 
   const failures: FailureItem[] = [];
+  const skippedPrivateContests = { count: 0 };
   const now = new Date();
 
-  const remindersPosted = await runLockReminders(now, failures);
-  const recapsPosted = await runSettlementRecaps(now, failures);
+  const remindersPosted = await runLockReminders(now, failures, skippedPrivateContests);
+  const recapsPosted = await runSettlementRecaps(now, failures, skippedPrivateContests);
 
   return NextResponse.json({
     ok: true,
     remindersPosted,
     recapsPosted,
+    skippedPrivateContests: skippedPrivateContests.count,
     failures,
   });
 }
