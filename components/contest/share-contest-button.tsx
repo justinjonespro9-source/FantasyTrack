@@ -81,7 +81,7 @@ export function ShareContestButton({
         onClick={() => setOpen(true)}
         className={
           className ||
-          "rounded border border-neutral-700 bg-neutral-950/80 px-3 py-2 text-sm font-medium text-neutral-200 hover:border-amber-300 hover:text-amber-200"
+          "ft-btn-ghost rounded-full px-3 py-2 text-sm font-medium"
         }
       >
         Share Contest
@@ -93,15 +93,15 @@ export function ShareContestButton({
           role="dialog"
           aria-labelledby="share-contest-title"
         >
-          <div className="w-full max-w-sm rounded-xl border border-neutral-800 bg-neutral-950/95 p-5 shadow-2xl">
+          <div className="w-full max-w-sm rounded-ft-lg border border-white/[0.1] bg-ft-charcoal/98 p-5 shadow-ft-card backdrop-blur-md">
             <div className="mb-4 flex items-start justify-between gap-3">
-              <h2 id="share-contest-title" className="text-base font-semibold text-neutral-50">
+              <h2 id="share-contest-title" className="text-base font-bold tracking-tight text-neutral-50">
                 Share this contest
               </h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-full border border-neutral-700 px-2 py-1 text-xs text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+                className="rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-500 hover:border-white/20 hover:text-neutral-200"
                 aria-label="Close"
               >
                 Close
@@ -113,7 +113,7 @@ export function ShareContestButton({
                 <button
                   type="button"
                   onClick={handleNativeShare}
-                  className="flex w-full items-center justify-between rounded-lg border border-amber-400/70 bg-amber-400 px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-amber-300"
+                  className="flex w-full items-center justify-between rounded-ft border border-transparent bg-ft-cta px-4 py-3 text-sm font-semibold text-neutral-950 shadow-ft-inner hover:brightness-110"
                 >
                   <span>Share</span>
                   <span className="text-xs text-neutral-900/80">Native share</span>

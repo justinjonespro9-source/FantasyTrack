@@ -3,16 +3,17 @@ import Link from "next/link";
 import { getCurrentSession } from "@/lib/session";
 import SignOutButton from "@/components/ui/signout-button";
 
-const navLink = "whitespace-nowrap text-neutral-300 hover:text-amber-400";
+const navLink =
+  "whitespace-nowrap text-sm text-neutral-400 transition duration-ft hover:text-ft-gold";
 
 export default async function Nav() {
   const session = await getCurrentSession();
 
   return (
-    <header className="border-b border-neutral-800 bg-black">
+    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ft-ink/80 shadow-ft-card backdrop-blur-xl">
       {/* Desktop / tablet header */}
-      <div className="mx-auto hidden max-w-7xl items-center justify-between gap-4 px-4 py-2 md:flex">
-        <Link href="/" className="shrink-0 flex items-center">
+      <div className="mx-auto hidden max-w-7xl items-center justify-between gap-4 px-4 py-3 md:flex">
+        <Link href="/" className="shrink-0 flex items-center transition duration-ft hover:opacity-95">
           <span className="relative block h-[44px] sm:h-[48px] lg:h-[60px] w-[260px] sm:w-[320px] lg:w-[380px] overflow-hidden">
             <Image
               src="/fantasytrack-wordmark-header-clean.png"
@@ -28,8 +29,8 @@ export default async function Nav() {
           </span>
         </Link>
 
-        <div className="flex flex-1 items-center justify-end gap-4 lg:gap-6">
-          <nav className="flex items-center gap-5 text-sm lg:gap-7">
+        <div className="flex flex-1 items-center justify-end gap-4 lg:gap-8">
+          <nav className="flex items-center gap-6 text-sm lg:gap-8">
             <Link href="/dashboard" className={navLink}>
               Enter the Track
             </Link>
@@ -49,25 +50,23 @@ export default async function Nav() {
             )}
           </nav>
 
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-3 border-l border-white/[0.08] pl-4 text-sm">
             {session?.user ? (
               <>
-                <span className="whitespace-nowrap text-neutral-300">
-                  {session.user.displayName}
-                </span>
+                <span className="max-w-[10rem] truncate text-neutral-300">{session.user.displayName}</span>
                 <SignOutButton />
               </>
             ) : (
               <>
                 <Link
                   href="/auth/login"
-                  className="rounded border border-neutral-600 px-2.5 py-0.5 text-neutral-200 hover:border-amber-400 hover:text-amber-400"
+                  className="rounded-full border border-white/10 px-3 py-1.5 text-neutral-200 transition duration-ft hover:border-ft-gold/40 hover:text-ft-gold"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="rounded bg-amber-400 px-2.5 py-0.5 font-semibold text-neutral-950 hover:bg-amber-300"
+                  className="rounded-full bg-ft-cta px-3 py-1.5 text-sm font-semibold text-neutral-950 shadow-ft-inner transition duration-ft hover:brightness-110 active:scale-[0.98]"
                 >
                   Sign up
                 </Link>
@@ -78,7 +77,7 @@ export default async function Nav() {
       </div>
 
       {/* Mobile header */}
-      <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-2 md:hidden">
+      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 md:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link href="/" className="shrink-0 flex items-center">
             <span className="relative block h-[34px] w-[220px] overflow-hidden">
@@ -99,22 +98,20 @@ export default async function Nav() {
           <div className="flex items-center gap-2 text-xs">
             {session?.user ? (
               <>
-                <span className="whitespace-nowrap text-neutral-300">
-                  {session.user.displayName}
-                </span>
+                <span className="max-w-[7rem] truncate text-neutral-300">{session.user.displayName}</span>
                 <SignOutButton />
               </>
             ) : (
               <>
                 <Link
                   href="/auth/login"
-                  className="rounded border border-neutral-600 px-2 py-0.5 text-neutral-200 hover:border-amber-400 hover:text-amber-400"
+                  className="rounded-full border border-white/10 px-2.5 py-1 text-neutral-200 hover:border-ft-gold/40"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="rounded bg-amber-400 px-2 py-0.5 font-semibold text-neutral-950 hover:bg-amber-300"
+                  className="rounded-full bg-ft-cta px-2.5 py-1 text-xs font-semibold text-neutral-950"
                 >
                   Sign up
                 </Link>
@@ -123,7 +120,7 @@ export default async function Nav() {
           </div>
         </div>
 
-        <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
+        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/[0.05] pt-2 text-xs">
           <Link href="/dashboard" className={navLink}>
             Enter the Track
           </Link>

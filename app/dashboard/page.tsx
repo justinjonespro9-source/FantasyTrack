@@ -37,7 +37,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const seriesToShow = activeSeries.length > 0 ? activeSeries : fallbackSeries;
 
   if (seriesToShow.length === 0) {
-    return <p className="rounded border border-track-200 bg-white p-4">No series yet.</p>;
+    return (
+      <p className="ft-surface rounded-ft-lg p-6 text-sm text-neutral-400">No series yet.</p>
+    );
   }
 
   const yesterdayStart = new Date();
@@ -177,13 +179,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <DashboardOnboardingCard hasHistory={hasHistory} />
       </ClientOnly>
 
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-2">
+      <section className="ft-surface px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
-              My Track
-            </p>
-            <p className="text-xs text-neutral-300">
+            <p className="ft-label text-neutral-500">My track</p>
+            <p className="mt-1 text-sm text-neutral-400">
               Join a live contest, enter a series, and track your results.
             </p>
           </div>
@@ -215,9 +215,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       {/* Top row: Active Contests (left) + Series panel (right) */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         {/* Active Contests — primary focus */}
-        <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-lg font-semibold text-neutral-50">Active Contests</h1>
+        <section className="ft-surface p-5 sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-neutral-50">Active contests</h1>
+              <p className="mt-1 text-xs text-neutral-500">Open or locked — tap to enter the board.</p>
+            </div>
           </div>
           {allActiveContests.length === 0 ? (
             <div className="space-y-2 text-sm text-neutral-300">
@@ -239,11 +242,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <Link
                   key={c.id}
                   href={`/contest/${c.id}`}
-                  className="block rounded-lg border border-neutral-800 bg-neutral-950/80 p-3 hover:border-amber-400/60 hover:bg-neutral-900/80 transition-colors"
+                  className="group block rounded-ft border border-white/[0.06] bg-black/30 p-4 transition-all duration-ft hover:border-ft-gold/25 hover:bg-white/[0.03] hover:shadow-ft-card-hover"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-amber-300 sm:text-base">
+                      <p className="text-sm font-semibold text-neutral-100 transition group-hover:text-ft-gold sm:text-base">
                         {c.title}
                       </p>
                       <p className="mt-0.5 text-xs text-neutral-400 sm:text-[13px]">
@@ -273,11 +276,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </section>
 
         {/* Series panel */}
-        <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
-              Series
-            </h2>
+        <section className="ft-surface p-5 sm:p-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-bold tracking-tight text-neutral-50">Series</h2>
           </div>
 
           {/* Your Series / Private series */}
@@ -313,7 +314,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       <Link
                         key={m.id}
                         href={`/series/${m.series.id}`}
-                        className="block rounded-lg border border-neutral-800 bg-neutral-950/80 p-3 hover:border-amber-400/60 hover:bg-neutral-900/80 transition-colors"
+                        className="group block rounded-ft border border-white/[0.06] bg-black/30 p-4 transition-all duration-ft hover:border-ft-gold/25 hover:bg-white/[0.03]"
                       >
                         <p className="font-semibold text-neutral-50">{m.series.name}</p>
                         {m.series.description ? (
@@ -389,12 +390,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </div>
 
       {/* GLOBAL HUB (always visible) */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-neutral-50">Overall Leaderboard (Top 10)</h2>
-            <Link href="/leaderboard" className="text-sm text-amber-200/80 underline">
-              Full leaderboard
+      <section className="grid gap-5 lg:grid-cols-2">
+        <div className="ft-surface p-5 sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-bold tracking-tight text-neutral-50">Overall leaderboard</h2>
+            <Link
+              href="/leaderboard"
+              className="text-xs font-semibold uppercase tracking-wide text-ft-gold transition hover:text-ft-gold-bright"
+            >
+              View all →
             </Link>
           </div>
 
@@ -402,19 +406,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <p className="text-sm text-neutral-400">No entries yet.</p>
           ) : (
             <table className="w-full text-left text-sm">
-              <thead className="text-neutral-400">
+              <thead className="border-b border-white/[0.06] text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
                 <tr>
-                  <th className="py-1">Rank</th>
-                  <th className="py-1">Name</th>
-                  <th className="py-1">Skill</th>
-                  <th className="py-1">Wagered</th>
+                  <th className="py-2">Rank</th>
+                  <th className="py-2">Name</th>
+                  <th className="py-2">Skill</th>
+                  <th className="py-2">Wagered</th>
                 </tr>
               </thead>
               <tbody>
                 {globalTop10.map((row) => (
                   <tr
                     key={row.userId}
-                    className="border-t border-neutral-800/70 text-neutral-100 hover:bg-neutral-900/70"
+                    className="border-b border-white/[0.04] text-neutral-100 transition hover:bg-white/[0.03]"
                   >
                     <td className="py-1">{row.rank}</td>
                     <td className="py-1">
@@ -437,15 +441,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           )}
         </div>
 
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
-          <h2 className="mb-2 text-base font-semibold text-neutral-50">Commish Notes</h2>
+        <div className="ft-surface p-5 sm:p-6">
+          <h2 className="mb-3 text-base font-bold tracking-tight text-neutral-50">Commish notes</h2>
 
           {globalShoutouts.length === 0 ? (
             <p className="text-sm text-neutral-400">No notes posted.</p>
           ) : (
             <ul className="space-y-2 text-sm text-neutral-100">
               {globalShoutouts.map((s) => (
-                <li key={s.id} className="rounded border border-neutral-800 bg-neutral-950/80 p-2">
+                <li key={s.id} className="rounded-ft border border-white/[0.06] bg-black/35 p-3 text-neutral-300">
                   <p>{s.message}</p>
                   <p className="mt-1 text-xs text-neutral-400">
                     <ClientOnly>

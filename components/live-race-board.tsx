@@ -271,32 +271,32 @@ export function LiveRaceBoard({
   const segments = getSportSegments(sport);
 
   return (
-    <section className="rounded-2xl border border-amber-400/40 bg-neutral-950/90 p-4 shadow-sm">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+    <section className="relative overflow-hidden rounded-ft-lg border border-white/[0.07] bg-ft-gradient-panel p-5 shadow-ft-card backdrop-blur-sm">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_80%_at_50%_-30%,rgba(212,175,55,0.08),transparent_50%)]" />
+      <div className="relative mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-200/80">
-            Live race board
-          </p>
-          <p className="text-xs text-neutral-400">
+          <p className="ft-label text-ft-gold/90">Live broadcast</p>
+          <p className="mt-1 text-sm font-semibold tracking-tight text-neutral-100">Race leaderboard</p>
+          <p className="mt-0.5 max-w-md text-xs leading-relaxed text-neutral-500">
             {hasLiveData
-              ? "Top runners ordered by current fantasy points."
-              : "Live race view will update as fantasy points are recorded."}
+              ? "Leaders and gaps update as fantasy points move — rank flashes on position changes."
+              : "Standings appear here as fantasy points are recorded."}
           </p>
         </div>
 
-        <div className="rounded-full border border-neutral-700 bg-neutral-950 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-300">
-          In-race view
+        <div className="rounded-full border border-ft-gold/25 bg-ft-gold/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-ft-gold shadow-ft-inner">
+          Live
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="relative space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="font-medium text-neutral-50">Race Progress</span>
-          <span className="text-neutral-400">{progressLabel}</span>
+          <span className="font-semibold text-neutral-200">Event progress</span>
+          <span className="text-xs font-medium tabular-nums text-neutral-500">{progressLabel}</span>
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+          <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
             {segments.map((label, idx) => (
               <span
                 key={label}
@@ -313,13 +313,13 @@ export function LiveRaceBoard({
             ))}
           </div>
 
-          <div className="relative h-4 rounded-full border border-neutral-800 bg-neutral-950/80">
+          <div className="relative h-3 overflow-hidden rounded-full border border-white/[0.08] bg-black/50 shadow-inner">
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-amber-400/80 transition-all duration-500"
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-ft-gold-dim via-ft-gold to-ft-gold-bright transition-all duration-700 ease-out"
               style={{ width: `${progressPercent}%` }}
             />
             <div
-              className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border-2 border-white bg-amber-400 shadow z-10"
+              className="absolute top-1/2 z-10 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-white/90 bg-ft-gold shadow-[0_0_12px_rgba(212,175,55,0.5)]"
               style={{
                 left:
                   progressPercent <= 0
@@ -334,15 +334,14 @@ export function LiveRaceBoard({
       </div>
 
       {!hasLiveData ? (
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950/70 p-4 text-sm text-neutral-300">
+        <div className="relative rounded-ft border border-white/[0.06] bg-black/30 p-5 text-sm leading-relaxed text-neutral-400">
           <p>
-            No in-race fantasy data is available yet for <span className="font-semibold">{title}</span>. As
-            fantasy points are updated, the live race board will show the leading runners and
-            gaps.
+            No in-race fantasy data yet for <span className="font-semibold text-neutral-200">{title}</span>.
+            Standings and gaps appear once points are posted.
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="relative grid gap-5 md:grid-cols-3">
           {/* Top 4 hero */}
           <div className="space-y-3 md:col-span-2">
             {top4.map((lane, idx) => {
@@ -357,15 +356,15 @@ export function LiveRaceBoard({
                 <div
                   key={lane.id}
                   className={[
-                    "flex flex-col gap-2 rounded-lg border px-3 py-2 transition-colors duration-300",
+                    "group flex flex-col gap-2 rounded-ft border px-3.5 py-2.5 transition-all duration-300",
                     flash === "up" ? "rank-flash-up" : flash === "down" ? "rank-flash-down" : "",
                     rank === 1
-                      ? "border-amber-400/80 bg-amber-500/15 shadow-[0_0_25px_rgba(251,191,36,0.3)]"
+                      ? "animate-ft-leader-pulse border-ft-gold/45 bg-gradient-to-br from-ft-gold/12 via-neutral-900/90 to-black/80 shadow-ft-glow-gold"
                       : rank === 2
-                      ? "border-zinc-400/70 bg-neutral-900/80"
+                      ? "border-white/[0.1] bg-neutral-900/70 hover:border-white/15"
                       : rank === 3
-                      ? "border-orange-500/70 bg-neutral-900/80"
-                      : "border-neutral-800 bg-neutral-950/60",
+                      ? "border-white/[0.08] bg-neutral-950/70 hover:border-ft-gold/15"
+                      : "border-white/[0.06] bg-black/40 hover:border-white/10",
                   ].join(" ")}
                 >
                   <div className="flex items-center gap-3">
@@ -383,7 +382,7 @@ export function LiveRaceBoard({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-medium text-neutral-50">
+                        <p className="truncate text-sm font-semibold tracking-tight text-neutral-50">
                           {formatLaneDisplayName(lane.name, lane.position, lane.team)}
                         </p>
                         {lane.status !== "ACTIVE" && renderLaneStatusChip(lane.status) && (
@@ -392,8 +391,8 @@ export function LiveRaceBoard({
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-neutral-400">
-                        Fantasy points:{" "}
+                      <p className="text-[11px] text-neutral-500">
+                        Live FP{" "}
                         <span className="font-semibold text-neutral-100">
                           {formatFantasyPoints(lane.fantasyPoints)}
                         </span>
@@ -401,13 +400,13 @@ export function LiveRaceBoard({
                     </div>
 
                     <div className="flex flex-col items-end gap-0.5 text-right">
-                      <div className="text-sm font-semibold text-neutral-50">
+                      <div className="text-base font-bold tabular-nums tracking-tight text-neutral-50">
                         {formatFantasyPoints(lane.fantasyPoints)}
-                        <span className="ml-1 text-[11px] font-normal text-neutral-400">pts</span>
+                        <span className="ml-1 text-[10px] font-medium text-neutral-500">pts</span>
                       </div>
                       {userPickLaneIds?.[lane.id] ? (
                         <span
-                          className="rounded border border-sky-400/50 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-100"
+                          className="rounded-full border border-ft-gold/35 bg-ft-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ft-gold"
                           title="You have a wager on this lane. WIN payouts are pool-priced at lock — we do not store a personal locked price per bet unless shown as locked final odds."
                         >
                           Your pick
@@ -416,9 +415,9 @@ export function LiveRaceBoard({
                     </div>
                   </div>
 
-                  <div className="mt-1 h-1.5 w-full rounded-full bg-neutral-800">
+                  <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-black/60">
                     <div
-                      className="h-1.5 rounded-full bg-amber-400/80"
+                      className="h-full rounded-full bg-gradient-to-r from-ft-gold-dim to-ft-gold transition-all duration-500"
                       style={{ width: `${ratio * 100}%` }}
                     />
                   </div>
@@ -428,10 +427,8 @@ export function LiveRaceBoard({
           </div>
 
           {/* Rest of field */}
-                  <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-300">
-              Rest of field
-            </p>
+                  <div className="rounded-ft border border-white/[0.06] bg-black/35 p-3 shadow-inner">
+            <p className="mb-2 ft-label text-neutral-500">Rest of field</p>
 
             {rest.length === 0 ? (
               <p className="text-sm text-neutral-400">Only four runners with fantasy points so far.</p>
@@ -445,7 +442,7 @@ export function LiveRaceBoard({
                   <div
                     key={lane.id}
                     className={[
-                      "flex items-center justify-between rounded border border-neutral-800/70 bg-neutral-900/70 px-2 py-1 transition-colors duration-300",
+                      "flex items-center justify-between rounded-lg border border-white/[0.05] bg-white/[0.02] px-2 py-1.5 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.04]",
                       flash === "up" ? "rank-flash-up" : flash === "down" ? "rank-flash-down" : "",
                     ].join(" ")}
                   >
@@ -466,7 +463,7 @@ export function LiveRaceBoard({
                     <div className="flex shrink-0 items-center gap-1.5">
                       {userPickLaneIds?.[lane.id] ? (
                         <span
-                          className="rounded border border-sky-400/50 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-sky-100"
+                          className="rounded-full border border-ft-gold/30 bg-ft-gold/10 px-1.5 py-0.5 text-[9px] font-semibold text-ft-gold"
                           title="You have a wager on this lane. WIN payouts are pool-priced at lock — we do not store a personal locked price per bet unless shown as locked final odds."
                         >
                           Your pick

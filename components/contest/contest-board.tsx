@@ -217,7 +217,7 @@ function OddsMoveInfoPopover() {
         type="button"
         aria-label="Why did odds move?"
         aria-expanded={open}
-        className="rounded border border-track-300 px-1.5 py-0 text-xs text-track-700"
+        className="rounded border border-white/15 px-1.5 py-0 text-xs text-neutral-500 transition hover:border-ft-gold/40 hover:text-ft-gold"
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -231,14 +231,14 @@ function OddsMoveInfoPopover() {
         <div
           role="tooltip"
           aria-label="Why do odds move?"
-          className="absolute left-0 top-6 z-20 w-72 rounded border border-track-300 bg-white p-3 text-xs text-track-700 shadow-lg"
+          className="absolute left-0 top-6 z-30 w-72 rounded-ft border border-white/10 bg-ft-charcoal/98 p-3 text-xs text-neutral-300 shadow-ft-card backdrop-blur-md"
         >
-          <p className="font-semibold text-track-900">Why do odds move?</p>
-          <p className="mt-1">
+          <p className="font-semibold text-ft-gold">Why do odds move?</p>
+          <p className="mt-1.5 leading-relaxed text-neutral-400">
             FantasyTrack uses a pool (parimutuel) system. As more money is wagered on a lane, its
             estimated payout decreases, and other lanes&apos; payouts increase.
           </p>
-          <p className="mt-1 text-track-500">
+          <p className="mt-2 text-[11px] text-neutral-500">
             Estimates update as others wager and final payouts are set at lock/settlement.
           </p>
         </div>
@@ -259,17 +259,17 @@ function TicketCard({
   body?: string;
 }) {
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 shadow-sm">
+    <div className="rounded-ft border border-white/[0.07] bg-black/35 p-3 shadow-ft-card transition hover:border-white/12">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="font-semibold text-track-900">{title}</div>
-          <div className="text-xs text-track-600">{subtitle}</div>
+          <div className="font-semibold text-neutral-100">{title}</div>
+          <div className="text-xs text-neutral-500">{subtitle}</div>
         </div>
         <div className="text-right">
-          <div className="font-semibold text-track-900">{right}</div>
+          <div className="font-semibold tabular-nums text-neutral-50">{right}</div>
         </div>
       </div>
-      {body ? <div className="mt-2 text-xs text-track-700">{body}</div> : null}
+      {body ? <div className="mt-2 text-xs text-neutral-500">{body}</div> : null}
     </div>
   );
 }
@@ -705,23 +705,25 @@ export default function ContestBoard({
   const trackConditionsLabel = formatTrackConditionsLabel(trackConditions);
 
   return (
-    <section className="space-y-4 rounded-2xl border border-amber-400/40 bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 p-4 sm:p-5 shadow-[0_0_40px_rgba(0,0,0,0.7)]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-amber-300 sm:text-xl">{title}</h2>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400 sm:text-xs">
+    <section className="relative isolate overflow-hidden rounded-ft-lg border border-white/[0.07] bg-ft-gradient-panel p-5 shadow-ft-card backdrop-blur-sm sm:p-6">
+      <div className="pointer-events-none absolute inset-0 z-0 bg-ft-radial-gold opacity-90" />
+      <div className="relative z-10 space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold tracking-tight text-neutral-50 sm:text-2xl">{title}</h2>
+          <p className="ft-label text-neutral-500 sm:text-[11px]">
             Starts{" "}
             <ClientOnly>
               <span>{formatDateTime(new Date(startTime))}</span>
             </ClientOnly>{" "}
             · Status: {status}
           </p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            <span className="rounded-full border border-neutral-700 bg-neutral-950/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-100">
+          <div className="mt-1 flex flex-wrap gap-2">
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-300">
               {sportLabel}
             </span>
-            <span className="rounded-full border border-neutral-700 bg-neutral-950/80 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-neutral-100">
-              Track Conditions: {trackConditionsLabel}
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+              {trackConditionsLabel}
             </span>
           </div>
         </div>
@@ -730,20 +732,20 @@ export default function ContestBoard({
           <ShareContestButton contestId={contestId} contestTitle={title} />
           <Link
             href="/how-to-play"
-            className="rounded border border-neutral-700 bg-neutral-950/80 px-3 py-1.5 text-xs sm:text-sm text-neutral-200 hover:border-amber-300 hover:text-amber-200"
+            className="ft-btn-ghost px-3 py-1.5 text-xs sm:text-sm"
           >
             How to Play
           </Link>
 
           {!bettingClosed ? (
-            <div className="rounded-full border border-neutral-800 bg-neutral-950/80 px-3 py-1.5 text-xs text-neutral-100 sm:text-sm">
-              <span className="hidden sm:inline">Lock countdown: </span>
-              <span className="font-semibold text-amber-200">
+            <div className="rounded-full border border-ft-gold/30 bg-ft-gold/5 px-3 py-1.5 text-xs text-neutral-200 shadow-ft-inner sm:text-sm">
+              <span className="hidden text-neutral-500 sm:inline">Locks in </span>
+              <span className="font-bold tabular-nums text-ft-gold">
                 {formatCountdown(odds.timeToLockSeconds)}
               </span>
             </div>
           ) : (
-            <div className="rounded-full border border-amber-400/70 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 sm:text-sm">
+            <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-neutral-400 sm:text-sm">
               Betting closed
             </div>
           )}
@@ -771,25 +773,25 @@ export default function ContestBoard({
       />
 
       {bettingClosed ? (
-        <div className="rounded border border-amber-400/70 bg-amber-500/10 p-3 text-sm text-amber-100">
-          <div className="font-semibold">Betting is closed</div>
-          <div className="text-amber-200">
+        <div className="rounded-ft border border-white/10 bg-black/40 p-4 text-sm text-neutral-300 shadow-inner">
+          <div className="font-semibold text-neutral-100">Betting is closed</div>
+          <div className="mt-1 text-neutral-500">
             This contest has been locked and can no longer accept wagers.
           </div>
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-2">
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-neutral-50">Live odds board</p>
-          <p className="text-xs text-neutral-400">
-            Estimated payouts update until lock; final payouts determined at lock/settlement.
+          <p className="text-base font-bold tracking-tight text-neutral-50">Odds board</p>
+          <p className="text-xs leading-relaxed text-neutral-500">
+            Pool estimates until lock; final prices fixed at lock / settlement.
           </p>
         </div>
 
         <div className="flex items-center gap-2 text-xs sm:text-sm">
-          <label htmlFor="lane-sort" className="text-neutral-300">
-            Sort by
+          <label htmlFor="lane-sort" className="text-neutral-500">
+            Sort
           </label>
           <select
             id="lane-sort"
@@ -798,7 +800,7 @@ export default function ContestBoard({
               const nextSort = event.target.value as LaneSortKey;
               setSortKey(nextSort);
             }}
-            className="rounded border border-neutral-700 bg-neutral-950/80 px-2 py-1 text-neutral-100"
+            className="rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-neutral-100 transition hover:border-ft-gold/30"
           >
             <option value="WIN_ODDS">Odds - High to Low</option>
             <option value="PLAYER">Player A-Z</option>
@@ -807,31 +809,40 @@ export default function ContestBoard({
       </div>
 
       {isLoggedIn && (
-        <div className="rounded border border-neutral-700 bg-neutral-900/60 px-3 py-2 text-sm">
+        <div className="rounded-ft border border-white/[0.07] bg-black/35 px-4 py-3 text-sm shadow-inner">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-4 text-neutral-300">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-neutral-500">
               <span>
-                Required: <span className="font-semibold text-neutral-100">{formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)}</span>
+                Required{" "}
+                <span className="ml-1 font-semibold tabular-nums text-neutral-100">
+                  {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)}
+                </span>
               </span>
               <span>
-                Wagered: <span className="font-semibold text-neutral-100">{formatCoins(coinsUsedInContest)}</span>
+                Wagered{" "}
+                <span className="ml-1 font-semibold tabular-nums text-neutral-100">
+                  {formatCoins(coinsUsedInContest)}
+                </span>
               </span>
               <span>
-                Left to Allocate: <span className="font-semibold text-neutral-100">{formatCoins(odds.myCoinsRemainingInContest)}</span>
+                Remaining{" "}
+                <span className="ml-1 font-semibold tabular-nums text-ft-gold">
+                  {formatCoins(odds.myCoinsRemainingInContest)}
+                </span>
               </span>
             </div>
             {coinsUsedInContest >= REQUIRED_TOTAL_WAGER_PER_CONTEST && (
-              <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-200">
-                Allocation Complete
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
+                Allocated
               </span>
             )}
           </div>
         </div>
       )}
 
-      <div className="overflow-x-auto rounded border border-neutral-800">
+      <div className="overflow-x-auto rounded-ft border border-white/[0.07] shadow-ft-card">
         <div className="max-h-[30rem] overflow-y-auto">
-          <table className="w-full table-auto text-left text-sm md:table-fixed md:min-w-[760px]">
+          <table className="w-full table-auto border-separate border-spacing-0 text-left text-sm md:table-fixed md:min-w-[760px]">
           <colgroup>
             <col className="w-[110px]" />
             <col className="w-[220px]" />
@@ -841,34 +852,34 @@ export default function ContestBoard({
             <col className="w-[64px]" />
           </colgroup>
 
-          <thead className="sticky top-0 z-10 bg-neutral-900/95 text-[10px] font-semibold uppercase tracking-wide text-neutral-300">
+          <thead className="sticky top-0 z-10 border-b border-white/[0.06] bg-ft-charcoal/95 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500 backdrop-blur-md">
             <tr>
               <th
-                className="px-2.5 py-1.5 text-left"
+                className="px-3 py-2.5 text-left"
                 title="LIVE = current WIN pool estimate (moves with wagers). OPEN = posted opening line when the WIN pool is empty. Final market WIN odds are fixed at lock."
               >
                 To-win (est.)
               </th>
-              <th className="px-2.5 py-1.5 text-left">Runner</th>
-              <th className="px-2.5 py-1.5 text-left">
+              <th className="px-3 py-2.5 text-left">Runner</th>
+              <th className="px-3 py-2.5 text-left">
                 WIN
-                <div className="text-[11px] font-normal text-neutral-400">
+                <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-400">
                   {formatCoins(odds.poolTotals.WIN)}
                 </div>
               </th>
-              <th className="px-2.5 py-1.5 text-left">
+              <th className="px-3 py-2.5 text-left">
                 PLACE
-                <div className="text-[11px] font-normal text-track-500">
+                <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-500">
                   {formatCoins(odds.poolTotals.PLACE)}
                 </div>
               </th>
-              <th className="px-2.5 py-1.5 text-left">
+              <th className="px-3 py-2.5 text-left">
                 SHOW
-                <div className="text-[11px] font-normal text-track-500">
+                <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-500">
                   {formatCoins(odds.poolTotals.SHOW)}
                 </div>
               </th>
-              <th className="px-1.5 py-1.5 text-left"></th>
+              <th className="px-2 py-2.5 text-left">FP</th>
             </tr>
           </thead>
 
@@ -884,11 +895,13 @@ export default function ContestBoard({
               const isScratched = lane.status === "SCRATCHED";
 
               const rowClassName = [
-                active ? "bg-neutral-900/80 ring-1 ring-amber-400/80" : "hover:bg-neutral-900/60",
-                isScratched ? "opacity-60 bg-red-950/40" : "",
-                !isScratched && isDoubtful ? "bg-orange-950/30" : "",
-                !isScratched && isQuestionable ? "bg-yellow-950/20" : "",
-                "cursor-pointer text-neutral-100 transition-colors",
+                active
+                  ? "bg-ft-gold/8 ring-1 ring-inset ring-ft-gold/35 shadow-[inset_0_0_0_1px_rgba(212,175,55,0.12)]"
+                  : "hover:bg-white/[0.03]",
+                isScratched ? "opacity-55 bg-red-950/25" : "",
+                !isScratched && isDoubtful ? "bg-orange-950/20" : "",
+                !isScratched && isQuestionable ? "bg-yellow-950/15" : "",
+                "cursor-pointer border-b border-white/[0.04] text-neutral-100 transition-colors duration-ft",
               ].join(" ");
 
               const placeTotal = odds.laneTotals[lane.id]?.PLACE ?? 0;
@@ -921,8 +934,8 @@ export default function ContestBoard({
                             <span
                               className={
                                 headline.badge === "LIVE"
-                              ? "rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300"
-                                  : "rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200"
+                                  ? "rounded-full border border-ft-gold/35 bg-ft-gold/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold"
+                                  : "rounded-full border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300"
                               }
                             >
                               {headline.badge}
@@ -1189,62 +1202,65 @@ export default function ContestBoard({
         current pool (parimutuel — moves as others wager). Final market WIN odds are fixed at lock.
       </p>
 
-      <div className="mt-4 flex gap-2 rounded-lg border border-neutral-800 bg-neutral-900/80 p-1 text-xs font-semibold text-neutral-300 md:hidden">
+      <div className="flex gap-1 rounded-full border border-white/[0.08] bg-black/40 p-1 text-xs font-semibold text-neutral-400 shadow-inner md:hidden">
         <button
           type="button"
           onClick={() => setMobileBetTab("slip")}
           className={
-            "flex-1 rounded-md px-3 py-1 " +
+            "flex-1 rounded-full px-3 py-2 transition duration-ft " +
             (mobileBetTab === "slip"
-              ? "bg-neutral-800 text-amber-200"
-              : "bg-transparent text-neutral-300")
+              ? "bg-ft-gold/15 text-ft-gold shadow-ft-inner"
+              : "text-neutral-500 hover:text-neutral-300")
           }
         >
-          Bet Slip
+          Bet slip
         </button>
         <button
           type="button"
           onClick={() => setMobileBetTab("bets")}
           className={
-            "flex-1 rounded-md px-3 py-1 " +
+            "flex-1 rounded-full px-3 py-2 transition duration-ft " +
             (mobileBetTab === "bets"
-              ? "bg-neutral-800 text-amber-200"
-              : "bg-transparent text-neutral-300")
+              ? "bg-ft-gold/15 text-ft-gold shadow-ft-inner"
+              : "text-neutral-500 hover:text-neutral-300")
           }
         >
-          My Bets
+          My bets
         </button>
       </div>
 
-      <div className="mt-3 grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div
           className={
-            "space-y-3 rounded-lg border border-neutral-800/70 bg-neutral-900/70 p-4 " +
+            "space-y-4 rounded-ft-lg border border-white/[0.08] bg-black/30 p-5 shadow-ft-slip backdrop-blur-sm transition hover:border-white/[0.12] " +
             (mobileBetTab === "slip" ? "block" : "hidden") +
-            " md:block"
+            " lg:sticky lg:top-24 lg:z-20 md:block"
           }
         >
-          <h3 className="text-sm font-semibold text-neutral-50">Bet Slip</h3>
+          <div>
+            <h3 className="text-lg font-bold tracking-tight text-neutral-50">Bet slip</h3>
+            <p className="mt-1 text-xs text-neutral-500">Allocation, markets, and projected payout.</p>
+          </div>
 
-          <div className="rounded border border-neutral-800 bg-neutral-950/80 px-3 py-3 text-sm text-neutral-100">
+          <div className="rounded-ft border border-white/[0.07] bg-ft-charcoal/80 px-4 py-3 text-sm text-neutral-200 shadow-inner">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p>
-                Wagered:{" "}
-                <span className="font-semibold text-neutral-50">
+              <p className="text-neutral-500">
+                Wagered{" "}
+                <span className="font-semibold tabular-nums text-neutral-100">
                   {formatCoins(coinsUsedInContest)} / {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)}
                 </span>
               </p>
-              <p>
-                Left to allocate:{" "}
-                <span className="font-semibold text-neutral-50">
+              <p className="text-neutral-500">
+                Open{" "}
+                <span className="font-semibold tabular-nums text-ft-gold">
                   {formatCoins(odds.myCoinsRemainingInContest)}
                 </span>
               </p>
             </div>
 
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/50">
               <div
-                className="h-full rounded-full bg-amber-400/80 transition-all"
+                className="h-full rounded-full bg-gradient-to-r from-ft-gold-dim via-ft-gold to-ft-gold-bright transition-all duration-500"
                 style={{ width: `${allocationProgress}%` }}
               />
             </div>
@@ -1519,15 +1535,15 @@ export default function ContestBoard({
 
         <div
           className={
-            "space-y-3 rounded-lg border border-neutral-800/70 bg-neutral-900/70 p-4 " +
+            "space-y-4 rounded-ft-lg border border-white/[0.08] bg-black/25 p-5 shadow-ft-card " +
             (mobileBetTab === "bets" ? "block" : "hidden") +
             " md:block"
           }
         >
           <div>
-            <h3 className="font-semibold text-neutral-50">My Bets &amp; Payouts</h3>
-            <p className="text-xs text-neutral-400">
-              Tickets are grouped by lane so all wagers for a player stay together.
+            <h3 className="text-lg font-bold tracking-tight text-neutral-50">My bets</h3>
+            <p className="mt-1 text-xs text-neutral-500">
+              Tickets grouped by player — stake, status, and net after settlement.
             </p>
           </div>
 
@@ -1991,15 +2007,15 @@ export default function ContestBoard({
       </div>
 
       {status === ContestStatus.SETTLED && (
-        <div className="rounded-xl border border-track-300 bg-white p-4 text-sm shadow-sm">
+        <div className="rounded-ft-lg border border-white/[0.08] bg-black/35 p-5 text-sm shadow-ft-card">
           <div className="flex items-center justify-between">
-            <p className="font-semibold text-track-900">Final results</p>
-            <span className="rounded-full border border-track-300 bg-track-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-track-700">
+            <p className="text-base font-bold tracking-tight text-neutral-50">Final results</p>
+            <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
               Settled
             </span>
           </div>
 
-          <div className="mt-3 space-y-2">
+          <div className="mt-4 space-y-2">
             {lanes
               .filter((lane) => lane.finalRank !== null)
               .sort((a, b) => (a.finalRank ?? 999) - (b.finalRank ?? 999))
@@ -2010,20 +2026,20 @@ export default function ContestBoard({
                 const isBronze = rank === 3;
 
                 const rowClass = isGold
-                  ? "border-2 border-yellow-400 bg-yellow-100"
+                  ? "border-ft-gold/40 bg-gradient-to-r from-ft-gold/12 to-black/40 shadow-ft-glow-gold"
                   : isSilver
-                  ? "border-2 border-slate-400 bg-slate-100"
+                  ? "border-white/15 bg-white/[0.04]"
                   : isBronze
-                  ? "border-2 border-amber-500 bg-amber-100"
-                  : "border border-track-200 bg-track-50";
+                  ? "border-orange-500/35 bg-orange-950/25"
+                  : "border-white/[0.06] bg-black/20";
 
                 const badgeClass = isGold
-                  ? "border-yellow-500 bg-yellow-200 text-yellow-900"
+                  ? "border-ft-gold/50 bg-ft-gold/15 text-ft-gold"
                   : isSilver
-                  ? "border-slate-500 bg-slate-200 text-slate-900"
+                  ? "border-white/20 bg-white/10 text-neutral-200"
                   : isBronze
-                  ? "border-amber-600 bg-amber-200 text-amber-900"
-                  : "border-track-300 bg-white text-track-700";
+                  ? "border-orange-400/40 bg-orange-500/10 text-orange-200"
+                  : "border-white/10 bg-white/[0.06] text-neutral-400";
 
                 const medalLabel = isGold
                   ? "1st"
@@ -2036,44 +2052,44 @@ export default function ContestBoard({
                 return (
                   <div
                     key={lane.id}
-                    className={`flex items-center justify-between rounded-xl px-2.5 py-2.5 ${rowClass}`}
+                    className={`flex items-center justify-between rounded-ft border px-3 py-3 transition hover:border-white/15 ${rowClass}`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span
-                        className={`rounded-full border px-2.5 py-1 text-xs font-bold ${badgeClass}`}
+                        className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold ${badgeClass}`}
                       >
                         {medalLabel}
                       </span>
 
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-track-900">{lane.name}</span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-neutral-100">{lane.name}</span>
                           {isGold ? (
-                            <span className="rounded bg-yellow-200 px-2 py-0.5 text-[10px] font-bold uppercase text-yellow-900">
-                              Gold
+                            <span className="rounded-full border border-ft-gold/30 bg-ft-gold/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold">
+                              Podium
                             </span>
                           ) : isSilver ? (
-                            <span className="rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-900">
-                              Silver
+                            <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold uppercase text-neutral-400">
+                              Podium
                             </span>
                           ) : isBronze ? (
-                            <span className="rounded bg-amber-200 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-900">
-                              Bronze
+                            <span className="rounded-full border border-orange-500/30 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-200/90">
+                              Podium
                             </span>
                           ) : null}
                         </div>
 
-                        <div className="text-xs text-track-600">
+                        <div className="truncate text-xs text-neutral-500">
                           {lane.team} · {lane.position}
                         </div>
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <div className="text-xs uppercase tracking-wide text-track-500">
-                        Fantasy points
+                    <div className="shrink-0 text-right">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                        FP
                       </div>
-                      <div className="font-semibold text-track-900">
+                      <div className="font-bold tabular-nums text-neutral-50">
                         {lane.fantasyPoints !== null ? lane.fantasyPoints : "—"}
                       </div>
                     </div>
@@ -2083,6 +2099,7 @@ export default function ContestBoard({
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }
