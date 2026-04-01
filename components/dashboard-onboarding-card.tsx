@@ -30,29 +30,30 @@ export function DashboardOnboardingCard({ hasHistory }: Props) {
   if (!show) return null;
 
   return (
-    <section className="mb-3 rounded-xl border border-neutral-800 bg-neutral-900/80 p-4">
+    <section className="mb-2 ft-surface rounded-ft-lg p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-neutral-50">
+          <p className="ft-label text-neutral-500">Start here</p>
+          <h2 className="mt-1 text-base font-bold tracking-tight text-neutral-50">
             Welcome to FantasyTrack
           </h2>
-          <ul className="mt-2 space-y-1 text-xs text-neutral-300">
+          <ul className="mt-3 space-y-1.5 text-xs leading-relaxed text-neutral-400">
             <li>Pick runners in active contests.</li>
             <li>Bet Win / Place / Show as odds move.</li>
             <li>Track your results and climb the board.</li>
           </ul>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/dashboard"
-              className="rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold text-neutral-950 hover:bg-amber-300"
+              className="rounded-full bg-ft-cta px-4 py-2 text-xs font-bold text-neutral-950 shadow-ft-inner transition hover:brightness-110"
             >
-              Enter the Track
+              Enter the track
             </Link>
             <Link
               href="/how-to-play"
-              className="rounded-full border border-neutral-600 px-3 py-1.5 text-xs font-semibold text-neutral-100 hover:border-amber-400 hover:text-amber-400"
+              className="rounded-full border border-white/[0.12] px-4 py-2 text-xs font-semibold text-neutral-200 transition hover:border-ft-gold/40 hover:text-ft-gold"
             >
-              How It Works
+              How it works
             </Link>
           </div>
         </div>

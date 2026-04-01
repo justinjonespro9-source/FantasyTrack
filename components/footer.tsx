@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-white/[0.06] bg-ft-charcoal/90">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 pb-8 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-8 pb-10 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="space-y-1">
           <p className="ft-label text-neutral-500">FantasyTrack</p>
           <p className="text-[11px] text-neutral-600">
@@ -17,7 +17,7 @@ export default function SiteFooter() {
               href="https://www.snglabs.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-neutral-500 transition hover:text-ft-gold"
+              className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm"
             >
               SNG LABS
             </Link>
@@ -25,7 +25,7 @@ export default function SiteFooter() {
               href="https://www.linkedin.com/company/sng-labs/?viewAsMember=true"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-neutral-500 transition hover:text-ft-gold"
+              className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm"
             >
               LinkedIn
             </Link>
@@ -33,7 +33,7 @@ export default function SiteFooter() {
               href="https://www.instagram.com/fantasytrackhq/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-neutral-500 transition hover:text-ft-gold"
+              className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm"
             >
               Instagram
             </Link>
@@ -41,7 +41,7 @@ export default function SiteFooter() {
               href="https://x.com/FantasyTrackHQ"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-neutral-500 transition hover:text-ft-gold"
+              className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm"
             >
               X
             </Link>
@@ -49,26 +49,26 @@ export default function SiteFooter() {
               href="https://discord.gg/JUshZthE"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-neutral-500 transition hover:text-ft-gold"
+              className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm"
             >
               Join our Discord
             </Link>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-[11px]">
-            <Link href="/terms" className="text-neutral-500 transition hover:text-ft-gold">
+            <Link href="/terms" className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm">
               Terms
             </Link>
             <span className="text-white/10">·</span>
-            <Link href="/privacy" className="text-neutral-500 transition hover:text-ft-gold">
+            <Link href="/privacy" className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm">
               Privacy
             </Link>
             <span className="text-white/10">·</span>
-            <Link href="/cookies" className="text-neutral-500 transition hover:text-ft-gold">
+            <Link href="/cookies" className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm">
               Cookies
             </Link>
             <span className="text-white/10">·</span>
-            <Link href="/disclaimer" className="text-neutral-500 transition hover:text-ft-gold">
+            <Link href="/disclaimer" className="text-neutral-500 transition hover:text-ft-gold ft-focus-ring rounded-sm">
               Disclaimer
             </Link>
           </div>

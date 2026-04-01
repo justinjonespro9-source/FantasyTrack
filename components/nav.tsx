@@ -4,16 +4,19 @@ import { getCurrentSession } from "@/lib/session";
 import SignOutButton from "@/components/ui/signout-button";
 
 const navLink =
-  "whitespace-nowrap text-sm text-neutral-400 transition duration-ft hover:text-ft-gold";
+  "whitespace-nowrap rounded-sm text-sm text-neutral-400 transition duration-ft hover:text-ft-gold ft-focus-ring focus-visible:text-ft-gold";
 
 export default async function Nav() {
   const session = await getCurrentSession();
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ft-ink/80 shadow-ft-card backdrop-blur-xl">
-      {/* Desktop / tablet header */}
-      <div className="mx-auto hidden max-w-7xl items-center justify-between gap-4 px-4 py-3 md:flex">
-        <Link href="/" className="shrink-0 flex items-center transition duration-ft hover:opacity-95">
+      {/* Desktop / tablet header — max-w aligns with <main> */}
+      <div className="mx-auto hidden max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-5 md:flex">
+        <Link
+          href="/"
+          className="shrink-0 flex items-center rounded-sm transition duration-ft hover:opacity-95 ft-focus-ring"
+        >
           <span className="relative block h-[44px] sm:h-[48px] lg:h-[60px] w-[260px] sm:w-[320px] lg:w-[380px] overflow-hidden">
             <Image
               src="/fantasytrack-wordmark-header-clean.png"
@@ -60,13 +63,13 @@ export default async function Nav() {
               <>
                 <Link
                   href="/auth/login"
-                  className="rounded-full border border-white/10 px-3 py-1.5 text-neutral-200 transition duration-ft hover:border-ft-gold/40 hover:text-ft-gold"
+                  className="rounded-full border border-white/10 px-3 py-1.5 text-neutral-200 transition duration-ft hover:border-ft-gold/40 hover:text-ft-gold ft-focus-ring"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="rounded-full bg-ft-cta px-3 py-1.5 text-sm font-semibold text-neutral-950 shadow-ft-inner transition duration-ft hover:brightness-110 active:scale-[0.98]"
+                  className="rounded-full bg-ft-cta px-3 py-1.5 text-sm font-semibold text-neutral-950 shadow-ft-inner transition duration-ft hover:brightness-110 active:scale-[0.98] ft-focus-ring"
                 >
                   Sign up
                 </Link>
@@ -77,9 +80,9 @@ export default async function Nav() {
       </div>
 
       {/* Mobile header */}
-      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 md:hidden">
+      <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:px-5 md:hidden">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="shrink-0 flex items-center">
+          <Link href="/" className="shrink-0 flex items-center rounded-sm ft-focus-ring">
             <span className="relative block h-[34px] w-[220px] overflow-hidden">
               <Image
                 src="/fantasytrack-wordmark-header-clean.png"
@@ -105,13 +108,13 @@ export default async function Nav() {
               <>
                 <Link
                   href="/auth/login"
-                  className="rounded-full border border-white/10 px-2.5 py-1 text-neutral-200 hover:border-ft-gold/40"
+                  className="rounded-full border border-white/10 px-2.5 py-1 text-neutral-200 transition hover:border-ft-gold/40 ft-focus-ring"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="rounded-full bg-ft-cta px-2.5 py-1 text-xs font-semibold text-neutral-950"
+                  className="rounded-full bg-ft-cta px-2.5 py-1 text-xs font-semibold text-neutral-950 shadow-ft-inner transition hover:brightness-110 ft-focus-ring"
                 >
                   Sign up
                 </Link>

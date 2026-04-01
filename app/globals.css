@@ -14,15 +14,29 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-input,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
 select,
-textarea,
-button {
-  @apply rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100;
+textarea {
+  @apply rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 transition duration-ft;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  @apply border-ft-gold/45 outline-none ring-2 ring-ft-gold/30 ring-offset-2 ring-offset-white;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  @apply h-4 w-4 rounded border border-white/20 bg-black/40 text-ft-gold accent-ft-gold;
 }
 
 button {
-  @apply cursor-pointer transition;
+  @apply cursor-pointer transition duration-ft;
+}
+
+button:focus-visible {
+  @apply outline-none ring-2 ring-ft-gold/40 ring-offset-2 ring-offset-ft-ink;
 }
 
 button:disabled {
@@ -60,6 +74,16 @@ h2 {
 
   .ft-btn-ghost {
     @apply rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm font-medium text-neutral-200 transition duration-ft hover:border-ft-gold/35 hover:text-ft-gold-bright;
+  }
+
+  /** Accessible focus for links and icon-only controls (use with rounded-sm on links) */
+  .ft-focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-ft-gold/45 focus-visible:ring-offset-2 focus-visible:ring-offset-ft-ink;
+  }
+
+  /** Form fields aligned with ft surfaces (overrides base input when applied) */
+  .ft-input {
+    @apply rounded-ft border border-white/[0.1] bg-black/40 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 outline-none transition duration-ft focus:border-ft-gold/35 focus:ring-2 focus:ring-ft-gold/25 focus:ring-offset-2 focus:ring-offset-ft-ink;
   }
 }
 

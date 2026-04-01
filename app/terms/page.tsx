@@ -9,7 +9,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-5">
+    <section className="ft-surface p-5 sm:p-6">
       <h2 className="text-lg font-semibold text-neutral-50">{title}</h2>
       <div className="mt-3 space-y-3 text-sm leading-6 text-neutral-200">{children}</div>
     </section>
@@ -19,7 +19,7 @@ function Section({
 export default function TermsPage() {
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-6">
+      <section className="ft-surface p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">

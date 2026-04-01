@@ -498,6 +498,13 @@ export default function ContestBoard({
     ? formatLaneDisplayName(selectedLane.name, selectedLane.position, selectedLane.team)
     : "—";
 
+  /** Display-only: current WIN line for the slip header (same rules as odds table). */
+  const slipWinHeadline = useMemo(() => {
+    if (!selectedLane) return null;
+    const winMultiple = odds.estMultiples[selectedLaneId]?.WIN ?? null;
+    return getWinHeadline(winMultiple, selectedLane.openingWinOddsTo1);
+  }, [selectedLane, selectedLaneId, odds]);
+
   const coinsUsedInContest = REQUIRED_TOTAL_WAGER_PER_CONTEST - odds.myCoinsRemainingInContest;
   const allocationProgress = Math.max(
     0,
@@ -708,17 +715,17 @@ export default function ContestBoard({
     <section className="relative isolate overflow-hidden rounded-ft-lg border border-white/[0.07] bg-ft-gradient-panel p-5 shadow-ft-card backdrop-blur-sm sm:p-6">
       <div className="pointer-events-none absolute inset-0 z-0 bg-ft-radial-gold opacity-90" />
       <div className="relative z-10 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="space-y-2">
+      <header className="flex flex-col gap-4 border-b border-white/[0.06] pb-5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-2">
           <h2 className="text-xl font-bold tracking-tight text-neutral-50 sm:text-2xl">{title}</h2>
           <p className="ft-label text-neutral-500 sm:text-[11px]">
             Starts{" "}
             <ClientOnly>
               <span>{formatDateTime(new Date(startTime))}</span>
             </ClientOnly>{" "}
-            · Status: {status}
+            · {status}
           </p>
-          <div className="mt-1 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pt-0.5">
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-300">
               {sportLabel}
             </span>
@@ -728,12 +735,9 @@ export default function ContestBoard({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm sm:justify-end">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 text-xs sm:justify-end sm:text-sm">
           <ShareContestButton contestId={contestId} contestTitle={title} />
-          <Link
-            href="/how-to-play"
-            className="ft-btn-ghost px-3 py-1.5 text-xs sm:text-sm"
-          >
+          <Link href="/how-to-play" className="ft-btn-ghost px-3 py-1.5 text-xs sm:text-sm">
             How to Play
           </Link>
 
@@ -750,27 +754,35 @@ export default function ContestBoard({
             </div>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Live race board – overall leaderboard + integrated race progress */}
-      <LiveRaceBoard
-        contestId={contestId}
-        title={title}
-        sport={sport}
-        startTime={startTime}
-        endTime={endTime}
-        lanes={lanes.map((lane) => ({
-          id: lane.id,
-          name: lane.name,
-          team: lane.team ?? null,
-          position: lane.position ?? null,
-          fantasyPoints: lane.liveFantasyPoints ?? lane.fantasyPoints ?? null,
-          status: lane.status,
-        }))}
-        userPickLaneIds={isLoggedIn ? userPickLaneIds : undefined}
-        liveGameProgress={liveGameProgress ?? undefined}
-        liveGameStatus={liveGameStatus ?? undefined}
-      />
+      {/* Hero: live standings — primary focal point */}
+      <div className="relative">
+        <div
+          className="pointer-events-none absolute -inset-px rounded-ft-lg bg-gradient-to-b from-ft-gold/15 via-transparent to-transparent opacity-80"
+          aria-hidden
+        />
+        <div className="relative rounded-ft-lg border border-ft-gold/20 bg-black/20 p-1 shadow-[0_0_48px_-8px_rgba(212,175,55,0.18)] sm:p-1.5">
+          <LiveRaceBoard
+            contestId={contestId}
+            title={title}
+            sport={sport}
+            startTime={startTime}
+            endTime={endTime}
+            lanes={lanes.map((lane) => ({
+              id: lane.id,
+              name: lane.name,
+              team: lane.team ?? null,
+              position: lane.position ?? null,
+              fantasyPoints: lane.liveFantasyPoints ?? lane.fantasyPoints ?? null,
+              status: lane.status,
+            }))}
+            userPickLaneIds={isLoggedIn ? userPickLaneIds : undefined}
+            liveGameProgress={liveGameProgress ?? undefined}
+            liveGameStatus={liveGameStatus ?? undefined}
+          />
+        </div>
+      </div>
 
       {bettingClosed ? (
         <div className="rounded-ft border border-white/10 bg-black/40 p-4 text-sm text-neutral-300 shadow-inner">
@@ -781,11 +793,12 @@ export default function ContestBoard({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-2">
-        <div className="space-y-1">
-          <p className="text-base font-bold tracking-tight text-neutral-50">Odds board</p>
-          <p className="text-xs leading-relaxed text-neutral-500">
-            Pool estimates until lock; final prices fixed at lock / settlement.
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.06] pt-6">
+        <div className="space-y-1.5">
+          <p className="ft-label text-neutral-500">Markets</p>
+          <p className="text-lg font-bold tracking-tight text-neutral-50">Odds &amp; pools</p>
+          <p className="max-w-lg text-xs leading-relaxed text-neutral-500">
+            Estimates move with the pool until lock; final WIN price is fixed at lock.
           </p>
         </div>
 
@@ -844,42 +857,44 @@ export default function ContestBoard({
         <div className="max-h-[30rem] overflow-y-auto">
           <table className="w-full table-auto border-separate border-spacing-0 text-left text-sm md:table-fixed md:min-w-[760px]">
           <colgroup>
-            <col className="w-[110px]" />
-            <col className="w-[220px]" />
+            <col className="min-w-[200px] md:w-[240px]" />
+            <col className="w-[76px]" />
+            <col className="w-[108px]" />
             <col className="w-[120px]" />
             <col className="w-[120px]" />
             <col className="w-[120px]" />
-            <col className="w-[64px]" />
           </colgroup>
 
           <thead className="sticky top-0 z-10 border-b border-white/[0.06] bg-ft-charcoal/95 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500 backdrop-blur-md">
             <tr>
+              <th className="px-3 py-3 text-left">Player</th>
+              <th className="px-2 py-3 text-right">
+                <span className="inline-block text-right">Live FP</span>
+              </th>
               <th
-                className="px-3 py-2.5 text-left"
+                className="px-3 py-3 text-left"
                 title="LIVE = current WIN pool estimate (moves with wagers). OPEN = posted opening line when the WIN pool is empty. Final market WIN odds are fixed at lock."
               >
-                To-win (est.)
+                To-win
               </th>
-              <th className="px-3 py-2.5 text-left">Runner</th>
-              <th className="px-3 py-2.5 text-left">
-                WIN
+              <th className="px-3 py-3 text-left">
+                WIN pool
                 <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-400">
                   {formatCoins(odds.poolTotals.WIN)}
                 </div>
               </th>
-              <th className="px-3 py-2.5 text-left">
+              <th className="px-3 py-3 text-left">
                 PLACE
                 <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-500">
                   {formatCoins(odds.poolTotals.PLACE)}
                 </div>
               </th>
-              <th className="px-3 py-2.5 text-left">
+              <th className="px-3 py-3 text-left">
                 SHOW
                 <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-500">
                   {formatCoins(odds.poolTotals.SHOW)}
                 </div>
               </th>
-              <th className="px-2 py-2.5 text-left">FP</th>
             </tr>
           </thead>
 
@@ -896,8 +911,8 @@ export default function ContestBoard({
 
               const rowClassName = [
                 active
-                  ? "bg-ft-gold/8 ring-1 ring-inset ring-ft-gold/35 shadow-[inset_0_0_0_1px_rgba(212,175,55,0.12)]"
-                  : "hover:bg-white/[0.03]",
+                  ? "bg-gradient-to-r from-ft-gold/[0.09] via-ft-gold/[0.04] to-transparent shadow-[inset_4px_0_0_0_rgba(212,175,55,0.9)] ring-1 ring-inset ring-ft-gold/30"
+                  : "hover:bg-white/[0.04]",
                 isScratched ? "opacity-55 bg-red-950/25" : "",
                 !isScratched && isDoubtful ? "bg-orange-950/20" : "",
                 !isScratched && isQuestionable ? "bg-yellow-950/15" : "",
@@ -918,134 +933,128 @@ export default function ContestBoard({
                       setInlineSlipLaneId((current) => (current === lane.id ? null : lane.id));
                     }}
                   >
-                    <td className="px-2 py-1.5 align-top">
-                    <div className="flex items-start gap-1">
-                      <div>
-                        <div className="flex items-center gap-1">
-                          <span
-                            className={[
-                              "font-semibold text-neutral-50 text-sm",
-                              isScratched ? "text-neutral-500 line-through" : "",
-                            ].join(" ")}
-                          >
-                            {headline.label}
-                          </span>
-                          {headline.badge && (
-                            <span
-                              className={
-                                headline.badge === "LIVE"
-                                  ? "rounded-full border border-ft-gold/35 bg-ft-gold/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold"
-                                  : "rounded-full border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300"
-                              }
-                            >
-                              {headline.badge}
-                            </span>
-                          )}
-                        </div>
-
-                        {headline.helper && active ? (
-                          <p className="mt-0.5 hidden text-[11px] text-track-500 md:block">
-                            {headline.helper}
-                          </p>
+                    <td className="px-3 py-2.5 align-middle">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span
+                          className={[
+                            "min-w-0 truncate text-[15px] font-semibold leading-snug tracking-tight text-neutral-50",
+                            isScratched ? "text-neutral-500 line-through" : "",
+                          ].join(" ")}
+                        >
+                          {playerLabel}
+                        </span>
+                        {renderLaneStatus(lane.status) ? (
+                          <span className="inline-flex shrink-0">{renderLaneStatus(lane.status)}</span>
                         ) : null}
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  <td className="px-2.5 py-1.5 align-top">
-                    <div className="flex min-w-0 items-center gap-1">
+                  <td className="px-2 py-2.5 align-middle text-right">
+                    <div className="flex flex-col items-end gap-1">
                       <span
                         className={[
-                          "block truncate text-sm font-medium text-neutral-50",
-                          isScratched ? "text-neutral-500 line-through" : "",
+                          "text-lg font-bold tabular-nums tracking-tight text-neutral-100",
+                          active ? "text-ft-gold-bright" : "",
                         ].join(" ")}
                       >
-                        {playerLabel}
-                      </span>
-
-                      {renderLaneStatus(lane.status) ? (
-                        <span className="inline-flex shrink-0">{renderLaneStatus(lane.status)}</span>
-                      ) : null}
-                    </div>
-                  </td>
-
-                  <td className="px-2.5 py-1.5 align-top">
-                    <p className="text-sm font-semibold text-neutral-100">
-                      {formatCoins(winTotal)}
-                    </p>
-                    <p className="hidden text-[11px] text-neutral-500 md:block">
-                      {formatMultiple(odds.estMultiples[lane.id]?.WIN ?? null)}
-                    </p>
-                  </td>
-
-                  <td className="px-2.5 py-1.5 align-top">
-                    <p className="text-sm font-semibold text-neutral-100">
-                      {formatCoins(placeTotal)}
-                    </p>
-                    <p className="text-[11px] text-neutral-500 md:block hidden">
-                      {formatMultiple(odds.estMultiples[lane.id]?.PLACE ?? null)}
-                    </p>
-                  </td>
-
-                  <td className="px-2.5 py-1.5 align-top">
-                    <p className="text-sm font-semibold text-neutral-100">
-                      {formatCoins(showTotal)}
-                    </p>
-                    <p className="hidden text-[11px] text-neutral-500 md:block">
-                      {formatMultiple(odds.estMultiples[lane.id]?.SHOW ?? null)}
-                    </p>
-                  </td>
-
-                  <td className="px-1.5 py-1.5 align-top">
-                    <div className="flex flex-col items-start">
-                      <span className="text-[11px] font-medium text-neutral-300">
                         {((lane.liveFantasyPoints ?? lane.fantasyPoints) ?? 0)
                           .toFixed(2)
-                          .replace(/\.?0+$/, "")}{" "}
+                          .replace(/\.?0+$/, "")}
+                      </span>
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">
                         pts
                       </span>
                       <ScoringBreakdownAccordion
                         breakdown={lane.scoringBreakdown}
                         open={openScoringLaneId === lane.id}
                         onToggle={() =>
-                          setOpenScoringLaneId(
-                            openScoringLaneId === lane.id ? null : lane.id
-                          )
+                          setOpenScoringLaneId(openScoringLaneId === lane.id ? null : lane.id)
                         }
                       />
                     </div>
                   </td>
+
+                  <td className="px-3 py-2.5 align-middle">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={[
+                            "font-semibold tabular-nums text-neutral-100",
+                            isScratched ? "text-neutral-500 line-through" : "",
+                          ].join(" ")}
+                        >
+                          {headline.label}
+                        </span>
+                        {headline.badge && (
+                          <span
+                            className={
+                              headline.badge === "LIVE"
+                                ? "rounded-full border border-ft-gold/35 bg-ft-gold/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold"
+                                : "rounded-full border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300"
+                            }
+                          >
+                            {headline.badge}
+                          </span>
+                        )}
+                      </div>
+                      {headline.helper && active ? (
+                        <p className="hidden text-[11px] leading-snug text-neutral-500 md:block">
+                          {headline.helper}
+                        </p>
+                      ) : null}
+                    </div>
+                  </td>
+
+                  <td className="px-3 py-2.5 align-middle">
+                    <p className="text-sm font-semibold tabular-nums text-neutral-100">{formatCoins(winTotal)}</p>
+                    <p className="hidden text-[11px] text-neutral-500 md:block">
+                      {formatMultiple(odds.estMultiples[lane.id]?.WIN ?? null)}
+                    </p>
+                  </td>
+
+                  <td className="px-3 py-2.5 align-middle">
+                    <p className="text-sm font-semibold tabular-nums text-neutral-100">{formatCoins(placeTotal)}</p>
+                    <p className="text-[11px] text-neutral-500 md:block hidden">
+                      {formatMultiple(odds.estMultiples[lane.id]?.PLACE ?? null)}
+                    </p>
+                  </td>
+
+                  <td className="px-3 py-2.5 align-middle">
+                    <p className="text-sm font-semibold tabular-nums text-neutral-100">{formatCoins(showTotal)}</p>
+                    <p className="hidden text-[11px] text-neutral-500 md:block">
+                      {formatMultiple(odds.estMultiples[lane.id]?.SHOW ?? null)}
+                    </p>
+                  </td>
                   </tr>
 
                   {inlineSlipLaneId === lane.id && (
-                    <tr className="bg-neutral-950/95">
-                      <td colSpan={6} className="px-3 py-3">
-                        <div className="space-y-2 rounded border border-neutral-800 bg-neutral-900/90 p-3 text-sm text-neutral-100">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
+                    <tr className="bg-black/50">
+                      <td colSpan={6} className="px-3 py-4 sm:px-4">
+                        <div className="space-y-4 rounded-ft-lg border border-ft-gold/30 bg-gradient-to-b from-ft-charcoal/98 to-black/90 p-4 text-sm text-neutral-100 shadow-ft-card sm:p-5">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
                             <button
                               type="button"
-                              className="flex items-center gap-2 text-left"
+                              className="min-w-0 flex-1 text-left transition hover:opacity-90"
                               onClick={() => setInlineSlipLaneId(null)}
                             >
-                              <div>
-                                <p className="text-sm font-semibold text-neutral-50">{playerLabel}</p>
-                                <p className="text-xs text-neutral-400">
-                                  Current odds:{" "}
-                                  <span className="font-semibold text-amber-200">
-                                    {headline.label}
-                                  </span>
-                                </p>
-                              </div>
+                              <p className="ft-label text-neutral-500">Quick slip</p>
+                              <p className="mt-1 truncate text-lg font-bold text-neutral-50">{playerLabel}</p>
+                              <p className="mt-1 text-sm text-neutral-400">
+                                WIN line{" "}
+                                <span className="font-semibold tabular-nums text-ft-gold">{headline.label}</span>
+                              </p>
                             </button>
                             <div className="flex items-start gap-2">
-                              {headline.helper && (
-                                <p className="max-w-xs text-xs text-neutral-500">{headline.helper}</p>
-                              )}
+                              {headline.helper ? (
+                                <p className="max-w-[14rem] text-xs leading-relaxed text-neutral-500">
+                                  {headline.helper}
+                                </p>
+                              ) : null}
                               <button
                                 type="button"
                                 aria-label="Close inline bet slip"
                                 onClick={() => setInlineSlipLaneId(null)}
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 text-xs text-neutral-400 hover:border-amber-400 hover:text-amber-300"
+                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 text-neutral-400 transition hover:border-ft-gold/40 hover:text-ft-gold"
                               >
                                 ×
                               </button>
@@ -1053,36 +1062,33 @@ export default function ContestBoard({
                           </div>
 
                           {!isLoggedIn ? (
-                            <p className="text-xs text-neutral-300">
-                              <Link href="/auth/login" className="underline">
+                            <p className="text-sm text-neutral-400">
+                              <Link href="/auth/login" className="font-semibold text-ft-gold underline-offset-4 hover:underline">
                                 Log in
                               </Link>{" "}
                               to place bets.
                             </p>
                           ) : bettingClosed ? (
-                            <p className="text-xs text-amber-300">
+                            <p className="rounded-ft border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-neutral-400">
                               Betting is closed for this contest.
                             </p>
                           ) : !canBetByStatus ? (
-                            <p className="text-xs text-neutral-300">
-                              Contest is not open for betting.
-                            </p>
+                            <p className="text-xs text-neutral-400">Contest is not open for betting.</p>
                           ) : isScratched ? (
-                            <p className="text-xs text-red-200">
-                              Scratched lanes cannot accept new wagers.
-                            </p>
+                            <p className="text-xs font-medium text-red-300">Scratched lanes cannot accept new wagers.</p>
                           ) : (
-                            <div className="space-y-3">
-                              <div className="flex flex-wrap items-center gap-2">
+                            <div className="space-y-4">
+                              <div className="flex flex-wrap gap-2">
                                 {markets.map((market) => (
                                   <button
                                     key={market}
                                     type="button"
                                     onClick={() => setSelectedMarket(market)}
                                     className={
-                                      selectedMarket === market
-                                        ? "border-amber-400 bg-amber-500/10 px-2 py-1 text-xs text-amber-100"
-                                        : "border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200"
+                                      "rounded-full border px-4 py-2 text-xs font-semibold transition duration-ft " +
+                                      (selectedMarket === market
+                                        ? "border-ft-gold/45 bg-ft-gold/12 text-ft-gold"
+                                        : "border-white/10 bg-white/[0.04] text-neutral-400 hover:text-neutral-200")
                                     }
                                   >
                                     {market}
@@ -1090,7 +1096,7 @@ export default function ContestBoard({
                                 ))}
                               </div>
 
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                                 <input
                                   type="number"
                                   min={MIN_BET_AMOUNT}
@@ -1098,14 +1104,14 @@ export default function ContestBoard({
                                   step={5}
                                   value={singleAmount}
                                   onChange={(event) => setSingleAmount(event.target.value)}
-                                  className="w-28 rounded border border-neutral-700 bg-neutral-950/80 px-2 py-1 text-xs text-neutral-100"
+                                  className="min-h-11 w-full flex-1 rounded-ft border border-white/10 bg-black/50 px-3 py-2 text-xl font-bold tabular-nums text-neutral-50 sm:max-w-[10rem]"
                                   disabled={disableAllBetActions || isPending}
                                 />
                                 <button
                                   type="button"
                                   onClick={() => void placeSingleBet()}
                                   disabled={disableAllBetActions || isPending}
-                                  className="rounded bg-amber-400 px-3 py-1 text-xs font-semibold text-neutral-950 disabled:bg-neutral-700 disabled:text-neutral-300"
+                                  className="ft-btn-primary min-h-11 w-full px-5 text-sm font-bold sm:w-auto"
                                 >
                                   {bettingClosed
                                     ? "Betting closed"
@@ -1115,7 +1121,7 @@ export default function ContestBoard({
                                 </button>
                               </div>
 
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:flex-row sm:items-end">
                                 <input
                                   type="number"
                                   min={MIN_BET_AMOUNT}
@@ -1123,24 +1129,22 @@ export default function ContestBoard({
                                   step={5}
                                   value={wpsAmount}
                                   onChange={(event) => setWpsAmount(event.target.value)}
-                                  className="w-28 rounded border border-neutral-700 bg-neutral-950/80 px-2 py-1 text-xs text-neutral-100"
+                                  className="min-h-11 w-full flex-1 rounded-ft border border-white/10 bg-black/50 px-3 py-2 text-xl font-bold tabular-nums text-neutral-50 sm:max-w-[10rem]"
                                   disabled={disableAllBetActions || isPending}
                                 />
                                 <button
                                   type="button"
                                   onClick={() => void placeWpsBet()}
                                   disabled={disableAllBetActions || isPending}
-                                  className="rounded bg-amber-400 px-3 py-1 text-xs font-semibold text-neutral-950 disabled:bg-neutral-700 disabled:text-neutral-300"
+                                  className="ft-btn-primary min-h-11 w-full px-5 text-sm font-bold sm:w-auto"
                                 >
-                                  WPS (WIN+PLACE+SHOW)
+                                  Place WPS
                                 </button>
                               </div>
 
-                              <p className="text-[11px] text-neutral-400">
-                                Uses the same rules as the main bet slip: min{" "}
-                                {formatCoins(MIN_BET_AMOUNT)} in $5 increments. WPS places 3 bets
-                                (WIN, PLACE, SHOW) on this runner. Total cost = 3× your entered
-                                amount — a $5 WPS costs $15.
+                              <p className="text-[11px] leading-relaxed text-neutral-500">
+                                Same rules as the main slip: min {formatCoins(MIN_BET_AMOUNT)}, $5 steps. WPS = 3×
+                                charge ({formatCoins(Math.max(0, parsedWpsAmount || 0) * 3)} total at this amount).
                               </p>
 
                               {selectedMarket === Market.WIN &&
@@ -1149,18 +1153,18 @@ export default function ContestBoard({
                               canBetByStatus &&
                               !bettingClosed &&
                               !selectedLaneIsScratched ? (
-                                <div className="mt-1 rounded border border-neutral-800 bg-neutral-900/80 p-2 text-[11px] text-neutral-200">
+                                <div className="rounded-ft border border-ft-gold/20 bg-ft-gold/[0.05] p-3 text-[11px] text-neutral-300">
                                   <div className="flex items-center gap-2">
-                                    <p>Your wager will move the WIN line.</p>
+                                    <span className="font-medium text-neutral-200">Line impact</span>
                                     <OddsMoveInfoPopover />
                                   </div>
-                                  <p>
-                                    After this bet, est. WIN multiple ≈{" "}
+                                  <p className="mt-2 font-semibold tabular-nums text-neutral-100">
+                                    Est. WIN multiple after bet ≈{" "}
                                     {projectedSingleWinMultiple === null
                                       ? "—"
-                                      : `${projectedSingleWinMultiple.toFixed(2)}x`}
+                                      : `${projectedSingleWinMultiple.toFixed(2)}×`}
                                   </p>
-                                  <p className="text-neutral-400">Estimate only; changes as others wager.</p>
+                                  <p className="mt-1 text-neutral-500">Estimate only.</p>
                                 </div>
                               ) : null}
 
@@ -1169,18 +1173,18 @@ export default function ContestBoard({
                               canBetByStatus &&
                               !bettingClosed &&
                               !selectedLaneIsScratched ? (
-                                <div className="mt-1 rounded border border-neutral-800 bg-neutral-900/80 p-2 text-[11px] text-neutral-200">
+                                <div className="rounded-ft border border-ft-gold/20 bg-ft-gold/[0.05] p-3 text-[11px] text-neutral-300">
                                   <div className="flex items-center gap-2">
-                                    <p>Your WPS wager will move the WIN pool.</p>
+                                    <span className="font-medium text-neutral-200">WIN pool impact</span>
                                     <OddsMoveInfoPopover />
                                   </div>
-                                  <p>
-                                    After this WPS bet, est. WIN multiple ≈{" "}
+                                  <p className="mt-2 font-semibold tabular-nums text-neutral-100">
+                                    Est. WIN multiple after WPS ≈{" "}
                                     {projectedWpsWinMultiple === null
                                       ? "—"
-                                      : `${projectedWpsWinMultiple.toFixed(2)}x`}
+                                      : `${projectedWpsWinMultiple.toFixed(2)}×`}
                                   </p>
-                                  <p className="text-neutral-400">Estimate only; changes as others wager.</p>
+                                  <p className="mt-1 text-neutral-500">Estimate only.</p>
                                 </div>
                               ) : null}
                             </div>
@@ -1197,9 +1201,10 @@ export default function ContestBoard({
         </div>
       </div>
 
-      <p className="text-xs text-neutral-400">
-        OPEN = posted opening line while the WIN pool is empty. LIVE = estimated WIN payout from the
-        current pool (parimutuel — moves as others wager). Final market WIN odds are fixed at lock.
+      <p className="max-w-3xl text-xs leading-relaxed text-neutral-500">
+        <span className="font-medium text-neutral-400">Note:</span> OPEN is the posted line when the WIN pool is empty.
+        LIVE is the estimated WIN payout from the current pool (parimutuel — moves as others wager). Final WIN odds are
+        fixed at lock.
       </p>
 
       <div className="flex gap-1 rounded-full border border-white/[0.08] bg-black/40 p-1 text-xs font-semibold text-neutral-400 shadow-inner md:hidden">
@@ -1229,70 +1234,87 @@ export default function ContestBoard({
         </button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div
           className={
-            "space-y-4 rounded-ft-lg border border-white/[0.08] bg-black/30 p-5 shadow-ft-slip backdrop-blur-sm transition hover:border-white/[0.12] " +
+            "space-y-8 rounded-ft-lg border border-white/[0.09] bg-gradient-to-b from-black/40 to-black/20 p-6 shadow-ft-slip backdrop-blur-sm transition-all duration-300 ease-out hover:border-white/[0.14] sm:p-7 " +
             (mobileBetTab === "slip" ? "block" : "hidden") +
             " lg:sticky lg:top-24 lg:z-20 md:block"
           }
         >
-          <div>
-            <h3 className="text-lg font-bold tracking-tight text-neutral-50">Bet slip</h3>
-            <p className="mt-1 text-xs text-neutral-500">Allocation, markets, and projected payout.</p>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold tracking-tight text-neutral-50">Bet slip</h3>
+            <p className="text-sm leading-relaxed text-neutral-500">
+              Parimutuel pool — your stake shifts the line for everyone. Review allocation, then confirm.
+            </p>
           </div>
 
-          <div className="rounded-ft border border-white/[0.07] bg-ft-charcoal/80 px-4 py-3 text-sm text-neutral-200 shadow-inner">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-neutral-500">
-                Wagered{" "}
-                <span className="font-semibold tabular-nums text-neutral-100">
-                  {formatCoins(coinsUsedInContest)} / {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)}
-                </span>
-              </p>
-              <p className="text-neutral-500">
-                Open{" "}
-                <span className="font-semibold tabular-nums text-ft-gold">
+          <div className="rounded-ft-lg border border-white/[0.08] bg-gradient-to-b from-ft-charcoal/95 to-black/70 p-5 shadow-inner sm:p-6">
+            <p className="ft-label text-neutral-500">Contest allocation</p>
+            <div className="mt-3 flex flex-wrap items-end justify-between gap-6">
+              <div>
+                <p className="text-xs text-neutral-500">Committed</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-neutral-50">
+                  {formatCoins(coinsUsedInContest)}
+                  <span className="text-xl font-semibold text-neutral-500">
+                    {" "}
+                    / {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)}
+                  </span>
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-neutral-500">Available to stake</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-ft-gold">
                   {formatCoins(odds.myCoinsRemainingInContest)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="mb-1.5 flex items-center justify-between text-[11px] text-neutral-500">
+                <span>Progress to full allocation</span>
+                <span className="tabular-nums font-medium text-neutral-400">
+                  {Math.round(allocationProgress)}%
                 </span>
-              </p>
+              </div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-black/60 ring-1 ring-inset ring-white/[0.06]">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-ft-gold-dim via-ft-gold to-ft-gold-bright transition-all duration-500 ease-out"
+                  style={{ width: `${allocationProgress}%` }}
+                />
+              </div>
             </div>
 
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/50">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-ft-gold-dim via-ft-gold to-ft-gold-bright transition-all duration-500"
-                style={{ width: `${allocationProgress}%` }}
-              />
+            <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2 border-t border-white/[0.06] pt-4 text-xs text-neutral-500">
+              <span>Min {formatCoins(MIN_BET_AMOUNT)} · $5 steps</span>
+              <span>Single cap {formatCoins(MAX_BET_AMOUNT)}</span>
+              <span>WPS leg cap {formatCoins(MAX_WPS_BET_AMOUNT)}</span>
             </div>
-
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400">
-              <p>Min bet: {formatCoins(MIN_BET_AMOUNT)}</p>
-              <p>Single max: {formatCoins(MAX_BET_AMOUNT)}</p>
-              <p>WPS max: {formatCoins(MAX_WPS_BET_AMOUNT)} per leg</p>
-            </div>
-
-            <p className="mt-2 text-xs text-neutral-400">
-              Contest allocation target: {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)} total.
+            <p className="mt-3 text-[11px] leading-relaxed text-neutral-600">
+              Required contest allocation: {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)}. You can spread it
+              across players and markets until lock.
             </p>
           </div>
 
           {selectedLaneIsScratched ? (
-            <div className="rounded border border-red-400/70 bg-red-950/40 p-3 text-sm text-neutral-100">
-              <p className="font-semibold text-red-200">Selected lane scratched</p>
-              <p className="mt-1">
-                Scratched lanes remain visible but cannot accept new wagers. Existing wagers on a scratched
-                lane are voided and refunded.
+            <div className="rounded-ft-lg border border-red-500/35 bg-red-950/25 p-4 text-sm text-neutral-200">
+              <p className="font-semibold text-red-300">Selected player is scratched</p>
+              <p className="mt-2 leading-relaxed text-neutral-400">
+                Scratched lanes stay visible but cannot take new wagers. Existing tickets on this player are
+                refunded.
               </p>
             </div>
           ) : null}
 
           {isMaxedOut ? (
-            <p className="text-sm text-amber-300">You are maxed out for this contest.</p>
+            <p className="rounded-ft border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-amber-200/90">
+              You are maxed out for this contest.
+            </p>
           ) : null}
 
           {!isLoggedIn ? (
-            <p className="text-sm text-neutral-300">
-              <Link href="/auth/login" className="underline">
+            <p className="text-sm text-neutral-400">
+              <Link href="/auth/login" className="font-semibold text-ft-gold underline-offset-4 hover:underline">
                 Log in
               </Link>{" "}
               to place bets.
@@ -1300,17 +1322,24 @@ export default function ContestBoard({
           ) : null}
 
           {bettingClosed ? (
-            <p className="text-sm text-amber-300">Betting is closed for this contest.</p>
+            <p className="rounded-ft border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-neutral-400">
+              Betting is closed for this contest.
+            </p>
           ) : !canBetByStatus ? (
-            <p className="text-sm text-neutral-300">Contest is not open for betting.</p>
+            <p className="rounded-ft border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-neutral-400">
+              Contest is not open for betting.
+            </p>
           ) : null}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-100">Selected lane</label>
+          <div className="space-y-3">
+            <label htmlFor="slip-lane-select" className="ft-label text-neutral-500">
+              Player
+            </label>
             <select
+              id="slip-lane-select"
               value={selectedLaneId}
               onChange={(event) => setSelectedLaneId(event.target.value)}
-              className="w-full"
+              className="w-full rounded-ft border border-white/10 bg-black/50 py-3.5 pl-4 pr-10 text-base font-medium text-neutral-100 shadow-inner transition duration-ft focus:border-ft-gold/40 focus:outline-none focus:ring-2 focus:ring-ft-gold/20 disabled:opacity-50"
             >
               {lanes.map((lane) => {
                 const isScratched = lane.status === "SCRATCHED";
@@ -1331,23 +1360,64 @@ export default function ContestBoard({
                 );
               })}
             </select>
+
+            {selectedLane ? (
+              <div
+                className={
+                  "rounded-ft-lg border p-5 transition-all duration-300 ease-out " +
+                  (selectedLaneIsScratched
+                    ? "border-red-500/30 bg-red-950/20"
+                    : "border-ft-gold/35 bg-gradient-to-br from-ft-gold/[0.09] via-black/50 to-black/70 shadow-[0_0_40px_-12px_rgba(212,175,55,0.2)]")
+                }
+              >
+                <p className="ft-label text-neutral-500">Active ticket</p>
+                <p
+                  className={
+                    "mt-2 text-2xl font-bold leading-tight tracking-tight sm:text-[1.65rem] " +
+                    (selectedLaneIsScratched ? "text-neutral-500 line-through" : "text-neutral-50")
+                  }
+                >
+                  {selectedRunnerLabel}
+                </p>
+                {slipWinHeadline ? (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-4">
+                    <span className="text-xs text-neutral-500">WIN line (est.)</span>
+                    <span className="text-xl font-bold tabular-nums text-neutral-100">{slipWinHeadline.label}</span>
+                    {slipWinHeadline.badge ? (
+                      <span
+                        className={
+                          slipWinHeadline.badge === "LIVE"
+                            ? "rounded-full border border-ft-gold/40 bg-ft-gold/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold"
+                            : "rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase text-neutral-400"
+                        }
+                      >
+                        {slipWinHeadline.badge}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
-          <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
-            <p className="mb-2 text-sm font-semibold text-neutral-50">
-              Single Bet ({selectedMarket})
-            </p>
+          <div className="space-y-6 rounded-ft-lg border border-white/[0.07] bg-black/35 p-5 sm:p-6">
+            <div>
+              <p className="ft-label text-neutral-500">Single market</p>
+              <p className="mt-1 text-lg font-semibold text-neutral-100">Stake one pool</p>
+              <p className="mt-1 text-xs text-neutral-500">WIN, PLACE, or SHOW — one wager per submit.</p>
+            </div>
 
-            <div className="mb-2 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {markets.map((market) => (
                 <button
                   key={market}
                   type="button"
                   onClick={() => setSelectedMarket(market)}
                   className={
-                    selectedMarket === market
-                      ? "border-amber-400 bg-amber-500/10 px-3 py-1 text-amber-100"
-                      : "border-neutral-700 bg-neutral-900 px-3 py-1 text-neutral-200"
+                    "rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-ft " +
+                    (selectedMarket === market
+                      ? "border-ft-gold/45 bg-ft-gold/12 text-ft-gold shadow-ft-inner"
+                      : "border-white/10 bg-white/[0.04] text-neutral-400 hover:border-white/20 hover:text-neutral-200")
                   }
                 >
                   {market}
@@ -1355,22 +1425,28 @@ export default function ContestBoard({
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="number"
-                min={MIN_BET_AMOUNT}
-                max={MAX_BET_AMOUNT}
-                step={5}
-                value={singleAmount}
-                onChange={(event) => setSingleAmount(event.target.value)}
-                className="w-36"
-                disabled={disableAllBetActions || isPending}
-              />
+            <div className="grid gap-4 sm:grid-cols-1 sm:gap-5 lg:grid-cols-[1fr_minmax(0,11rem)] lg:items-end">
+              <div className="space-y-2">
+                <label htmlFor="slip-single-amount" className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Wager amount
+                </label>
+                <input
+                  id="slip-single-amount"
+                  type="number"
+                  min={MIN_BET_AMOUNT}
+                  max={MAX_BET_AMOUNT}
+                  step={5}
+                  value={singleAmount}
+                  onChange={(event) => setSingleAmount(event.target.value)}
+                  className="w-full min-h-[3.25rem] rounded-ft border border-white/10 bg-black/50 px-4 py-3 text-3xl font-bold tabular-nums text-neutral-50 shadow-inner transition duration-ft focus:border-ft-gold/40 focus:outline-none focus:ring-2 focus:ring-ft-gold/15 disabled:opacity-50"
+                  disabled={disableAllBetActions || isPending}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => void placeSingleBet()}
                 disabled={disableAllBetActions || isPending}
-                className="bg-amber-400 px-3 py-2 text-neutral-950 disabled:bg-neutral-700 disabled:text-neutral-300"
+                className="ft-btn-primary flex min-h-[3.25rem] w-full items-center justify-center px-6 text-base font-bold disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 disabled:shadow-none"
               >
                 {bettingClosed
                   ? "Betting closed"
@@ -1380,69 +1456,71 @@ export default function ContestBoard({
               </button>
             </div>
 
-            <p className="mt-1 text-xs text-neutral-400">
-              Single bets must be in increments of $5. Max single bet: {formatCoins(MAX_BET_AMOUNT)}.
+            <p className="text-xs leading-relaxed text-neutral-500">
+              Increments of $5. Max single bet {formatCoins(MAX_BET_AMOUNT)}.
             </p>
 
             {singleTooSmall ? (
-              <p className="mt-1 text-sm text-red-600">Minimum bet is {formatCoins(MIN_BET_AMOUNT)}.</p>
+              <p className="text-sm font-medium text-red-400">Minimum bet is {formatCoins(MIN_BET_AMOUNT)}.</p>
             ) : null}
             {singleNotIncrement ? (
-              <p className="mt-1 text-sm text-red-600">Bets must be in increments of $5.</p>
+              <p className="text-sm font-medium text-red-400">Bets must be in increments of $5.</p>
             ) : null}
             {singleTooLarge ? (
-              <p className="mt-1 text-sm text-red-600">
+              <p className="text-sm font-medium text-red-400">
                 Maximum single bet is {formatCoins(MAX_BET_AMOUNT)}.
               </p>
             ) : null}
 
-            <div className="mt-3 rounded border border-neutral-800 bg-neutral-900/80 p-2 text-xs text-neutral-200">
-              <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
-                Bet summary
-              </h4>
-              <dl className="space-y-0.5">
-                <div className="flex justify-between gap-2">
-                  <dt className="text-neutral-400">Runner</dt>
-                  <dd className="max-w-[11rem] truncate text-right font-medium">
+            {selectedMarket === Market.WIN &&
+            projectedSingleWinMultiple !== null &&
+            Number.isFinite(parsedSingleAmount) &&
+            parsedSingleAmount > 0 ? (
+              <div className="rounded-ft-lg border border-ft-gold/30 bg-ft-gold/[0.06] px-5 py-6 text-center shadow-inner">
+                <p className="ft-label text-neutral-500">Estimated return (if WIN hits)</p>
+                <p className="mt-2 text-4xl font-bold tabular-nums tracking-tight text-ft-gold sm:text-[2.75rem]">
+                  {formatCoins(parsedSingleAmount * projectedSingleWinMultiple)}
+                </p>
+                <p className="mt-2 text-sm text-neutral-400">
+                  Implied multiple ×{projectedSingleWinMultiple.toFixed(2)} on this stake — pool will move when you
+                  confirm.
+                </p>
+              </div>
+            ) : null}
+
+            <div className="rounded-ft border border-white/[0.06] bg-black/30 p-4 text-sm">
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">Line items</h4>
+              <dl className="mt-3 space-y-2">
+                <div className="flex justify-between gap-3 border-b border-white/[0.04] pb-2">
+                  <dt className="text-neutral-500">Player</dt>
+                  <dd className="max-w-[60%] truncate text-right font-medium text-neutral-100">
                     {selectedLane ? selectedRunnerLabel : "—"}
                   </dd>
                 </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-neutral-400">Market</dt>
-                  <dd className="text-right font-medium">
-                    {selectedMarket ?? "—"}
-                  </dd>
+                <div className="flex justify-between gap-3 border-b border-white/[0.04] pb-2">
+                  <dt className="text-neutral-500">Market</dt>
+                  <dd className="text-right font-semibold text-neutral-100">{selectedMarket ?? "—"}</dd>
                 </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-neutral-400">Wager</dt>
-                  <dd className="text-right font-medium">
+                <div className="flex justify-between gap-3 border-b border-white/[0.04] pb-2">
+                  <dt className="text-neutral-500">Stake</dt>
+                  <dd className="text-right text-lg font-bold tabular-nums text-neutral-50">
                     {Number.isFinite(parsedSingleAmount) && parsedSingleAmount > 0
                       ? formatCoins(parsedSingleAmount)
                       : "—"}
                   </dd>
                 </div>
                 {selectedMarket === Market.WIN && projectedSingleWinMultiple !== null && (
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-neutral-400">Projected WIN multiple</dt>
-                    <dd className="text-right font-medium">
+                  <div className="flex justify-between gap-3 pt-1">
+                    <dt className="text-neutral-500">Pool multiple (after stake)</dt>
+                    <dd className="text-right text-lg font-semibold tabular-nums text-ft-gold">
                       ×{projectedSingleWinMultiple.toFixed(2)}
                     </dd>
                   </div>
                 )}
-                {selectedMarket === Market.WIN &&
-                  projectedSingleWinMultiple !== null &&
-                  Number.isFinite(parsedSingleAmount) &&
-                  parsedSingleAmount > 0 && (
-                    <div className="flex justify-between gap-2">
-                      <dt className="text-neutral-400">Est. payout</dt>
-                      <dd className="text-right font-medium">
-                        {formatCoins(parsedSingleAmount * projectedSingleWinMultiple)}
-                      </dd>
-                    </div>
-                  )}
               </dl>
-              <p className="mt-1 text-[11px] text-neutral-400">
-                Placing this bet may move the live odds and payout multiples, especially in thin markets.
+              <p className="mt-4 text-[11px] leading-relaxed text-neutral-600">
+                Submitting adds your stake to the pool and can tighten this player&apos;s WIN price for everyone —
+                especially in thin markets.
               </p>
             </div>
 
@@ -1452,85 +1530,118 @@ export default function ContestBoard({
             canBetByStatus &&
             !bettingClosed &&
             !selectedLaneIsScratched ? (
-              <div className="mt-2 rounded border border-neutral-800 bg-neutral-900/80 p-2 text-xs text-neutral-200">
-                <div className="flex items-center gap-2">
-                  <p>Your wager will move the line.</p>
+              <div className="rounded-ft-lg border border-ft-gold/20 bg-gradient-to-br from-ft-gold/[0.06] to-transparent p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-neutral-200">How this bet moves the board</p>
+                    <p className="text-sm leading-relaxed text-neutral-500">
+                      More money on this player lowers the WIN payout for everyone still betting WIN — other lanes
+                      become relatively richer until the next wager.
+                    </p>
+                  </div>
                   <OddsMoveInfoPopover />
                 </div>
-                <p>
-                  After this bet, est. WIN multiple ≈{" "}
-                  {projectedSingleWinMultiple === null ? "—" : `${projectedSingleWinMultiple.toFixed(2)}x`}
+                <p className="mt-4 text-base font-semibold tabular-nums text-neutral-100">
+                  After you bet, est. WIN multiple ≈{" "}
+                  {projectedSingleWinMultiple === null ? "—" : `${projectedSingleWinMultiple.toFixed(2)}×`}
                 </p>
-                <p className="text-neutral-400">Estimate only; changes as others wager.</p>
+                <p className="mt-1 text-xs text-neutral-500">Estimate only; updates as others wager.</p>
               </div>
             ) : null}
           </div>
 
-          <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
-            <p className="mb-2 text-sm font-semibold text-neutral-50">
-              WPS (WIN + PLACE + SHOW)
-            </p>
+          <div className="space-y-5 rounded-ft-lg border border-white/[0.07] bg-black/35 p-5 sm:p-6">
+            <div>
+              <p className="ft-label text-neutral-500">WPS bundle</p>
+              <p className="mt-1 text-lg font-semibold text-neutral-100">WIN + PLACE + SHOW</p>
+              <p className="mt-1 text-xs text-neutral-500">
+                One leg amount applies to all three pools. Total charge = 3× the amount shown.
+              </p>
+            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="number"
-                min={MIN_BET_AMOUNT}
-                max={MAX_WPS_BET_AMOUNT}
-                step={5}
-                value={wpsAmount}
-                onChange={(event) => setWpsAmount(event.target.value)}
-                className="w-36"
-                disabled={disableAllBetActions || isPending}
-              />
+            <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,11rem)] lg:items-end">
+              <div className="space-y-2">
+                <label htmlFor="slip-wps-amount" className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Per-leg amount
+                </label>
+                <input
+                  id="slip-wps-amount"
+                  type="number"
+                  min={MIN_BET_AMOUNT}
+                  max={MAX_WPS_BET_AMOUNT}
+                  step={5}
+                  value={wpsAmount}
+                  onChange={(event) => setWpsAmount(event.target.value)}
+                  className="w-full min-h-[3.25rem] rounded-ft border border-white/10 bg-black/50 px-4 py-3 text-3xl font-bold tabular-nums text-neutral-50 shadow-inner transition duration-ft focus:border-ft-gold/40 focus:outline-none focus:ring-2 focus:ring-ft-gold/15 disabled:opacity-50"
+                  disabled={disableAllBetActions || isPending}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => void placeWpsBet()}
                 disabled={disableAllBetActions || isPending}
-                className="bg-amber-400 px-3 py-2 text-neutral-950 disabled:bg-neutral-700 disabled:text-neutral-300"
+                className="ft-btn-primary flex min-h-[3.25rem] w-full items-center justify-center px-6 text-base font-bold disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500"
               >
                 {bettingClosed ? "Betting closed" : selectedLaneIsScratched ? "Lane scratched" : "Place WPS"}
               </button>
             </div>
 
-            <p className="mt-1 text-xs text-neutral-400">
-              WPS places 3 bets (WIN + PLACE + SHOW). Amount must be in increments of $5. Max WPS amount:{" "}
-              {formatCoins(MAX_WPS_BET_AMOUNT)} per leg.
-            </p>
-            <p className="mt-1 text-xs text-neutral-400">
-              Total wager = 3 x amount = {formatCoins(Math.max(0, parsedWpsAmount || 0) * 3)}
+            <div className="rounded-ft border border-white/10 bg-white/[0.03] px-4 py-4 text-center">
+              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Total WPS charge</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-neutral-50">
+                {formatCoins(Math.max(0, parsedWpsAmount || 0) * 3)}
+              </p>
+              <p className="mt-1 text-xs text-neutral-500">3 × {formatCoins(Math.max(0, parsedWpsAmount || 0))} per leg</p>
+            </div>
+
+            <p className="text-xs leading-relaxed text-neutral-500">
+              Max {formatCoins(MAX_WPS_BET_AMOUNT)} per leg · $5 increments.
             </p>
 
             {wpsTooSmall ? (
-              <p className="mt-1 text-sm text-red-600">
+              <p className="text-sm font-medium text-red-400">
                 Minimum WPS leg amount is {formatCoins(MIN_BET_AMOUNT)}.
               </p>
             ) : null}
             {wpsNotIncrement ? (
-              <p className="mt-1 text-sm text-red-600">WPS amount must be in increments of $5.</p>
+              <p className="text-sm font-medium text-red-400">WPS amount must be in increments of $5.</p>
             ) : null}
             {wpsTooLarge ? (
-              <p className="mt-1 text-sm text-red-600">
+              <p className="text-sm font-medium text-red-400">
                 Maximum WPS amount is {formatCoins(MAX_WPS_BET_AMOUNT)} per leg.
               </p>
             ) : null}
 
             {wpsValid && selectedLaneId && canBetByStatus && !bettingClosed && !selectedLaneIsScratched ? (
-              <div className="mt-2 rounded border border-neutral-800 bg-neutral-900/80 p-2 text-xs text-neutral-200">
-                <div className="flex items-center gap-2">
-                  <p>Your wager will move the line.</p>
+              <div className="rounded-ft-lg border border-ft-gold/20 bg-gradient-to-br from-ft-gold/[0.06] to-transparent p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-neutral-200">Pool impact</p>
+                    <p className="text-sm leading-relaxed text-neutral-500">
+                      WPS charges all three legs; the WIN portion shifts the same WIN pool as a single-market bet.
+                    </p>
+                  </div>
                   <OddsMoveInfoPopover />
                 </div>
-                <p>
-                  After this bet, est. WIN multiple ≈{" "}
-                  {projectedWpsWinMultiple === null ? "—" : `${projectedWpsWinMultiple.toFixed(2)}x`}
+                <p className="mt-4 text-base font-semibold tabular-nums text-neutral-100">
+                  After WPS, est. WIN multiple ≈{" "}
+                  {projectedWpsWinMultiple === null ? "—" : `${projectedWpsWinMultiple.toFixed(2)}×`}
                 </p>
-                <p className="text-neutral-400">Estimate only; changes as others wager.</p>
+                <p className="mt-1 text-xs text-neutral-500">Estimate only; updates as others wager.</p>
               </div>
             ) : null}
           </div>
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
+          {error ? (
+            <p className="rounded-ft border border-red-500/30 bg-red-950/30 px-4 py-3 text-sm font-medium text-red-300">
+              {error}
+            </p>
+          ) : null}
+          {message ? (
+            <p className="rounded-ft border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300">
+              {message}
+            </p>
+          ) : null}
         </div>
 
         <div

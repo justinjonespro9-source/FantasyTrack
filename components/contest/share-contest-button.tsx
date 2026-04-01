@@ -123,7 +123,7 @@ export function ShareContestButton({
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="flex w-full items-center justify-between rounded-lg border border-neutral-700 bg-neutral-900/80 px-4 py-3 text-sm font-medium text-neutral-100 hover:border-neutral-600 hover:bg-neutral-900"
+                className="flex w-full items-center justify-between rounded-ft border border-white/[0.08] bg-black/40 px-4 py-3 text-sm font-medium text-neutral-100 transition hover:border-ft-gold/25 hover:bg-white/[0.04] ft-focus-ring"
               >
                 <span>{copied ? "Contest link copied." : "Copy Link"}</span>
                 {copied ? (
@@ -134,7 +134,7 @@ export function ShareContestButton({
               <button
                 type="button"
                 onClick={handleShareX}
-                className="flex w-full items-center justify-between rounded-lg border border-neutral-700 bg-neutral-900/80 px-4 py-3 text-sm font-medium text-neutral-100 hover:border-neutral-600 hover:bg-neutral-900"
+                className="flex w-full items-center justify-between rounded-ft border border-white/[0.08] bg-black/40 px-4 py-3 text-sm font-medium text-neutral-100 transition hover:border-ft-gold/25 hover:bg-white/[0.04] ft-focus-ring"
               >
                 <span>Share to X</span>
                 <span className="text-xs text-neutral-400">Opens X.com</span>

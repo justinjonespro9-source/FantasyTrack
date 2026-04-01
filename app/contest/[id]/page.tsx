@@ -24,13 +24,13 @@ type PageProps = {
 function marketBadgeClass(market: string) {
   switch (market) {
     case "WIN":
-      return "border-emerald-300 bg-emerald-100 text-emerald-800";
+      return "border-emerald-500/40 bg-emerald-500/15 text-emerald-200";
     case "PLACE":
-      return "border-sky-300 bg-sky-100 text-sky-800";
+      return "border-sky-500/40 bg-sky-500/15 text-sky-200";
     case "SHOW":
-      return "border-amber-300 bg-amber-100 text-amber-800";
+      return "border-ft-gold/45 bg-ft-gold/12 text-ft-gold-bright";
     default:
-      return "border-slate-300 bg-slate-100 text-slate-700";
+      return "border-white/15 bg-white/[0.06] text-neutral-300";
   }
 }
 
@@ -65,7 +65,7 @@ export default async function ContestPage({ params }: PageProps) {
   if (!seriesAccess.canAccess) {
     return (
       <div className="mx-auto max-w-lg space-y-6 px-4 py-12">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-6 text-center">
+        <div className="ft-surface p-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
             Private series
           </p>
@@ -87,7 +87,7 @@ export default async function ContestPage({ params }: PageProps) {
           </p>
           {!userId ? (
             <p className="mt-2 text-sm text-neutral-500">
-              <Link href="/auth/login" className="text-amber-200 underline hover:text-amber-100">
+              <Link href="/auth/login" className="font-medium text-ft-gold underline underline-offset-2 hover:text-ft-gold-bright ft-focus-ring rounded-sm">
                 Sign in
               </Link>{" "}
               if you already belong to this series.
@@ -96,13 +96,13 @@ export default async function ContestPage({ params }: PageProps) {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/series/join"
-              className="rounded-full border border-amber-400/70 bg-amber-400 px-5 py-2 text-sm font-semibold text-neutral-950 hover:bg-amber-300"
+              className="rounded-full bg-ft-cta px-5 py-2 text-sm font-bold text-neutral-950 shadow-ft-inner transition hover:brightness-110 ft-focus-ring"
             >
               Join with code
             </Link>
             <Link
               href="/dashboard"
-              className="rounded-full border border-neutral-600 bg-neutral-900 px-4 py-2 text-sm text-neutral-100 hover:border-amber-400/60"
+              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-neutral-100 transition hover:border-ft-gold/35 hover:text-ft-gold ft-focus-ring"
             >
               Back to dashboard
             </Link>
@@ -299,7 +299,7 @@ export default async function ContestPage({ params }: PageProps) {
 
     return (
       <div className="space-y-6">
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+        <section className="ft-surface p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-semibold text-amber-300">{contest.title}</h1>
@@ -329,7 +329,7 @@ export default async function ContestPage({ params }: PageProps) {
               <ShareContestButton contestId={contest.id} contestTitle={contest.title} />
               <Link
                 href="/how-to-play"
-                className="rounded-full border border-neutral-600 bg-neutral-900 px-3 py-1 text-sm text-neutral-100 hover:border-amber-400 hover:text-amber-300"
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-neutral-100 transition hover:border-ft-gold/35 hover:text-ft-gold ft-focus-ring"
               >
                 How to Play
               </Link>
@@ -337,20 +337,20 @@ export default async function ContestPage({ params }: PageProps) {
               {contest.series?.id ? (
                 <Link
                   href={`/series/${contest.series.id}`}
-                  className="rounded-full border border-neutral-600 bg-neutral-900 px-3 py-1 text-sm text-neutral-100 hover:border-amber-400 hover:text-amber-300"
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-neutral-100 transition hover:border-ft-gold/35 hover:text-ft-gold ft-focus-ring"
                 >
                   Series hub
                 </Link>
               ) : null}
 
-              <span className="rounded-full border border-amber-400/80 bg-amber-500/20 px-2 py-1 text-xs font-semibold tracking-wide text-amber-100">
-                SETTLED
+              <span className="rounded-full border border-ft-gold/45 bg-ft-gold/15 px-2 py-1 text-xs font-bold uppercase tracking-wide text-ft-gold-bright">
+                Settled
               </span>
             </div>
           </div>
         </section>
 
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-2">
+        <section className="ft-surface px-3 py-2">
           <div className="flex flex-wrap items-start justify-between gap-3 text-xs">
             <div className="flex flex-wrap items-center gap-2">
               {contest.series?.isPrivate ? (
@@ -364,7 +364,7 @@ export default async function ContestPage({ params }: PageProps) {
                   contest.status === ContestStatus.PUBLISHED &&
                     "border-emerald-400/70 bg-emerald-500/10 text-emerald-200",
                   contest.status === ContestStatus.LOCKED &&
-                    "border-amber-400/70 bg-amber-500/10 text-amber-200",
+                    "border-ft-gold/45 bg-ft-gold/12 text-ft-gold-bright",
                   contest.status === ContestStatus.SETTLED &&
                     "border-neutral-500/70 bg-neutral-800/80 text-neutral-100",
                   contest.status === ContestStatus.DRAFT &&
@@ -392,7 +392,7 @@ export default async function ContestPage({ params }: PageProps) {
           </div>
         </section>
 
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+        <section className="ft-surface p-4">
           <div className="mb-3">
             <h2 className="text-base font-semibold text-neutral-50">Final race board</h2>
             <p className="text-sm text-neutral-300">
@@ -403,7 +403,7 @@ export default async function ContestPage({ params }: PageProps) {
           <SettledRaceBoard rows={settledRows} />
         </section>
 
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+        <section className="ft-surface p-4">
           <div className="mb-3">
             <h2 className="text-base font-semibold text-neutral-50">Winner&apos;s Circle</h2>
             <p className="text-sm text-neutral-300">
@@ -412,11 +412,11 @@ export default async function ContestPage({ params }: PageProps) {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+            <div className="rounded-ft border border-white/[0.06] bg-black/40 p-3">
               <p className="text-[11px] uppercase tracking-wide text-neutral-400">Winning Tickets</p>
               <p className="mt-1 text-lg font-semibold text-neutral-50">{winningTicketCount}</p>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+            <div className="rounded-ft border border-white/[0.06] bg-black/40 p-3">
               <p className="text-[11px] uppercase tracking-wide text-neutral-400">Biggest Payout</p>
               <p className="mt-1 text-sm text-neutral-100">
                 {biggestPayoutTicket ? (
@@ -428,7 +428,7 @@ export default async function ContestPage({ params }: PageProps) {
                 )}
               </p>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+            <div className="rounded-ft border border-white/[0.06] bg-black/40 p-3">
               <p className="text-[11px] uppercase tracking-wide text-neutral-400">Best ROI</p>
               <p className="mt-1 text-sm text-neutral-100">
                 {bestRoiTicket && bestRoiTicket.roi != null ? (
@@ -440,7 +440,7 @@ export default async function ContestPage({ params }: PageProps) {
                 )}
               </p>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+            <div className="rounded-ft border border-white/[0.06] bg-black/40 p-3">
               <p className="text-[11px] uppercase tracking-wide text-neutral-400">Most Hit Market</p>
               <p className="mt-1 text-sm text-neutral-100">
                 {mostCommonWinningMarket ? (
@@ -457,12 +457,12 @@ export default async function ContestPage({ params }: PageProps) {
           {winningTickets.length === 0 ? (
             <p className="mt-4 text-sm text-neutral-400">No winning tickets recorded for this contest.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto rounded border border-neutral-800 bg-neutral-950">
-              <p className="border-b border-neutral-800 px-3 py-2 text-[11px] text-neutral-500 sm:hidden">
+            <div className="mt-4 overflow-x-auto rounded-ft border border-white/[0.06] bg-black/35">
+              <p className="border-b border-white/[0.06] px-3 py-2 text-[11px] text-neutral-500 sm:hidden">
                 Swipe to view full winner details.
               </p>
               <table className="w-full min-w-[980px] text-left text-sm text-neutral-100">
-                <thead className="bg-neutral-900 text-neutral-400">
+                <thead className="border-b border-white/[0.06] bg-ft-charcoal/90 text-[11px] font-bold uppercase tracking-wide text-neutral-500">
                   <tr>
                     <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">User</th>
                     <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">Bet Type</th>
@@ -482,9 +482,9 @@ export default async function ContestPage({ params }: PageProps) {
                     <tr
                       key={t.id}
                       className={[
-                        "border-t border-neutral-800 align-top",
-                        isBiggestPayout ? "bg-emerald-500/5" : "",
-                        !isBiggestPayout && isBestRoi ? "bg-amber-500/5" : "",
+                        "border-t border-white/[0.06] align-top transition hover:bg-white/[0.02]",
+                        isBiggestPayout ? "bg-emerald-500/[0.07]" : "",
+                        !isBiggestPayout && isBestRoi ? "bg-ft-gold/[0.06]" : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}
@@ -498,7 +498,7 @@ export default async function ContestPage({ params }: PageProps) {
                             </span>
                           ) : null}
                           {isBestRoi ? (
-                            <span className="rounded-full border border-amber-400/70 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+                            <span className="rounded-full border border-ft-gold/40 bg-ft-gold/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold">
                               Best ROI
                             </span>
                           ) : null}
@@ -549,7 +549,7 @@ export default async function ContestPage({ params }: PageProps) {
           )}
         </section>
 
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+        <section className="ft-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-neutral-50">My bets & payouts</h2>
             {userId ? (
@@ -576,7 +576,7 @@ export default async function ContestPage({ params }: PageProps) {
                 return (
                   <div
                     key={t.id}
-                    className="rounded border border-neutral-800 bg-neutral-900/80 p-3"
+                    className="rounded-ft border border-white/[0.06] bg-black/35 p-3 transition hover:border-white/[0.1]"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -620,7 +620,7 @@ export default async function ContestPage({ params }: PageProps) {
                     </div>
 
                     {legs.length > 0 ? (
-                      <div className="mt-3 overflow-hidden rounded border border-neutral-800 bg-neutral-950">
+                      <div className="mt-3 overflow-hidden rounded-ft border border-white/[0.06] bg-black/40">
                         <table className="w-full table-fixed text-left text-sm text-neutral-100">
                           <colgroup>
                             <col className="w-[58%]" />
@@ -628,7 +628,7 @@ export default async function ContestPage({ params }: PageProps) {
                             <col className="w-[24%]" />
                           </colgroup>
 
-                          <thead className="bg-neutral-900 text-neutral-400">
+                          <thead className="border-b border-white/[0.06] bg-ft-charcoal/90 text-[11px] font-bold uppercase tracking-wide text-neutral-500">
                             <tr>
                               <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
                                 Lane
@@ -660,7 +660,7 @@ export default async function ContestPage({ params }: PageProps) {
                               const refunded = leg.lane?.status === "SCRATCHED";
 
                               return (
-                                <tr key={leg.id} className="border-t border-neutral-800 align-top">
+                                <tr key={leg.id} className="border-t border-white/[0.06] align-top">
                                   <td className="px-3 py-2">
                                     <div className="flex items-center gap-2">
                                       <span
@@ -672,7 +672,7 @@ export default async function ContestPage({ params }: PageProps) {
                                       </span>
 
                                       {oddsLabel ? (
-                                        <span className="rounded border border-amber-400/60 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-200">
+                                        <span className="rounded-ft border border-ft-gold/35 bg-ft-gold/10 px-2 py-0.5 text-xs font-bold text-ft-gold">
                                           {oddsLabel}
                                         </span>
                                       ) : null}
@@ -722,7 +722,7 @@ export default async function ContestPage({ params }: PageProps) {
           ) : null}
 
           {userId && myPayoutTxs.length > 0 ? (
-            <div className="mt-4 rounded border border-neutral-800 bg-neutral-900/80 p-3">
+            <div className="mt-4 rounded-ft border border-white/[0.06] bg-black/35 p-3">
               <p className="text-sm font-semibold text-neutral-100">Payout transactions</p>
               <ul className="mt-2 space-y-1 text-sm text-neutral-300">
                 {myPayoutTxs.map((tx: any) => (
@@ -743,7 +743,7 @@ export default async function ContestPage({ params }: PageProps) {
         <ScoringRulesCard sport={contest.sport} />
 
         {isAdmin ? (
-          <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
+          <section className="ft-surface p-4">
             <p className="text-sm text-neutral-300">
               Admin: this contest is settled. If you need to correct results, use the Admin page to
               Reopen (Edit) and resettle.
@@ -788,12 +788,12 @@ export default async function ContestPage({ params }: PageProps) {
     : [];
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-2">
-            <div className="flex flex-wrap items-start justify-between gap-3 text-xs">
-              <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-8">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-6">
+          <section className="ft-surface px-4 py-3 sm:px-5 sm:py-4">
+            <div className="flex flex-wrap items-start justify-between gap-4 text-xs">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
                 {contest.series?.isPrivate ? (
                   <span className="inline-flex items-center rounded-full border border-violet-400/50 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
                     Invite only
@@ -801,13 +801,13 @@ export default async function ContestPage({ params }: PageProps) {
                 ) : null}
                 <span
                   className={[
-                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                    "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
                     contest.status === ContestStatus.PUBLISHED &&
-                      "border-emerald-400/70 bg-emerald-500/10 text-emerald-200",
+                      "border-emerald-400/50 bg-emerald-500/10 text-emerald-200",
                     contest.status === ContestStatus.LOCKED &&
-                      "border-amber-400/70 bg-amber-500/10 text-amber-200",
+                      "border-ft-gold/40 bg-ft-gold/10 text-ft-gold",
                     contest.status === ContestStatus.SETTLED &&
-                      "border-neutral-500/70 bg-neutral-800/80 text-neutral-100",
+                      "border-white/15 bg-white/[0.06] text-neutral-200",
                     contest.status === ContestStatus.DRAFT &&
                       "border-neutral-600/70 bg-neutral-900/80 text-neutral-200",
                     (contest.status as any) === "ARCHIVED" &&
@@ -818,15 +818,13 @@ export default async function ContestPage({ params }: PageProps) {
                 >
                   {statusLabel}
                 </span>
-                <p className="text-xs text-neutral-200">{statusHelp}</p>
+                <p className="max-w-xl text-sm leading-relaxed text-neutral-400">{statusHelp}</p>
               </div>
 
               {contest.series?.name && (
-                <p className="text-[11px] text-neutral-400">
+                <p className="text-[11px] leading-relaxed text-neutral-500 sm:max-w-[14rem] sm:text-right">
                   Counts toward{" "}
-                  <span className="font-semibold text-neutral-100">
-                    {contest.series.name}
-                  </span>{" "}
+                  <span className="font-semibold text-neutral-200">{contest.series.name}</span>{" "}
                   leaderboard.
                 </p>
               )}
@@ -895,12 +893,11 @@ export default async function ContestPage({ params }: PageProps) {
             liveGameStatus={(contest as any).liveGameStatus ?? undefined}
           />
 
-          <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
-            <p className="text-sm text-neutral-300">
-              <span className="font-medium text-amber-200">Scratched players:</span> remain visible
-              but cannot be wagered. Any wagers already placed on a scratched player are voided and
-              refunded. If you already met the contest entry requirement, your entry remains valid.
-              Refunded funds may be reallocated before lock if time remains.
+          <section className="ft-surface border-white/[0.05] px-4 py-4 sm:px-5">
+            <p className="text-sm leading-relaxed text-neutral-400">
+              <span className="font-semibold text-ft-gold/90">Scratched players</span> remain visible but cannot
+              be wagered. Existing wagers on a scratch are voided and refunded. If you already met the entry
+              requirement, your entry stays valid. Refunds may be reallocated before lock when time allows.
             </p>
           </section>
 
@@ -908,8 +905,8 @@ export default async function ContestPage({ params }: PageProps) {
           contest.sport === "BASKETBALL" &&
           (contest as { homeTeamId?: string | null; awayTeamId?: string | null }).homeTeamId &&
           (contest as { homeTeamId?: string | null; awayTeamId?: string | null }).awayTeamId ? (
-            <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400 mb-2">
+            <section className="ft-surface px-4 py-4 sm:px-5">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
                 Admin — lanes
               </p>
               <BuildLanesAllPlayersButton
@@ -922,42 +919,45 @@ export default async function ContestPage({ params }: PageProps) {
           ) : null}
         </div>
 
-        <div className="space-y-4">
+        <aside className="flex flex-col gap-5 lg:sticky lg:top-24">
+          <p className="hidden ft-label text-neutral-500 lg:block">Alongside the race</p>
+
           {/* Mobile: secondary sections as accordions */}
           <div className="space-y-3 lg:hidden">
-            <details className="rounded-lg border border-neutral-800 bg-neutral-900/80">
-              <summary className="cursor-pointer list-none px-4 py-2 text-sm font-semibold text-neutral-100">
-                Live Tape
+            <details className="overflow-hidden rounded-ft-lg border border-white/[0.08] bg-black/25">
+              <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-neutral-100 transition hover:bg-white/[0.04]">
+                Live tape
               </summary>
-              <div className="border-t border-neutral-800 px-4 py-3">
-                <ContestLiveTape contestId={contest.id} />
+              <div className="border-t border-white/[0.06] p-3">
+                <ContestLiveTape contestId={contest.id} plain />
               </div>
             </details>
 
-            <details className="rounded-lg border border-neutral-800 bg-neutral-900/80">
-              <summary className="cursor-pointer list-none px-4 py-2 text-sm font-semibold text-neutral-100">
-                Message Board
+            <details className="overflow-hidden rounded-ft-lg border border-white/[0.08] bg-black/25">
+              <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-neutral-100 transition hover:bg-white/[0.04]">
+                Message board
               </summary>
-              <div className="border-t border-neutral-800 px-4 py-3">
+              <div className="border-t border-white/[0.06] p-3">
                 <ContestMessageBoard
                   contestId={contest.id}
                   revalidatePath={`/contest/${contest.id}`}
+                  plain
                 />
               </div>
             </details>
 
-            <details className="rounded-lg border border-neutral-800 bg-neutral-900/80">
-              <summary className="cursor-pointer list-none px-4 py-2 text-sm font-semibold text-neutral-100">
-                Scoring Rules
+            <details className="overflow-hidden rounded-ft-lg border border-white/[0.08] bg-black/25">
+              <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-neutral-100 transition hover:bg-white/[0.04]">
+                Scoring rules
               </summary>
-              <div className="border-t border-neutral-800 px-4 py-3">
-                <ScoringRulesCard sport={contest.sport} />
+              <div className="border-t border-white/[0.06] px-4 pb-4 pt-2">
+                <ScoringRulesCard sport={contest.sport} plain />
               </div>
             </details>
           </div>
 
           {/* Desktop: full secondary column */}
-          <div className="hidden space-y-4 lg:block">
+          <div className="hidden flex-col gap-5 lg:flex">
             <ContestLiveTape contestId={contest.id} />
 
             <ContestMessageBoard
@@ -967,7 +967,7 @@ export default async function ContestPage({ params }: PageProps) {
 
             <ScoringRulesCard sport={contest.sport} />
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

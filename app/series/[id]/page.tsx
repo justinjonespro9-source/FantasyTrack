@@ -76,14 +76,15 @@ export default async function SeriesHubPage({ params }: PageProps) {
     activeContests.length > 0 || upcomingContests.length > 0 || settledContests.length > 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 sm:space-y-8">
       {/* Series header */}
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-neutral-50">{series.name}</h1>
+      <section className="ft-surface p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="ft-label text-neutral-500">Series hub</p>
+            <h1 className="mt-1 text-xl font-bold tracking-tight text-neutral-50 sm:text-2xl">{series.name}</h1>
             {series.description ? (
-              <p className="mt-1 max-w-2xl text-sm text-neutral-300">{series.description}</p>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-500">{series.description}</p>
             ) : null}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-neutral-400">
               {("sport" in series && (series as any).sport) ? (
@@ -113,18 +114,18 @@ export default async function SeriesHubPage({ params }: PageProps) {
           <div className="flex flex-col items-end gap-2 text-xs text-neutral-400">
             <Link
               href={`/series/${series.id}/leaderboard`}
-              className="text-xs font-semibold text-amber-200/80 underline hover:text-amber-200"
+              className="text-xs font-bold uppercase tracking-wide text-ft-gold underline underline-offset-2 hover:text-ft-gold-bright ft-focus-ring rounded-sm"
             >
-              View full leaderboard
+              Full leaderboard →
             </Link>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)] lg:gap-8">
         {/* Contests column */}
         <div className="space-y-4">
-          <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
+          <section className="ft-surface p-4 sm:p-5">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-300">
               Active Contests
             </h2>
@@ -138,11 +139,11 @@ export default async function SeriesHubPage({ params }: PageProps) {
                   <Link
                     key={contest.id}
                     href={`/contest/${contest.id}`}
-                    className="block rounded-lg border border-neutral-800 bg-neutral-950/80 p-3 hover:border-amber-400/60 hover:bg-neutral-900/80 transition-colors"
+                    className="block rounded-ft-lg border border-white/[0.06] bg-black/35 p-3 transition duration-ft hover:border-ft-gold/28 hover:bg-white/[0.03]"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold text-amber-300 sm:text-base">
+                        <p className="text-sm font-bold text-ft-gold sm:text-base">
                           {contest.title}
                         </p>
                         <p className="mt-0.5 text-xs text-neutral-400 sm:text-[13px]">
@@ -159,7 +160,7 @@ export default async function SeriesHubPage({ params }: PageProps) {
             )}
           </section>
 
-          <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
+          <section className="ft-surface p-4 sm:p-5">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-300">
               Upcoming Contests
             </h2>
@@ -173,7 +174,7 @@ export default async function SeriesHubPage({ params }: PageProps) {
                   <Link
                     key={contest.id}
                     href={`/contest/${contest.id}`}
-                    className="block rounded-lg border border-neutral-800 bg-neutral-950/80 p-3 hover:border-amber-400/60 hover:bg-neutral-900/80 transition-colors"
+                    className="block rounded-ft-lg border border-white/[0.06] bg-black/35 p-3 transition duration-ft hover:border-ft-gold/28 hover:bg-white/[0.03]"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
@@ -194,7 +195,7 @@ export default async function SeriesHubPage({ params }: PageProps) {
             )}
           </section>
 
-          <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
+          <section className="ft-surface p-4 sm:p-5">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-300">
               Settled Contests
             </h2>
@@ -208,7 +209,7 @@ export default async function SeriesHubPage({ params }: PageProps) {
                   <Link
                     key={contest.id}
                     href={`/contest/${contest.id}`}
-                    className="block rounded-lg border border-neutral-800 bg-neutral-950/80 p-3 hover:border-amber-400/60 hover:bg-neutral-900/80 transition-colors"
+                    className="block rounded-ft-lg border border-white/[0.06] bg-black/35 p-3 transition duration-ft hover:border-ft-gold/28 hover:bg-white/[0.03]"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
@@ -222,7 +223,7 @@ export default async function SeriesHubPage({ params }: PageProps) {
                             : formatDateTime(contest.startTime)}
                         </p>
                       </div>
-                      <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-200">
+                      <span className="rounded-full border border-ft-gold/35 bg-ft-gold/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-ft-gold">
                         Settled
                       </span>
                     </div>
@@ -234,7 +235,7 @@ export default async function SeriesHubPage({ params }: PageProps) {
         </div>
 
         {/* Leaderboard column */}
-        <section className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
+        <section className="ft-surface p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
@@ -244,9 +245,9 @@ export default async function SeriesHubPage({ params }: PageProps) {
             </div>
             <Link
               href={`/series/${series.id}/leaderboard`}
-              className="text-xs font-semibold text-amber-200/80 underline hover:text-amber-200"
+              className="text-xs font-bold uppercase tracking-wide text-ft-gold underline underline-offset-2 hover:text-ft-gold-bright ft-focus-ring rounded-sm"
             >
-              Open full view
+              Open full view →
             </Link>
           </div>
 
@@ -257,7 +258,7 @@ export default async function SeriesHubPage({ params }: PageProps) {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-xs">
-                <thead className="border-b border-neutral-800 text-neutral-400">
+                <thead className="border-b border-white/[0.06] text-[10px] font-bold uppercase tracking-wide text-neutral-500">
                   <tr>
                     <th className="py-2 pr-2">Rank</th>
                     <th className="py-2 pr-2">Display Name</th>
@@ -269,13 +270,13 @@ export default async function SeriesHubPage({ params }: PageProps) {
                   {leaderboardEntries.slice(0, 15).map((entry) => (
                     <tr
                       key={entry.userId}
-                      className="border-b border-neutral-800/80 hover:bg-neutral-900/80"
+                      className="border-b border-white/[0.05] transition hover:bg-white/[0.03]"
                     >
                       <td className="py-1.5 pr-2">{entry.rank}</td>
                       <td className="py-1.5 pr-2">
                         <span className="font-medium text-neutral-50">{entry.displayName}</span>{" "}
                         {entry.primaryBadge ? (
-                          <span className="ml-1 inline-flex items-center rounded-full border border-amber-400/70 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-100">
+                          <span className="ml-1 inline-flex items-center rounded-full border border-ft-gold/35 bg-ft-gold/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-ft-gold">
                             {entry.primaryBadge.label}
                           </span>
                         ) : null}

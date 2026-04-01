@@ -20,8 +20,8 @@ export function SeriesStatusBanner({ status, seriesName }: SeriesStatusBannerPro
       role="status"
       className={
         isJoined
-          ? "rounded-lg border border-emerald-400/60 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-100"
-          : "rounded-lg border border-amber-400/50 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-100"
+          ? "rounded-ft-lg border border-emerald-500/35 bg-emerald-500/[0.08] px-4 py-3 text-sm leading-relaxed text-emerald-100 shadow-inner"
+          : "rounded-ft-lg border border-ft-gold/30 bg-ft-gold/[0.08] px-4 py-3 text-sm leading-relaxed text-ft-gold-bright shadow-inner"
       }
     >
       {copy}

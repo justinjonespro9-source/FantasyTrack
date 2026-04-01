@@ -12,7 +12,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-5 shadow-sm">
+    <section className="ft-surface p-5 sm:p-6">
       <h2 className="text-lg font-semibold text-neutral-50">{title}</h2>
       <div className="mt-3 space-y-3 text-sm leading-6 text-neutral-200">{children}</div>
     </section>
@@ -22,7 +22,7 @@ function Section({
 export default function HowToPlayPage() {
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-6 shadow-sm">
+      <section className="ft-surface p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-neutral-50">How to Play</h1>
@@ -37,7 +37,7 @@ export default function HowToPlayPage() {
 
           <Link
             href="/"
-            className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:border-amber-300 hover:text-amber-200"
+            className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-neutral-200 transition hover:border-ft-gold/35 hover:text-ft-gold ft-focus-ring"
           >
             Back to contests
           </Link>

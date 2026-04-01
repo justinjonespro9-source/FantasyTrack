@@ -142,11 +142,11 @@ function rankLabel(rank: number) {
 function rankPillClass(rank: number) {
   switch (rank) {
     case 1:
-      return "border-amber-400 bg-amber-500/10 text-amber-100";
+      return "border-ft-gold/60 bg-gradient-to-b from-ft-gold/20 to-ft-gold/5 text-ft-gold shadow-[0_0_20px_rgba(212,175,55,0.15)]";
     case 2:
-      return "border-zinc-300 bg-zinc-500/25 text-zinc-50";
+      return "border-white/25 bg-gradient-to-b from-white/12 to-white/[0.04] text-neutral-100";
     case 3:
-      return "border-orange-500 bg-orange-500/10 text-orange-100";
+      return "border-orange-400/45 bg-gradient-to-b from-orange-500/15 to-orange-950/30 text-orange-100";
     case 4:
       return "border-zinc-700 bg-zinc-900/80 text-zinc-100";
     default:
@@ -271,21 +271,30 @@ export function LiveRaceBoard({
   const segments = getSportSegments(sport);
 
   return (
-    <section className="relative overflow-hidden rounded-ft-lg border border-white/[0.07] bg-ft-gradient-panel p-5 shadow-ft-card backdrop-blur-sm">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_80%_at_50%_-30%,rgba(212,175,55,0.08),transparent_50%)]" />
-      <div className="relative mb-4 flex flex-wrap items-center justify-between gap-3">
+    <section
+      className="relative overflow-hidden rounded-ft-lg border border-white/[0.09] bg-ft-gradient-panel p-5 shadow-ft-card backdrop-blur-sm sm:p-6"
+      aria-label="Live race standings and event progress"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_90%_at_50%_-40%,rgba(212,175,55,0.12),transparent_55%)]" />
+      <div className="relative mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="ft-label text-ft-gold/90">Live broadcast</p>
-          <p className="mt-1 text-sm font-semibold tracking-tight text-neutral-100">Race leaderboard</p>
-          <p className="mt-0.5 max-w-md text-xs leading-relaxed text-neutral-500">
+          <p className="ft-label text-ft-gold">Standings</p>
+          <p className="mt-2 text-lg font-bold tracking-tight text-neutral-50 sm:text-xl">Live race board</p>
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-neutral-500">
             {hasLiveData
-              ? "Leaders and gaps update as fantasy points move — rank flashes on position changes."
-              : "Standings appear here as fantasy points are recorded."}
+              ? "Fantasy points drive the order. Watch rank flashes when positions change."
+              : "Standings fill in as fantasy points post."}
           </p>
         </div>
 
-        <div className="rounded-full border border-ft-gold/25 bg-ft-gold/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-ft-gold shadow-ft-inner">
-          Live
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ft-gold/40 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-ft-gold" />
+          </span>
+          <div className="rounded-full border border-ft-gold/30 bg-ft-gold/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-ft-gold shadow-ft-inner">
+            Live
+          </div>
         </div>
       </div>
 
@@ -356,33 +365,35 @@ export function LiveRaceBoard({
                 <div
                   key={lane.id}
                   className={[
-                    "group flex flex-col gap-2 rounded-ft border px-3.5 py-2.5 transition-all duration-300",
+                    "group flex flex-col gap-3 rounded-ft-lg border px-4 py-3 transition-all duration-300 sm:py-3.5",
                     flash === "up" ? "rank-flash-up" : flash === "down" ? "rank-flash-down" : "",
                     rank === 1
-                      ? "animate-ft-leader-pulse border-ft-gold/45 bg-gradient-to-br from-ft-gold/12 via-neutral-900/90 to-black/80 shadow-ft-glow-gold"
+                      ? "animate-ft-leader-pulse border-ft-gold/50 bg-gradient-to-br from-ft-gold/[0.14] via-neutral-900/95 to-black/90 shadow-ft-glow-gold"
                       : rank === 2
-                      ? "border-white/[0.1] bg-neutral-900/70 hover:border-white/15"
+                      ? "border-white/15 bg-gradient-to-br from-white/[0.07] to-black/50 hover:border-white/25"
                       : rank === 3
-                      ? "border-white/[0.08] bg-neutral-950/70 hover:border-ft-gold/15"
-                      : "border-white/[0.06] bg-black/40 hover:border-white/10",
+                      ? "border-orange-500/25 bg-gradient-to-br from-orange-950/40 to-black/60 hover:border-orange-400/35"
+                      : "border-white/[0.06] bg-black/45 hover:border-white/12",
                   ].join(" ")}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3 sm:gap-4">
                     <span
-                      className={`inline-flex flex-col items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase leading-tight tracking-wide ${rankPillClass(
+                      className={`inline-flex min-w-[3.25rem] flex-col items-center justify-center rounded-ft border px-2 py-2 text-[10px] font-bold uppercase leading-tight tracking-wide ${rankPillClass(
                         rank
                       )}`}
                     >
-                      <span className="flex items-center gap-1">
-                        P{rank}
+                      <span className="flex items-center gap-1 tabular-nums">
+                        {rank <= 3 ? (rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd") : `P${rank}`}
                         <MovementIndicator movement={movement} delta={delta} />
                       </span>
-                      <span className="text-[9px] font-normal opacity-80">{rankLabel(rank)}</span>
+                      <span className="mt-0.5 text-[9px] font-medium opacity-80">{rankLabel(rank)}</span>
                     </span>
 
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-semibold tracking-tight text-neutral-50">
+                        <p
+                          className={`truncate tracking-tight text-neutral-50 ${rank <= 3 ? "text-base font-bold sm:text-lg" : "text-sm font-semibold"}`}
+                        >
                           {formatLaneDisplayName(lane.name, lane.position, lane.team)}
                         </p>
                         {lane.status !== "ACTIVE" && renderLaneStatusChip(lane.status) && (
@@ -391,22 +402,23 @@ export function LiveRaceBoard({
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-neutral-500">
-                        Live FP{" "}
-                        <span className="font-semibold text-neutral-100">
-                          {formatFantasyPoints(lane.fantasyPoints)}
-                        </span>
+                      <p className="mt-1 text-[11px] text-neutral-500">
+                        Fantasy points <span className="text-neutral-600">·</span> live scoring
                       </p>
                     </div>
 
-                    <div className="flex flex-col items-end gap-0.5 text-right">
-                      <div className="text-base font-bold tabular-nums tracking-tight text-neutral-50">
+                    <div className="flex flex-col items-end justify-center text-right">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                        FP
+                      </span>
+                      <div
+                        className={`tabular-nums tracking-tight text-neutral-50 ${rank <= 3 ? "text-2xl font-bold sm:text-[1.65rem]" : "text-lg font-semibold"}`}
+                      >
                         {formatFantasyPoints(lane.fantasyPoints)}
-                        <span className="ml-1 text-[10px] font-medium text-neutral-500">pts</span>
                       </div>
                       {userPickLaneIds?.[lane.id] ? (
                         <span
-                          className="rounded-full border border-ft-gold/35 bg-ft-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ft-gold"
+                          className="mt-1 rounded-full border border-ft-gold/35 bg-ft-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ft-gold"
                           title="You have a wager on this lane. WIN payouts are pool-priced at lock — we do not store a personal locked price per bet unless shown as locked final odds."
                         >
                           Your pick
@@ -415,9 +427,9 @@ export function LiveRaceBoard({
                     </div>
                   </div>
 
-                  <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-black/60">
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-black/60">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-ft-gold-dim to-ft-gold transition-all duration-500"
+                      className="h-full rounded-full bg-gradient-to-r from-ft-gold-dim to-ft-gold transition-all duration-500 ease-out"
                       style={{ width: `${ratio * 100}%` }}
                     />
                   </div>

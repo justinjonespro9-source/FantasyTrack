@@ -47,19 +47,19 @@ function renderLaneStatus(status: LaneStatus) {
   switch (status) {
     case "QUESTIONABLE":
       return (
-        <span className="rounded-full border border-yellow-300 bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800">
+        <span className="rounded-full border border-yellow-500/40 bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-200">
           Questionable
         </span>
       );
     case "DOUBTFUL":
       return (
-        <span className="rounded-full border border-orange-300 bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-800">
+        <span className="rounded-full border border-orange-500/40 bg-orange-500/15 px-2 py-0.5 text-xs font-medium text-orange-200">
           Doubtful
         </span>
       );
     case "SCRATCHED":
       return (
-        <span className="rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-800">
+        <span className="rounded-full border border-red-500/40 bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-200">
           Scratched
         </span>
       );
@@ -107,7 +107,7 @@ function podiumMedal(rank: number | null) {
 function podiumRankClass(rank: number | null) {
   switch (rank) {
     case 1:
-      return "border-amber-400/80 bg-amber-500/10 text-amber-100";
+      return "border-ft-gold/50 bg-ft-gold/12 text-ft-gold-bright";
     case 2:
       return "border-zinc-500/80 bg-zinc-500/10 text-zinc-100";
     case 3:
@@ -146,26 +146,26 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
   });
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-neutral-800 bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 shadow-inner">
+    <div className="overflow-x-auto rounded-ft-lg border border-white/[0.08] bg-gradient-to-b from-black/90 via-ft-charcoal/95 to-black shadow-inner">
       <table className="min-w-full text-sm text-neutral-100">
         <thead className="text-left">
           <tr>
-            <th className="min-w-[7rem] border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
+            <th className="min-w-[7rem] border-b border-ft-gold/25 px-3 py-2 text-xs font-bold uppercase tracking-wide text-ft-gold/90">
               WIN (final / open)
             </th>
-            <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
+            <th className="border-b border-ft-gold/25 px-3 py-2 text-xs font-bold uppercase tracking-wide text-ft-gold/90">
               Player
             </th>
-            <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80 text-center">
+            <th className="border-b border-ft-gold/25 px-3 py-2 text-center text-xs font-bold uppercase tracking-wide text-ft-gold/90">
               Pts
             </th>
-            <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
+            <th className="border-b border-ft-gold/25 px-3 py-2 text-xs font-bold uppercase tracking-wide text-ft-gold/90">
               Win pool
             </th>
-            <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
+            <th className="border-b border-ft-gold/25 px-3 py-2 text-xs font-bold uppercase tracking-wide text-ft-gold/90">
               Place pool
             </th>
-            <th className="border-b border-amber-500/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-200/80">
+            <th className="border-b border-ft-gold/25 px-3 py-2 text-xs font-bold uppercase tracking-wide text-ft-gold/90">
               Show pool
             </th>
           </tr>
@@ -179,7 +179,7 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
               <tr
                 key={lane.id}
                 className={[
-                  "border-t border-neutral-800/80 transition-colors hover:bg-neutral-900/90",
+                  "border-t border-white/[0.06] transition-colors hover:bg-white/[0.04]",
                   medalStyle(lane.finalRank),
                   lane.status === "SCRATCHED" ? "opacity-60" : "",
                 ].join(" ")}
@@ -190,7 +190,7 @@ export function SettledRaceBoard({ rows }: { rows: SettledLaneRow[] }) {
                       <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">
                         {lane.winMultiple != null ? "Final pool" : lane.openingWinOddsTo1 != null ? "Opening line" : ""}
                       </p>
-                      <span className="shrink-0 whitespace-nowrap text-lg font-bold text-amber-200 tabular-nums">
+                      <span className="shrink-0 whitespace-nowrap text-lg font-bold text-ft-gold tabular-nums">
                         {settledWinOddsPrimary(lane.winMultiple, lane.openingWinOddsTo1)}
                       </span>
                     </div>

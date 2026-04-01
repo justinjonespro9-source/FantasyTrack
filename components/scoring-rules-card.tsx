@@ -2,21 +2,23 @@ import { getScoringRules } from "@/lib/scoring-rules";
 
 type ScoringRulesCardProps = {
   sport: string | null | undefined;
+  /** Flatten styles when nested inside another surface (e.g. mobile accordion). */
+  plain?: boolean;
 };
 
-export function ScoringRulesCard({ sport }: ScoringRulesCardProps) {
+export function ScoringRulesCard({ sport, plain }: ScoringRulesCardProps) {
   const sections = getScoringRules(sport);
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-neutral-50">Scoring Rules</h2>
-      <div className="mt-4 space-y-4">
+    <section className={plain ? "space-y-5" : "ft-surface p-5 sm:p-6"}>
+      <h2 className="text-base font-bold tracking-tight text-neutral-50">Scoring rules</h2>
+      <div className="mt-5 space-y-5">
         {sections.map((section) => (
           <div key={section.title}>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
               {section.title}
             </h3>
-            <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-neutral-200">
+            <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-300">
               {section.items.map((item) => (
                 <li key={item}>{item}</li>
               ))}

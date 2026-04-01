@@ -45,7 +45,7 @@ export default async function LeaderboardPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <LeaderboardClient
         overall={overallEntries}
         seriesLeaderboards={seriesLeaderboards}

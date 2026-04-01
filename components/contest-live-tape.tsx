@@ -82,7 +82,14 @@ function collapseWpsTapeItems(items: TapeItem[], windowMs = 2000): DisplayTapeIt
   return out;
 }
 
-export function ContestLiveTape({ contestId }: { contestId: string }) {
+export function ContestLiveTape({
+  contestId,
+  plain,
+}: {
+  contestId: string;
+  /** Omit outer card when nested (e.g. mobile accordion). */
+  plain?: boolean;
+}) {
   const [items, setItems] = useState<TapeItem[]>([]);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,14 +140,27 @@ export function ContestLiveTape({ contestId }: { contestId: string }) {
   const headline = useMemo(() => buildHeadline(latest), [latest]);
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-3 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-xs font-semibold tracking-wide text-amber-200/80">Live tape</div>
-        <div className="text-[11px] text-neutral-400">{loading ? "loading…" : "live"}</div>
-      </div>
+    <div className={plain ? "space-y-3" : "ft-surface p-4 sm:p-5"}>
+      {!plain ? (
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div>
+            <p className="ft-label text-neutral-500">Activity</p>
+            <p className="mt-1 text-sm font-semibold text-neutral-100">Live tape</p>
+          </div>
+          <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+            {loading ? "…" : "Live"}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-end">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+            {loading ? "…" : "Live"}
+          </div>
+        </div>
+      )}
 
       {/* ✅ Horizontal crawl strip */}
-      <div className="mb-2 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950/80">
+      <div className="mb-3 overflow-hidden rounded-ft border border-white/[0.06] bg-black/50">
         <div className="relative">
           <div className="ticker-track">
             {/* Duplicate the text so it loops cleanly */}
@@ -156,7 +176,7 @@ export function ContestLiveTape({ contestId }: { contestId: string }) {
       {/* ✅ Vertical scroll box */}
       <div
         ref={listRef}
-        className="h-[160px] overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-950/80 p-2"
+        className="h-[160px] overflow-y-auto rounded-ft border border-white/[0.06] bg-black/40 p-2"
       >
         {displayItems.length === 0 ? (
           <div className="text-sm text-neutral-400">No activity yet.</div>
@@ -165,13 +185,13 @@ export function ContestLiveTape({ contestId }: { contestId: string }) {
             {displayItems.map((it) => (
               <li key={it.id} className="flex items-center justify-between text-sm">
                 <span className="text-neutral-100">
-                  <span className="mr-2 rounded bg-neutral-800 px-2 py-0.5 text-xs font-semibold text-neutral-200">
+                  <span className="mr-2 rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-xs font-semibold text-neutral-200">
                     {it.market}
                   </span>
                   {it.lane}
                 </span>
 
-                <span className={it.amount >= 50 ? "font-semibold text-emerald-300" : "text-neutral-400"}>
+                <span className={it.amount >= 50 ? "font-semibold text-ft-gold" : "text-neutral-500"}>
                   {it.market === "WPS" ? `${formatCoins(it.amount)} WPS` : formatCoins(it.amount)}
                 </span>
               </li>
@@ -180,8 +200,8 @@ export function ContestLiveTape({ contestId }: { contestId: string }) {
         )}
       </div>
 
-      <div className="mt-2 text-[11px] text-neutral-500">
-        Anonymous • Submitted tickets only
+      <div className="mt-3 text-[11px] text-neutral-600">
+        Anonymous · Submitted tickets only
       </div>
 
       {/* Marquee CSS (scoped) */}
