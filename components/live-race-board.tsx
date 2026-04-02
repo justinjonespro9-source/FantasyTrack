@@ -350,7 +350,9 @@ export function LiveRaceBoard({
           </p>
         </div>
       ) : (
-        <div className="relative grid gap-5 md:grid-cols-3">
+        <>
+        {/* Desktop / tablet: existing hero + rest-of-field grid */}
+        <div className="relative hidden md:grid md:grid-cols-3 md:gap-5">
           {/* Top 4 hero */}
           <div className="space-y-3 md:col-span-2">
             {top4.map((lane, idx) => {
@@ -492,6 +494,80 @@ export function LiveRaceBoard({
             )}
           </div>
         </div>
+
+        {/* Mobile: full-field stacked list — no horizontal clipping */}
+        <div className="space-y-2 md:hidden">
+          {sorted.map((lane, idx) => {
+            const rank = idx + 1;
+            const lanePts = lane.fantasyPoints ?? 0;
+            const ratio =
+              leaderPoints && leaderPoints > 0
+                ? Math.max(0.05, Math.min(1, lanePts / leaderPoints))
+                : 0.05;
+            const { movement, delta } = getMovement(previousRankByLaneId.current[lane.id], rank);
+            const flash = highlightByLaneId[lane.id];
+
+            return (
+              <div
+                key={lane.id}
+                className={[
+                  "overflow-hidden rounded-ft border px-3 py-2.5 transition-all duration-300",
+                  flash === "up" ? "rank-flash-up" : flash === "down" ? "rank-flash-down" : "",
+                  rank === 1
+                    ? "border-ft-gold/40 bg-black/50"
+                    : "border-white/[0.08] bg-black/35",
+                ].join(" ")}
+              >
+                <div className="flex items-start gap-2.5">
+                  <span
+                    className={`inline-flex min-w-[2.5rem] flex-col items-center justify-center rounded border px-1 py-1 text-[9px] font-bold uppercase leading-tight tracking-wide ${rankPillClass(rank)}`}
+                  >
+                    <span className="flex items-center gap-0.5 tabular-nums">
+                      {rank <= 3 ? (rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd") : `P${rank}`}
+                      <MovementIndicator movement={movement} delta={delta} />
+                    </span>
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-snug text-neutral-100">
+                      {formatLaneDisplayName(lane.name, lane.position, lane.team)}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      {lane.status !== "ACTIVE" ? (
+                        <span className="inline-flex shrink-0">{renderLaneStatusChip(lane.status)}</span>
+                      ) : null}
+                      <span className="text-[10px] text-neutral-500">
+                        {rankLabel(rank)}
+                        {userPickLaneIds?.[lane.id] ? (
+                          <span className="ml-1.5 text-ft-gold/90">· Your pick</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <p className="text-[9px] font-medium uppercase tracking-wide text-neutral-500">FP</p>
+                    <p className="text-lg font-bold tabular-nums text-neutral-50">
+                      {formatFantasyPoints(lane.fantasyPoints)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-neutral-900">
+                  <div
+                    className="h-full rounded-full bg-neutral-500 transition-all duration-500 ease-out"
+                    style={{ width: `${ratio * 100}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-[10px] text-neutral-600">
+                  Bar vs leader ({formatFantasyPoints(lane.fantasyPoints)} /{" "}
+                  {leaderPoints != null ? formatFantasyPoints(leaderPoints) : "—"})
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        </>
       )}
     </section>
   );
