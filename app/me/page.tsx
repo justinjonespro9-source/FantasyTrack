@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 import ProfileTicketHistory from "../../components/profile/profile-ticket-history";
 import ProfileTransactionHistory from "../../components/profile/profile-transaction-history";
 import { formatCoins, formatDateTime } from "@/lib/format";

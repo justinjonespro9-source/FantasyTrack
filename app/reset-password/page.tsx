@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import ResetPasswordForm from "@/components/auth/reset-password-form";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 type PageProps = {
   searchParams?: { selector?: string; token?: string; email?: string };

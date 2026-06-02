@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import ProfileEditForm from "@/components/profile/profile-edit-form";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export const dynamic = "force-dynamic";
 

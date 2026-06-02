@@ -1,5 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SUPPORT_EMAIL } from "@/lib/support";
+
+const title = "Cookie Policy";
+const description =
+  "How FantasyTrack uses cookies and similar technologies for authentication, preferences, and site functionality.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: {
+    canonical: "/cookies",
+  },
+  openGraph: {
+    title,
+    description,
+    url: "/cookies",
+  },
+  twitter: {
+    title,
+    description,
+  },
+};
 
 function Section({
   title,

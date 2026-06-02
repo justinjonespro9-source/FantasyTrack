@@ -1,5 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SUPPORT_EMAIL } from "@/lib/support";
+
+const title = "Disclaimer";
+const description =
+  "FantasyTrack disclaimers regarding contest information, third-party data, and the free-to-play nature of the platform.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: {
+    canonical: "/disclaimer",
+  },
+  openGraph: {
+    title,
+    description,
+    url: "/disclaimer",
+  },
+  twitter: {
+    title,
+    description,
+  },
+};
 
 function Section({
   title,

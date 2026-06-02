@@ -1,5 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SUPPORT_EMAIL } from "@/lib/support";
+
+const title = "Privacy Policy";
+const description =
+  "How FantasyTrack collects, uses, and protects account, contest, and usage information in our free-to-play fantasy experience.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: {
+    canonical: "/privacy",
+  },
+  openGraph: {
+    title,
+    description,
+    url: "/privacy",
+  },
+  twitter: {
+    title,
+    description,
+  },
+};
 
 function Section({
   title,

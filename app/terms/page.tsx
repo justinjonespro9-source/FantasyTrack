@@ -1,5 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SUPPORT_EMAIL } from "@/lib/support";
+
+const title = "Terms of Service";
+const description =
+  "FantasyTrack terms of service for our free-to-play fantasy contest platform, including eligibility, contest rules, and account use.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: {
+    canonical: "/terms",
+  },
+  openGraph: {
+    title,
+    description,
+    url: "/terms",
+  },
+  twitter: {
+    title,
+    description,
+  },
+};
 
 function Section({
   title,

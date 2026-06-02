@@ -7,6 +7,7 @@ import Nav from "@/components/nav";
 import FeedbackWidget from "@/components/feedback-widget";
 import SiteFooter from "@/components/footer";
 import SplashScreen from "@/components/splash-screen";
+import { getSeoBaseUrl } from "@/lib/site-url";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,9 +15,41 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const siteName = "FantasyTrack";
+const defaultDescription =
+  "Free-to-play fantasy sports where athlete performance drives a live parimutuel market. Pick runners, follow the leaderboard, and win on the podium.";
+
 export const metadata: Metadata = {
-  title: "FantasyTrack MVP",
-  description: "Free-to-play parimutuel fantasy player market"
+  metadataBase: new URL(getSeoBaseUrl()),
+  title: {
+    default: siteName,
+    template: `%s | ${siteName}`,
+  },
+  description: defaultDescription,
+  applicationName: siteName,
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName,
+    title: siteName,
+    description: defaultDescription,
+    images: [
+      {
+        url: "/fantasytrack-wordmark-gold-clean.png",
+        alt: "FantasyTrack",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteName,
+    description: defaultDescription,
+    images: ["/fantasytrack-wordmark-gold-clean.png"],
+  },
+  icons: {
+    icon: "/fantasytrack-wordmark-gold-clean.png",
+    apple: "/fantasytrack-wordmark-gold-clean.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

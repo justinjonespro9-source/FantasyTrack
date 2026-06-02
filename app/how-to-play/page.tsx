@@ -1,6 +1,28 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { MAX_BET_AMOUNT, MIN_BET_AMOUNT, REQUIRED_TOTAL_WAGER_PER_CONTEST } from "@/lib/constants";
 import { formatCoins } from "@/lib/format";
+
+const title = "How to Play";
+const description =
+  "Learn how FantasyTrack works: pick lanes, wager on WIN, PLACE, or SHOW, and follow live parimutuel payouts as the fantasy leaderboard moves.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: {
+    canonical: "/how-to-play",
+  },
+  openGraph: {
+    title,
+    description,
+    url: "/how-to-play",
+  },
+  twitter: {
+    title,
+    description,
+  },
+};
 
 const MAX_WPS_BET_AMOUNT = 30;
 
