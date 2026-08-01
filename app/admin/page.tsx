@@ -26,6 +26,8 @@ import CommishNotesManager from "@/components/admin/commish-notes-manager";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 import ReminderEmailPanel from "@/components/admin/reminder-email-panel";
 import XPostComposer from "@/components/admin/x-post-composer";
+import AdminOddsLanes from "@/components/admin/admin-odds-lanes";
+import { sortLanesForAdminOdds } from "@/lib/admin/lane-sort";
 import { X_PROVIDER_KEY } from "@/lib/x/oauth";
 import { computeHockeyFantasyPoints } from "@/lib/scoring-hockey";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
@@ -2427,6 +2429,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       include: {
         series: { select: { id: true, name: true } },
         lanes: {
+          // Alphabetical fetch is a stable baseline; presentation order is applied below.
           orderBy: { name: "asc" },
           include: {
             player: {
@@ -2462,7 +2465,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           },
         },
       },
-    }),
+    }).then((rows) =>
+      rows.map((contest) => ({
+        ...contest,
+        lanes: sortLanesForAdminOdds(contest.lanes),
+      }))
+    ),
   ]);
   const xConnection = await prisma.externalProviderToken.findUnique({
     where: { provider: X_PROVIDER_KEY },
@@ -3073,108 +3081,25 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
               {contest.lanes.length > 0 ? (
                 <div className="mt-3 space-y-3 text-sm text-track-700">
-                  <div>
-                    <p className="mb-1 font-medium">Lanes</p>
-                    <ul className="grid gap-2">
-                      {contest.lanes.map((lane) => (
-                        <li key={lane.id} className="rounded border border-track-200 p-2">
-                          <form action={updateLaneAction} className="grid gap-2 md:grid-cols-6">
-                            <input type="hidden" name="laneId" value={lane.id} />
-                            <input type="hidden" name="contestId" value={contest.id} />
-                            <input name="name" defaultValue={lane.name} required />
-                            <input name="team" defaultValue={lane.team} placeholder="Team (optional)" />
-                            <input
-                              name="position"
-                              defaultValue={lane.position}
-                              placeholder="Position (optional)"
-                            />
-                            <input
-                              name="openingWinOddsTo1"
-                              type="number"
-                              min={0.1}
-                              max={999}
-                              step="0.1"
-                              defaultValue={lane.openingWinOddsTo1 ?? ""}
-                              placeholder="Opening WIN odds to-1 (>0–999)"
-                            />
-                            <input
-                              name="liveFantasyPoints"
-                              type="number"
-                              step="0.1"
-                              defaultValue={(lane as any).liveFantasyPoints ?? ""}
-                              placeholder="Live points"
-                            />
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="submit"
-                                className="rounded bg-track-100 px-3 py-1 text-track-700"
-                              >
-                                Save lane
-                              </button>
-                              <span className="text-xs text-track-500">
-                                {lane.finalRank ? `Rank ${lane.finalRank}` : "Unranked"}
-                              </span>
-                            </div>
-                          </form>
-
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <form action={setLaneStatusAction}>
-                              <input type="hidden" name="contestId" value={contest.id} />
-                              <input type="hidden" name="laneId" value={lane.id} />
-                              <input type="hidden" name="status" value="ACTIVE" />
-                              <button
-                                type="submit"
-                                className="rounded bg-track-100 px-3 py-1 text-xs text-track-700"
-                              >
-                                Active
-                              </button>
-                            </form>
-
-                            <form action={setLaneStatusAction}>
-                              <input type="hidden" name="contestId" value={contest.id} />
-                              <input type="hidden" name="laneId" value={lane.id} />
-                              <input type="hidden" name="status" value="QUESTIONABLE" />
-                              <button
-                                type="submit"
-                                className="rounded bg-track-100 px-3 py-1 text-xs text-track-700"
-                              >
-                                Questionable
-                              </button>
-                            </form>
-
-                            <form action={setLaneStatusAction}>
-                              <input type="hidden" name="contestId" value={contest.id} />
-                              <input type="hidden" name="laneId" value={lane.id} />
-                              <input type="hidden" name="status" value="DOUBTFUL" />
-                              <button
-                                type="submit"
-                                className="rounded bg-track-100 px-3 py-1 text-xs text-track-700"
-                              >
-                                Doubtful
-                              </button>
-                            </form>
-
-                            <form action={scratchLaneAction}>
-                              <input type="hidden" name="contestId" value={contest.id} />
-                              <input type="hidden" name="laneId" value={lane.id} />
-                              <input type="hidden" name="note" value="SCRATCHED: admin" />
-                              <button
-                                type="submit"
-                                className="rounded bg-track-800 px-3 py-1 text-xs text-white"
-                                title="Mark scratched, void legs, refund bets"
-                              >
-                                Scratch (refund)
-                              </button>
-                            </form>
-
-                            <span className="text-xs text-track-500">
-                              Status: <span className="font-semibold">{lane.status ?? "ACTIVE"}</span>
-                            </span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <AdminOddsLanes
+                    contestId={contest.id}
+                    updateLaneAction={updateLaneAction}
+                    setLaneStatusAction={setLaneStatusAction}
+                    scratchLaneAction={scratchLaneAction}
+                    lanes={contest.lanes.map((lane) => ({
+                      id: lane.id,
+                      name: lane.name,
+                      team: lane.team,
+                      position: lane.position,
+                      openingWinOddsTo1: lane.openingWinOddsTo1,
+                      liveFantasyPoints: lane.liveFantasyPoints ?? null,
+                      finalRank: lane.finalRank,
+                      status: lane.status ?? "ACTIVE",
+                      seedRank: lane.seedRank ?? null,
+                      displayOrder: lane.displayOrder ?? null,
+                      projectedPoints: lane.projectedPoints ?? null,
+                    }))}
+                  />
 
                   {(contest.status === ContestStatus.PUBLISHED ||
                     contest.status === ContestStatus.LOCKED ||
