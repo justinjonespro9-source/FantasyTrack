@@ -15,6 +15,7 @@ import {
   POLL_INTERVAL_MS,
 } from "@/lib/constants";
 import { formatCoins, formatDateTime, formatMultiple } from "@/lib/format";
+import { formatContestLifecycleLabel } from "@/lib/contest-presentation";
 import { ShareContestButton } from "@/components/contest/share-contest-button";
 import type { OddsPayload } from "@/lib/market";
 import { collapseWps, type BetRow } from "@/lib/wps";
@@ -29,6 +30,8 @@ type LaneView = {
   name: string;
   team: string;
   position: string;
+  opponent?: string | null;
+  depthRole?: string | null;
   finalRank: number | null;
   openingWinOddsTo1: number | null;
   fantasyPoints: number | null;
@@ -37,6 +40,24 @@ type LaneView = {
   status: LaneStatus;
   /** Optional per-player scoring breakdown, e.g. basketball raw stats. */
   scoringBreakdown?: ScoringBreakdown | null;
+  /** Display-only import seed rank / board order (does not set pool odds). */
+  seedRank?: number | null;
+  displayOrder?: number | null;
+  projectedPoints?: number | null;
+  /** Count of non-voided ticket legs on this lane. */
+  entryCount?: number;
+};
+
+type ContestMeta = {
+  season?: number | null;
+  week?: number | null;
+  slateLabel?: string | null;
+  scoringLabel?: string | null;
+  position?: string | null;
+  headline?: string | null;
+  supportingCopy?: string | null;
+  runnerCount?: number;
+  entryCount?: number;
 };
 
 type MyBetView = {
@@ -64,6 +85,7 @@ type ContestBoardProps = {
   initialOdds: OddsPayload;
   initialMyBets: MyBetView[];
   isLoggedIn: boolean;
+  contestMeta?: ContestMeta;
   /** From live BoxScore pull (0–100). When set, progress bar uses this instead of time. */
   liveGameProgress?: number | null;
   /** From live BoxScore pull (e.g. InProgress, Final). Used for progress label when present. */
@@ -76,7 +98,15 @@ type WinHeadline = {
   helper: string | null;
 };
 
-type LaneSortKey = "WIN_ODDS" | "PLAYER";
+type LaneSortKey =
+  | "MARKET_RANK"
+  | "PROJECTED_RANK"
+  | "CURRENT_ODDS"
+  | "MOST_BACKED"
+  | "PLAYER";
+
+/** Simple threshold: once the WIN pool has at least this much, default to market ordering. */
+const MEANINGFUL_POOL_THRESHOLD = 25;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -181,10 +211,36 @@ function getWinHeadline(
   }
 
   return {
-    label: "—",
+    label: "Pool odds not established",
     badge: null,
-    helper: null,
+    helper: "Odds appear after the first valid entries.",
   };
+}
+
+function formatProjectedPoints(value: number | null | undefined): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return value.toFixed(1).replace(/\.0$/, "");
+}
+
+function poolHasEntries(odds: OddsPayload): boolean {
+  const totals = odds.poolTotals;
+  return (totals.WIN ?? 0) + (totals.PLACE ?? 0) + (totals.SHOW ?? 0) > 0;
+}
+
+function formatPoolShare(laneTotal: number, poolTotal: number): string {
+  if (poolTotal <= 0 || laneTotal <= 0) return "0%";
+  return `${((laneTotal / poolTotal) * 100).toFixed(1)}%`;
+}
+
+function laneMatchupLine(lane: Pick<LaneView, "team" | "opponent" | "depthRole">): string | null {
+  const parts: string[] = [];
+  if (lane.team) {
+    parts.push(lane.opponent ? `${lane.team} vs ${lane.opponent}` : lane.team);
+  } else if (lane.opponent) {
+    parts.push(`vs ${lane.opponent}`);
+  }
+  if (lane.depthRole) parts.push(lane.depthRole);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 function OddsMoveInfoPopover() {
@@ -286,6 +342,7 @@ export default function ContestBoard({
   initialOdds,
   initialMyBets,
   isLoggedIn,
+  contestMeta,
   liveGameProgress,
   liveGameStatus,
 }: ContestBoardProps) {
@@ -299,7 +356,12 @@ export default function ContestBoard({
   const [myBets, setMyBets] = useState<MyBetView[]>(initialMyBets);
   const [error, setError] = useState<string>("");
   const [message, setMessage] = useState<string>("");
-  const [sortKey, setSortKey] = useState<LaneSortKey>("WIN_ODDS");
+  const [sortKey, setSortKey] = useState<LaneSortKey>(() => {
+    const winPool = initialOdds.poolTotals.WIN ?? 0;
+    if (winPool >= MEANINGFUL_POOL_THRESHOLD) return "MARKET_RANK";
+    if (lanes.some((l) => l.displayOrder != null || l.seedRank != null)) return "PROJECTED_RANK";
+    return "CURRENT_ODDS";
+  });
   const [isPending, startTransition] = useTransition();
 
   const [ticketOpen, setTicketOpen] = useState(false);
@@ -396,6 +458,25 @@ export default function ContestBoard({
     return map;
   }, [lanes]);
 
+  const hasPoolEntries = useMemo(() => poolHasEntries(odds), [odds]);
+  const winPoolTotal = odds.poolTotals.WIN ?? 0;
+  const meaningfulPool = winPoolTotal >= MEANINGFUL_POOL_THRESHOLD;
+
+  const marketRanks = useMemo(() => {
+    const ranked = [...lanes].sort((a, b) => {
+      const aAmt = odds.laneTotals[a.id]?.WIN ?? 0;
+      const bAmt = odds.laneTotals[b.id]?.WIN ?? 0;
+      if (aAmt !== bAmt) return bAmt - aAmt;
+      const aM = odds.estMultiples[a.id]?.WIN ?? 9999;
+      const bM = odds.estMultiples[b.id]?.WIN ?? 9999;
+      if (aM !== bM) return aM - bM;
+      return compareStrings(getSortablePlayerName(a.name), getSortablePlayerName(b.name));
+    });
+    const map = new Map<string, number>();
+    ranked.forEach((lane, index) => map.set(lane.id, index + 1));
+    return map;
+  }, [lanes, odds]);
+
   const sortedLanes = useMemo(() => {
     const copy = [...lanes];
 
@@ -404,12 +485,42 @@ export default function ContestBoard({
         return compareStrings(getSortablePlayerName(a.name), getSortablePlayerName(b.name));
       }
 
+      if (sortKey === "PROJECTED_RANK") {
+        const aOrder = a.seedRank ?? a.displayOrder ?? 9999;
+        const bOrder = b.seedRank ?? b.displayOrder ?? 9999;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return compareStrings(getSortablePlayerName(a.name), getSortablePlayerName(b.name));
+      }
+
+      if (sortKey === "MOST_BACKED" || sortKey === "MARKET_RANK") {
+        const aAmt = odds.laneTotals[a.id]?.WIN ?? 0;
+        const bAmt = odds.laneTotals[b.id]?.WIN ?? 0;
+        if (aAmt !== bAmt) return bAmt - aAmt;
+        const aM = odds.estMultiples[a.id]?.WIN ?? 9999;
+        const bM = odds.estMultiples[b.id]?.WIN ?? 9999;
+        if (aM !== bM) return aM - bM;
+        // Empty pool: keep projected order stable.
+        if (aAmt === 0 && bAmt === 0) {
+          const aOrder = a.seedRank ?? a.displayOrder ?? 9999;
+          const bOrder = b.seedRank ?? b.displayOrder ?? 9999;
+          if (aOrder !== bOrder) return aOrder - bOrder;
+        }
+        return compareStrings(getSortablePlayerName(a.name), getSortablePlayerName(b.name));
+      }
+
+      // CURRENT_ODDS — shortest live multiple first; empty falls back to projected.
       const aWinMultiple =
         odds.estMultiples[a.id]?.WIN ??
         (a.openingWinOddsTo1 != null ? a.openingWinOddsTo1 + 1 : 9999);
       const bWinMultiple =
         odds.estMultiples[b.id]?.WIN ??
         (b.openingWinOddsTo1 != null ? b.openingWinOddsTo1 + 1 : 9999);
+
+      if (aWinMultiple === 9999 && bWinMultiple === 9999) {
+        const aOrder = a.seedRank ?? a.displayOrder ?? 9999;
+        const bOrder = b.seedRank ?? b.displayOrder ?? 9999;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+      }
 
       if (aWinMultiple !== bWinMultiple) return aWinMultiple - bWinMultiple;
 
@@ -871,6 +982,12 @@ export default function ContestBoard({
 
   const sportLabel = formatSportLabel(sport as any);
   const trackConditionsLabel = formatTrackConditionsLabel(trackConditions);
+  const displayHeadline = contestMeta?.headline?.trim() || title;
+  const lifecycleLabel = formatContestLifecycleLabel(status);
+  const runnerCount = contestMeta?.runnerCount ?? lanes.length;
+  const boardEntryCount = contestMeta?.entryCount;
+  const totalPoolAmount =
+    (odds.poolTotals.WIN ?? 0) + (odds.poolTotals.PLACE ?? 0) + (odds.poolTotals.SHOW ?? 0);
 
   return (
     <section className="relative isolate overflow-hidden rounded-ft-lg border border-white/[0.07] bg-ft-gradient-panel p-5 shadow-ft-card backdrop-blur-sm sm:p-6">
@@ -878,26 +995,66 @@ export default function ContestBoard({
       <div className="relative z-10 space-y-6">
       <header className="flex flex-col gap-4 border-b border-white/[0.06] pb-5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-2">
-          <h2 className="text-xl font-bold tracking-tight text-neutral-50 sm:text-2xl">{title}</h2>
+          <h2 className="text-xl font-bold tracking-tight text-neutral-50 sm:text-2xl">
+            {displayHeadline}
+          </h2>
+          {contestMeta?.supportingCopy ? (
+            <p className="max-w-2xl text-sm leading-relaxed text-neutral-300">
+              {contestMeta.supportingCopy}
+            </p>
+          ) : null}
           <p className="ft-label text-neutral-500 sm:text-[11px]">
-            Starts{" "}
+            Locks{" "}
             <ClientOnly>
               <span>{formatDateTime(new Date(startTime))}</span>
             </ClientOnly>{" "}
-            · {status}
+            · {lifecycleLabel}
           </p>
           <div className="flex flex-wrap gap-2 pt-0.5">
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-300">
-              {sportLabel}
+            {contestMeta?.week != null ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-300">
+                NFL Week {contestMeta.week}
+              </span>
+            ) : (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-300">
+                {sportLabel}
+              </span>
+            )}
+            {contestMeta?.position ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-300">
+                {contestMeta.position}
+              </span>
+            ) : null}
+            {contestMeta?.slateLabel ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+                {contestMeta.slateLabel}
+              </span>
+            ) : (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+                {trackConditionsLabel}
+              </span>
+            )}
+            {contestMeta?.scoringLabel ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+                {contestMeta.scoringLabel}
+              </span>
+            ) : null}
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+              {runnerCount} runners
             </span>
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-              {trackConditionsLabel}
+              Pool {formatCoins(totalPoolAmount)} free-play
             </span>
+            {boardEntryCount != null ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+                {boardEntryCount} entries
+              </span>
+            ) : null}
           </div>
         </div>
 
         <div className="flex flex-shrink-0 flex-wrap items-center gap-2 text-xs sm:justify-end sm:text-sm">
-          <ShareContestButton contestId={contestId} contestTitle={title} />
+          <ShareContestButton contestId={contestId} contestTitle={displayHeadline} />
           <Link href="/how-to-play" className="ft-btn-ghost px-3 py-1.5 text-xs sm:text-sm">
             How to Play
           </Link>
@@ -911,11 +1068,17 @@ export default function ContestBoard({
             </div>
           ) : (
             <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-neutral-400 sm:text-sm">
-              Betting closed
+              Entries closed
             </div>
           )}
         </div>
       </header>
+
+      <p className="rounded-ft border border-white/[0.06] bg-black/30 px-3 py-2.5 text-xs leading-relaxed text-neutral-400">
+        FantasyTrack uses a pooled market. Rankings and projections organize the field, while
+        participant entries determine the live odds. Amounts shown are free-play currency — not
+        real-money wagering.
+      </p>
 
       {/* Hero: live standings — primary focal point */}
       <div className="relative">
@@ -959,7 +1122,10 @@ export default function ContestBoard({
           <p className="ft-label text-neutral-500">Markets</p>
           <p className="text-lg font-bold tracking-tight text-neutral-50">Odds &amp; pools</p>
           <p className="max-w-lg text-xs leading-relaxed text-neutral-500">
-            Estimates move with the pool until lock; final WIN price is fixed at lock.
+            {meaningfulPool
+              ? "Live pool odds and market rank move with free-play entries until lock."
+              : "Projected rank organizes the field until the pool has meaningful entries."}{" "}
+            Closing odds are preserved at lock.
           </p>
         </div>
 
@@ -976,7 +1142,10 @@ export default function ContestBoard({
             }}
             className="rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-neutral-100 transition hover:border-ft-gold/30"
           >
-            <option value="WIN_ODDS">Odds - High to Low</option>
+            <option value="MARKET_RANK">Market Rank</option>
+            <option value="PROJECTED_RANK">Projected Rank</option>
+            <option value="CURRENT_ODDS">Current Odds</option>
+            <option value="MOST_BACKED">Most Backed</option>
             <option value="PLAYER">Player A-Z</option>
           </select>
         </div>
@@ -1044,18 +1213,24 @@ export default function ContestBoard({
 
           <thead className="sticky top-0 z-10 border-b border-white/[0.06] bg-ft-charcoal/95 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500 backdrop-blur-md">
             <tr>
-              <th className="px-3 py-3 text-left">Player</th>
+              <th className="px-3 py-3 text-left">Runner</th>
               <th className="px-2 py-3 text-right">
-                <span className="inline-block text-right">Live FP</span>
+                <span className="inline-block text-right">
+                  {hasPoolEntries ? "Live FP" : "Proj pts"}
+                </span>
               </th>
               <th
                 className="px-3 py-3 text-left"
-                title="LIVE = current WIN pool estimate (moves with wagers). OPEN = posted opening line when the WIN pool is empty. Final market WIN odds are fixed at lock."
+                title={
+                  hasPoolEntries
+                    ? "Current Odds and Market Rank come from the free-play pool. Projected Rank stays independent."
+                    : "Projected Rank from the imported field. Pool odds appear after the first valid entries."
+                }
               >
-                To-win
+                {hasPoolEntries ? "Current Odds" : "Projected Rank"}
               </th>
               <th className="px-3 py-3 text-left">
-                WIN pool
+                {hasPoolEntries ? "Pool Share" : "WIN pool"}
                 <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-400">
                   {formatCoins(odds.poolTotals.WIN)}
                 </div>
@@ -1081,6 +1256,9 @@ export default function ContestBoard({
               const winMultiple = odds.estMultiples[lane.id]?.WIN ?? null;
               const headline = getWinHeadline(winMultiple, lane.openingWinOddsTo1);
               const active = selectedLaneId === lane.id;
+              const showProjectionShell = !hasPoolEntries && winMultiple == null;
+              const marketRank = marketRanks.get(lane.id) ?? null;
+              const matchup = laneMatchupLine(lane);
 
               const isQuestionable = lane.status === "QUESTIONABLE";
               const isDoubtful = lane.status === "DOUBTFUL";
@@ -1099,6 +1277,8 @@ export default function ContestBoard({
               const placeTotal = odds.laneTotals[lane.id]?.PLACE ?? 0;
               const showTotal = odds.laneTotals[lane.id]?.SHOW ?? 0;
               const playerLabel = formatLaneDisplayName(lane.name, lane.position, lane.team);
+              const projectedPts = formatProjectedPoints(lane.projectedPoints);
+              const projectedRank = lane.seedRank ?? lane.displayOrder ?? null;
 
               return (
                 <Fragment key={lane.id}>
@@ -1124,6 +1304,9 @@ export default function ContestBoard({
                           <span className="inline-flex shrink-0">{renderLaneStatus(lane.status)}</span>
                         ) : null}
                       </div>
+                      {matchup ? (
+                        <p className="mt-0.5 truncate text-[11px] text-neutral-500">{matchup}</p>
+                      ) : null}
                     </td>
 
                   <td className="px-2 py-2.5 align-middle text-right">
@@ -1134,13 +1317,18 @@ export default function ContestBoard({
                           active ? "text-ft-gold-bright" : "",
                         ].join(" ")}
                       >
-                        {((lane.liveFantasyPoints ?? lane.fantasyPoints) ?? 0)
-                          .toFixed(2)
-                          .replace(/\.?0+$/, "")}
+                        {showProjectionShell
+                          ? projectedPts ?? "—"
+                          : ((lane.liveFantasyPoints ?? lane.fantasyPoints) ?? 0)
+                              .toFixed(2)
+                              .replace(/\.?0+$/, "")}
                       </span>
                       <span className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">
-                        pts
+                        {showProjectionShell ? "proj pts" : "pts"}
                       </span>
+                      {!showProjectionShell && projectedPts ? (
+                        <span className="text-[10px] text-neutral-500">Proj {projectedPts}</span>
+                      ) : null}
                       <ScoringBreakdownAccordion
                         breakdown={lane.scoringBreakdown}
                         open={openScoringLaneId === lane.id}
@@ -1153,53 +1341,86 @@ export default function ContestBoard({
 
                   <td className="px-3 py-2.5 align-middle">
                     <div className="flex flex-col gap-0.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={[
-                            "font-semibold tabular-nums text-neutral-100",
-                            isScratched ? "text-neutral-500 line-through" : "",
-                          ].join(" ")}
-                        >
-                          {headline.label}
-                        </span>
-                        {headline.badge && (
+                      {showProjectionShell ? (
+                        <>
                           <span
-                            className={
-                              headline.badge === "LIVE"
-                                ? "rounded-full border border-ft-gold/35 bg-ft-gold/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold"
-                                : "rounded-full border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300"
-                            }
+                            className={[
+                              "font-semibold tabular-nums text-neutral-100",
+                              isScratched ? "text-neutral-500 line-through" : "",
+                            ].join(" ")}
                           >
-                            {headline.badge}
+                            {projectedRank != null ? `#${projectedRank}` : "—"}
                           </span>
-                        )}
-                      </div>
-                      {headline.helper && active ? (
-                        <p className="hidden text-[11px] leading-snug text-neutral-500 md:block">
-                          {headline.helper}
-                        </p>
-                      ) : null}
+                          <p className="text-[11px] leading-snug text-neutral-500">
+                            Pool odds not established
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={[
+                                "font-semibold tabular-nums text-neutral-100",
+                                isScratched ? "text-neutral-500 line-through" : "",
+                              ].join(" ")}
+                            >
+                              {headline.label}
+                            </span>
+                            {headline.badge && (
+                              <span
+                                className={
+                                  headline.badge === "LIVE"
+                                    ? "rounded-full border border-ft-gold/35 bg-ft-gold/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold"
+                                    : "rounded-full border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300"
+                                }
+                              >
+                                {headline.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] leading-snug text-neutral-500">
+                            Market Rank #{marketRank ?? "—"}
+                            {projectedRank != null ? ` · Proj #${projectedRank}` : ""}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </td>
 
                   <td className="px-3 py-2.5 align-middle">
-                    <p className="text-sm font-semibold tabular-nums text-neutral-100">{formatCoins(winTotal)}</p>
-                    <p className="hidden text-[11px] text-neutral-500 md:block">
-                      {formatMultiple(odds.estMultiples[lane.id]?.WIN ?? null)}
-                    </p>
+                    {showProjectionShell ? (
+                      <>
+                        <p className="text-sm font-semibold tabular-nums text-neutral-100">—</p>
+                        <p className="hidden text-[11px] text-neutral-500 md:block">No pool yet</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold tabular-nums text-neutral-100">
+                          {formatPoolShare(winTotal, winPoolTotal)}
+                        </p>
+                        <p className="hidden text-[11px] text-neutral-500 md:block">
+                          {formatCoins(winTotal)}
+                          {(lane.entryCount ?? 0) > 0 ? ` · ${lane.entryCount} entries` : ""}
+                        </p>
+                      </>
+                    )}
                   </td>
 
                   <td className="px-3 py-2.5 align-middle">
-                    <p className="text-sm font-semibold tabular-nums text-neutral-100">{formatCoins(placeTotal)}</p>
+                    <p className="text-sm font-semibold tabular-nums text-neutral-100">
+                      {showProjectionShell ? "—" : formatCoins(placeTotal)}
+                    </p>
                     <p className="text-[11px] text-neutral-500 md:block hidden">
-                      {formatMultiple(odds.estMultiples[lane.id]?.PLACE ?? null)}
+                      {showProjectionShell ? "—" : formatMultiple(odds.estMultiples[lane.id]?.PLACE ?? null)}
                     </p>
                   </td>
 
                   <td className="px-3 py-2.5 align-middle">
-                    <p className="text-sm font-semibold tabular-nums text-neutral-100">{formatCoins(showTotal)}</p>
+                    <p className="text-sm font-semibold tabular-nums text-neutral-100">
+                      {showProjectionShell ? "—" : formatCoins(showTotal)}
+                    </p>
                     <p className="hidden text-[11px] text-neutral-500 md:block">
-                      {formatMultiple(odds.estMultiples[lane.id]?.SHOW ?? null)}
+                      {showProjectionShell ? "—" : formatMultiple(odds.estMultiples[lane.id]?.SHOW ?? null)}
                     </p>
                   </td>
                   </tr>
@@ -1226,15 +1447,22 @@ export default function ContestBoard({
           const winMultiple = odds.estMultiples[lane.id]?.WIN ?? null;
           const headline = getWinHeadline(winMultiple, lane.openingWinOddsTo1);
           const active = selectedLaneId === lane.id;
+          const showProjectionShell = !hasPoolEntries && winMultiple == null;
+          const marketRank = marketRanks.get(lane.id) ?? null;
+          const matchup = laneMatchupLine(lane);
           const isQuestionable = lane.status === "QUESTIONABLE";
           const isDoubtful = lane.status === "DOUBTFUL";
           const isScratched = lane.status === "SCRATCHED";
           const placeTotal = odds.laneTotals[lane.id]?.PLACE ?? 0;
           const showTotal = odds.laneTotals[lane.id]?.SHOW ?? 0;
           const playerLabel = formatLaneDisplayName(lane.name, lane.position, lane.team);
-          const fpVal = ((lane.liveFantasyPoints ?? lane.fantasyPoints) ?? 0)
-            .toFixed(2)
-            .replace(/\.?0+$/, "");
+          const projectedPts = formatProjectedPoints(lane.projectedPoints);
+          const projectedRank = lane.seedRank ?? lane.displayOrder ?? null;
+          const fpVal = showProjectionShell
+            ? projectedPts ?? "—"
+            : ((lane.liveFantasyPoints ?? lane.fantasyPoints) ?? 0)
+                .toFixed(2)
+                .replace(/\.?0+$/, "");
 
           const cardShell = [
             active
@@ -1255,7 +1483,9 @@ export default function ContestBoard({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                      #{laneIndex + 1} · Odds order
+                      {showProjectionShell
+                        ? `Projected Rank #${projectedRank ?? laneIndex + 1}`
+                        : `Market Rank #${marketRank ?? laneIndex + 1}`}
                     </p>
                     <p
                       className={[
@@ -1265,14 +1495,24 @@ export default function ContestBoard({
                     >
                       {playerLabel}
                     </p>
+                    {matchup ? (
+                      <p className="mt-0.5 text-[11px] text-neutral-500">{matchup}</p>
+                    ) : null}
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       {renderLaneStatus(lane.status) ? (
                         <span className="inline-flex shrink-0">{renderLaneStatus(lane.status)}</span>
                       ) : null}
+                      {!showProjectionShell && projectedRank != null ? (
+                        <span className="text-[10px] font-medium text-neutral-500">
+                          Proj #{projectedRank}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Live FP</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                      {showProjectionShell ? "Proj pts" : "Live FP"}
+                    </p>
                     <p
                       className={[
                         "text-xl font-bold tabular-nums tracking-tight text-neutral-100",
@@ -1281,32 +1521,41 @@ export default function ContestBoard({
                     >
                       {fpVal}
                     </p>
+                    {!showProjectionShell && projectedPts ? (
+                      <p className="text-[10px] text-neutral-500">Proj {projectedPts}</p>
+                    ) : null}
                   </div>
                 </div>
 
                 <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-2.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={[
-                        "text-base font-semibold tabular-nums text-neutral-100",
-                        isScratched ? "text-neutral-500 line-through" : "",
-                      ].join(" ")}
-                    >
-                      {headline.label}
-                    </span>
-                    {headline.badge ? (
-                      <span
-                        className={
-                          headline.badge === "LIVE"
-                            ? "rounded-full border border-ft-gold/35 bg-ft-gold/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold"
-                            : "rounded-full border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300"
-                        }
-                      >
-                        {headline.badge}
+                    {showProjectionShell ? (
+                      <span className="text-sm font-medium text-neutral-400">
+                        Pool odds not established
                       </span>
-                    ) : null}
+                    ) : (
+                      <>
+                        <span
+                          className={[
+                            "text-base font-semibold tabular-nums text-neutral-100",
+                            isScratched ? "text-neutral-500 line-through" : "",
+                          ].join(" ")}
+                        >
+                          {headline.label}
+                        </span>
+                        <span className="text-[10px] font-medium text-neutral-500">
+                          Current Odds
+                        </span>
+                      </>
+                    )}
                   </div>
-                  <span className="text-[10px] font-medium text-neutral-500">To-win</span>
+                  {!showProjectionShell ? (
+                    <span className="text-[10px] font-medium tabular-nums text-neutral-400">
+                      {formatPoolShare(winTotal, winPoolTotal)} share · {formatCoins(winTotal)}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-neutral-500">Awaiting pool</span>
+                  )}
                 </div>
               </div>
 
@@ -1344,21 +1593,44 @@ export default function ContestBoard({
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Win pool</p>
-                      <p className="mt-0.5 font-semibold tabular-nums text-neutral-100">{formatCoins(winTotal)}</p>
-                      <p className="text-[11px] text-neutral-500">{formatMultiple(odds.estMultiples[lane.id]?.WIN ?? null)}</p>
+                      <p className="mt-0.5 font-semibold tabular-nums text-neutral-100">
+                        {showProjectionShell ? "—" : formatCoins(winTotal)}
+                      </p>
+                      <p className="text-[11px] text-neutral-500">
+                        {showProjectionShell ? "No pool yet" : formatMultiple(odds.estMultiples[lane.id]?.WIN ?? null)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Place</p>
-                      <p className="mt-0.5 font-semibold tabular-nums text-neutral-100">{formatCoins(placeTotal)}</p>
-                      <p className="text-[11px] text-neutral-500">{formatMultiple(odds.estMultiples[lane.id]?.PLACE ?? null)}</p>
+                      <p className="mt-0.5 font-semibold tabular-nums text-neutral-100">
+                        {showProjectionShell ? "—" : formatCoins(placeTotal)}
+                      </p>
+                      <p className="text-[11px] text-neutral-500">
+                        {showProjectionShell ? "—" : formatMultiple(odds.estMultiples[lane.id]?.PLACE ?? null)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Show</p>
-                      <p className="mt-0.5 font-semibold tabular-nums text-neutral-100">{formatCoins(showTotal)}</p>
-                      <p className="text-[11px] text-neutral-500">{formatMultiple(odds.estMultiples[lane.id]?.SHOW ?? null)}</p>
+                      <p className="mt-0.5 font-semibold tabular-nums text-neutral-100">
+                        {showProjectionShell ? "—" : formatCoins(showTotal)}
+                      </p>
+                      <p className="text-[11px] text-neutral-500">
+                        {showProjectionShell ? "—" : formatMultiple(odds.estMultiples[lane.id]?.SHOW ?? null)}
+                      </p>
                     </div>
                   </div>
-                  {headline.helper ? <p className="text-[11px] leading-relaxed text-neutral-500">{headline.helper}</p> : null}
+                  {showProjectionShell ? (
+                    <p className="text-[11px] leading-relaxed text-neutral-500">
+                      Projected Rank and points are display-only. Pool odds not established.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] leading-relaxed text-neutral-500">
+                      Pool Share {formatPoolShare(winTotal, winPoolTotal)} · Amount entered{" "}
+                      {formatCoins(winTotal)}
+                      {(lane.entryCount ?? 0) > 0 ? ` · ${lane.entryCount} entries` : ""}. Market
+                      Rank comes from the pool; Projected Rank stays independent.
+                    </p>
+                  )}
                   <ScoringBreakdownAccordion
                     breakdown={lane.scoringBreakdown}
                     open={openScoringLaneId === lane.id}
@@ -1376,9 +1648,9 @@ export default function ContestBoard({
       </div>
 
       <p className="max-w-3xl text-xs leading-relaxed text-neutral-500">
-        <span className="font-medium text-neutral-400">Note:</span> OPEN is the posted line when the WIN pool is empty.
-        LIVE is the estimated WIN payout from the current pool (parimutuel — moves as others wager). Final WIN odds are
-        fixed at lock.
+        <span className="font-medium text-neutral-400">Note:</span> Current Odds and Market Rank come
+        from free-play pool entries. Projected Rank never sets the price. Closing odds and pool
+        shares are preserved when the contest locks.
       </p>
 
       <div className="flex gap-1 rounded-full border border-white/[0.08] bg-black/40 p-1 text-xs font-semibold text-neutral-400 shadow-inner md:hidden">

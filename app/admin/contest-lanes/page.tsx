@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import ContestLaneBuilder from "@/components/admin/contest-lane-builder";
 import { prisma } from "@/lib/prisma";
@@ -109,6 +110,11 @@ export default async function ContestLanesAdminPage({ searchParams }: PageProps)
           <p className="text-sm text-neutral-300">
             Use imported leagues, teams, and players to create FantasyTrack lanes for a contest.
             This does not change settlement or odds logic; it only seeds lanes from player data.
+          </p>
+          <p className="mt-2 text-sm">
+            <Link href="/admin/roster-import" className="text-ft-gold hover:underline">
+              Or use AI roster import
+            </Link>
           </p>
         </div>
       </section>

@@ -135,7 +135,10 @@ function computeOddsTo1(totalPoolGross: number, lanePool: number): number | null
   return Number((multiple - 1).toFixed(2));
 }
 
-async function snapshotClosingOddsForContest(contestId: string, db: DbLikeClient): Promise<void> {
+export async function snapshotClosingOddsForContest(
+  contestId: string,
+  db: DbLikeClient = prisma
+): Promise<void> {
   // 1) lanes in contest
   const lanes = await db.lane.findMany({
     where: { contestId },

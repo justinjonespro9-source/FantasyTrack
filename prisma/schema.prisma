@@ -107,6 +107,7 @@ model User {
 
   passwordResetTokens PasswordResetToken[]
   externalProviderTokensUpdated ExternalProviderToken[] @relation("ExternalProviderTokenUpdatedByUser")
+  contestImportBatches ContestImportBatch[]
 }
 
 model ExternalProviderToken {
@@ -242,6 +243,14 @@ model Contest {
   archivedAt      DateTime?
   trackConditions String?
 
+  // Optional AI/import contest shell metadata
+  contestType   String?
+  season        Int?
+  week          Int?
+  scoringFormat String?
+  slate         String?
+  marketMode    String? @default("PURE_POOL")
+
   // Optional linkage to underlying real-world game and teams
   homeTeamId       String?
   awayTeamId       String?
@@ -270,6 +279,7 @@ model Contest {
   settlementSummary SettlementSummary?
   shoutouts         Shoutout[]
   xPostLogs         XPostLog[]
+  importBatches     ContestImportBatch[]
 
   homeTeam Team? @relation("HomeTeamContests", fields: [homeTeamId], references: [id])
   awayTeam Team? @relation("AwayTeamContests", fields: [awayTeamId], references: [id])
@@ -282,6 +292,31 @@ model Contest {
   @@index([status, startTime])
   @@index([homeTeamId])
   @@index([awayTeamId])
+}
+
+model ContestImportBatch {
+  id                String   @id @default(cuid())
+  contestId         String
+  importedByUserId  String?
+  rawText           String   @db.Text
+  parsedMetadata    Json?
+  normalizedPayload Json?
+  sourceLabel       String   @default("AI_STRUCTURED_IMPORT")
+  parserVersion     String   @default("1.0.0")
+  parsedCount       Int      @default(0)
+  importedCount     Int      @default(0)
+  skippedCount      Int      @default(0)
+  updatedCount      Int      @default(0)
+  warningCount      Int      @default(0)
+  errorCount        Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  contest    Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  importedBy User?   @relation(fields: [importedByUserId], references: [id], onDelete: SetNull)
+  lanes      Lane[]
+
+  @@index([contestId, createdAt])
+  @@index([importedByUserId])
 }
 
 model XPostLog {
@@ -308,6 +343,14 @@ model Lane {
   name              String
   team              String
   position          String
+  opponent          String?
+  depthRole         String?
+  seedRank          Int?
+  projectedPoints   Float?
+  notes             String?
+  displayOrder      Int?
+  openingPoolWeight Float?
+  importBatchId     String?
   finalRank         Int?
   openingWinOddsTo1 Float?
   fantasyPoints     Float?
@@ -413,8 +456,9 @@ model Lane {
   closingPlaceOddsTo1 Float?
   closingShowOddsTo1  Float?
 
-  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
-  player  Player? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  contest     Contest             @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  player      Player?             @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  importBatch ContestImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   // legacy
   bets Bet[]
@@ -424,6 +468,8 @@ model Lane {
 
   @@index([contestId])
   @@index([contestId, playerId])
+  @@index([importBatchId])
+  @@index([contestId, displayOrder])
 }
 
 model ContestPost {

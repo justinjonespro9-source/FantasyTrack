@@ -11,6 +11,13 @@ import { ContestLiveTape } from "@/components/contest-live-tape";
 import { getCurrentSession } from "@/lib/session";
 import { SettledRaceBoard } from "@/components/settled-race-board";
 import { formatCoins, formatDateTime, formatOpeningWinOddsCaption } from "@/lib/format";
+import {
+  buildWeeklyRaceHeadline,
+  formatContestLifecycleHelp,
+  formatContestLifecycleLabel,
+  formatScoringLabel,
+  formatSlateLabel,
+} from "@/lib/contest-presentation";
 import { formatSportLabel } from "@/lib/sports";
 import { formatTrackConditionsLabel } from "@/lib/track-conditions";
 import { BuildLanesAllPlayersButton } from "@/components/admin/build-lanes-all-players-button";
@@ -115,25 +122,14 @@ export default async function ContestPage({ params }: PageProps) {
   const isSettled = contest.status === ContestStatus.SETTLED;
   const isAdmin = Boolean(session?.user?.isAdmin);
 
-  const statusLabelMap: Record<string, string> = {
-    [ContestStatus.DRAFT]: "Not Open",
-    [ContestStatus.PUBLISHED]: "Open",
-    [ContestStatus.LOCKED]: "Locked",
-    [ContestStatus.SETTLED]: "Settled",
-    ARCHIVED: "Archived",
-  };
-
-  const statusHelpTextMap: Record<string, string> = {
-    [ContestStatus.DRAFT]: "This contest is not yet open for entry.",
-    [ContestStatus.PUBLISHED]: "You can enter and place bets until lock.",
-    [ContestStatus.LOCKED]: "Entries are closed. You can still track the live race.",
-    [ContestStatus.SETTLED]:
-      "Official results are posted. Review final standings and payouts.",
-    ARCHIVED: "This contest is no longer active.",
-  };
-
-  const statusLabel = statusLabelMap[contest.status] ?? contest.status;
-  const statusHelp = statusHelpTextMap[contest.status] ?? "";
+  const statusLabel =
+    contest.status === ("ARCHIVED" as ContestStatus)
+      ? "Archived"
+      : formatContestLifecycleLabel(contest.status);
+  const statusHelp =
+    contest.status === ("ARCHIVED" as ContestStatus)
+      ? "This contest is no longer active."
+      : formatContestLifecycleHelp(contest.status);
 
   // -----------------------------
   // SETTLED MODE
@@ -787,6 +783,25 @@ export default async function ContestPage({ params }: PageProps) {
       })
     : [];
 
+  const entryGroups = await prisma.ticketLeg.groupBy({
+    by: ["laneId"],
+    where: { contestId: contest.id, isVoided: false },
+    _count: { _all: true },
+  });
+  const entryByLane = new Map(entryGroups.map((g) => [g.laneId, g._count._all]));
+  const ticketCount = await prisma.ticket.count({
+    where: { contestId: contest.id, status: { not: "VOIDED" } },
+  });
+  const positionHint =
+    contest.lanes.find((l: { position?: string | null }) => l.position)?.position ?? null;
+  const raceCopy = buildWeeklyRaceHeadline({
+    title: contest.title,
+    sport: contest.sport,
+    season: contest.season,
+    week: contest.week,
+    position: positionHint,
+  });
+
   return (
     <div className="space-y-8">
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
@@ -839,16 +854,33 @@ export default async function ContestPage({ params }: PageProps) {
             sport={contest.sport}
             trackConditions={(contest as any).trackConditions ?? null}
             status={contest.status}
+            contestMeta={{
+              season: contest.season,
+              week: contest.week,
+              slateLabel: formatSlateLabel(contest.slate),
+              scoringLabel: formatScoringLabel(contest.scoringFormat),
+              position: positionHint,
+              headline: raceCopy.headline,
+              supportingCopy: raceCopy.supporting,
+              runnerCount: contest.lanes.length,
+              entryCount: ticketCount,
+            }}
             lanes={contest.lanes.map((lane: any) => ({
               id: lane.id,
               name: lane.name,
               team: lane.team,
               position: lane.position,
+              opponent: lane.opponent ?? null,
+              depthRole: lane.depthRole ?? null,
               finalRank: lane.finalRank,
               openingWinOddsTo1: lane.openingWinOddsTo1,
               fantasyPoints: lane.fantasyPoints,
               liveFantasyPoints: lane.liveFantasyPoints,
               status: lane.status,
+              seedRank: lane.seedRank ?? null,
+              displayOrder: lane.displayOrder ?? null,
+              projectedPoints: lane.projectedPoints ?? null,
+              entryCount: entryByLane.get(lane.id) ?? 0,
               scoringBreakdown:
                 contest.sport === "BASKETBALL"
                   ? getBasketballScoringBreakdown({

@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { SPORTS, formatSportLabel, type SportKey } from "@/lib/sports";
 import { formatCoins, formatDateTime, formatMultiple } from "@/lib/format";
-import { autoLockContests, settleContestAtomic } from "@/lib/market";
+import { autoLockContests, settleContestAtomic, snapshotClosingOddsForContest } from "@/lib/market";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { ClientOnly } from "@/components/client-only";
@@ -635,7 +635,7 @@ async function createContestAction(formData: FormData) {
     trackConditionsRaw ||
     getDefaultTrackConditionsForSport(sport);
 
-  await prisma.contest.create({
+  const contest = await prisma.contest.create({
     data: {
       seriesId,
       title,
@@ -651,6 +651,8 @@ async function createContestAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/");
+  revalidatePath("/admin/roster-import");
+  redirect(`/admin/roster-import?contestId=${contest.id}`);
 }
 
 async function addLaneAction(formData: FormData) {
@@ -2044,9 +2046,13 @@ async function lockContestAction(formData: FormData) {
   const contestId = String(formData.get("contestId") ?? "");
   if (!contestId) throw new Error("Missing contestId");
 
-  await prisma.contest.update({
-    where: { id: contestId },
-    data: { status: ContestStatus.LOCKED, lockedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    // Preserve closing pool odds before mutable live odds can drift.
+    await snapshotClosingOddsForContest(contestId, tx);
+    await tx.contest.update({
+      where: { id: contestId },
+      data: { status: ContestStatus.LOCKED, lockedAt: new Date() },
+    });
   });
 
   revalidatePath("/admin");
@@ -2788,6 +2794,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
       <CardSection title="Contests">
         <p className="mb-2 text-sm text-track-600">
+          Workflow: create a draft contest → Import Player Field → review field → publish → public
+          preview.
+        </p>
+        <p className="mb-2 text-sm text-track-600">
           <Link href="/admin/contest-from-game" className="text-amber-600 hover:text-amber-700">
             Create contest from imported game
           </Link>
@@ -2795,6 +2805,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <Link href="/admin/contest-lanes" className="text-amber-600 hover:text-amber-700">
             Contest lane builder
           </Link>
+          {" · "}
+          <Link href="/admin/roster-import" className="text-amber-600 hover:text-amber-700">
+            AI roster import
+          </Link>
+        </p>
+        <p className="mb-3 text-xs text-track-500">
+          After you create a contest, you&apos;ll be taken to Import Player Field automatically.
         </p>
         <form action={createContestAction} className="mt-1 grid gap-3 md:grid-cols-2">
           <select name="seriesId" required>
@@ -2934,10 +2951,22 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
+                    href={`/admin/roster-import?contestId=${contest.id}`}
+                    className="rounded bg-amber-500 px-3 py-1 text-sm font-semibold text-neutral-950"
+                  >
+                    Import Player Field
+                  </Link>
+                  <Link
+                    href={`/admin/contest-field?contestId=${contest.id}`}
+                    className="rounded bg-track-100 px-3 py-1 text-sm text-track-700"
+                  >
+                    Field review
+                  </Link>
+                  <Link
                     href={`/contest/${contest.id}`}
                     className="rounded bg-track-100 px-3 py-1 text-sm text-track-700"
                   >
-                    View
+                    Public preview
                   </Link>
 
                   {((contest as any).sport === "BASKETBALL" ||
