@@ -7,3 +7,5 @@ coverage
 .env.local
 tsconfig.tsbuildinfo
 ftcodex.zip
+.vercel
+.env.vercel*

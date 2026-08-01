@@ -10,7 +10,8 @@ Set in your production environment (e.g. Vercel, Railway, or host `.env`):
 
 | Variable | Required | Notes |
 |----------|----------|--------|
-| `DATABASE_URL` | Yes | Production Postgres connection string. On Vercel **without** an external connection pooler, add `connection_limit=1` (preserve other query params). Prefer a pooler URL when available. |
+| `DATABASE_URL` | Yes | Production Postgres connection string (Neon pooled URL is fine for runtime). |
+| `DATABASE_URL_UNPOOLED` | Yes (Neon / Prisma `directUrl`) | Direct/non-pooling URL for `prisma migrate deploy`. Neon’s Vercel integration usually injects this. Locally, mirror `DATABASE_URL` when not using a pooler. |
 | `NEXTAUTH_URL` | Yes | Full public URL of the app (e.g. `https://app.fantasytrack.com`). |
 | `NEXTAUTH_SECRET` | Yes | Random secret for session signing; generate with `openssl rand -base64 32`. |
 | `SPORTSDATAIO_API_KEY` | For CBB/NBA | Required for basketball imports and live stats. Optional if not using basketball. |
@@ -22,10 +23,14 @@ Do **not** commit `.env` or `.env.local` with real secrets. Use `.env.example` a
 
 ## 2. Database migrations
 
-- Run all pending Prisma migrations against the production database before or at deploy:
-  - `npx prisma migrate deploy`
-- Ensure the database is backed up before running migrations.
-- If using a fresh DB, run `npx prisma migrate deploy` and then seed or bootstrap admin as needed.
+- Vercel build command for this project is `npm run build:clean`, which runs:
+  - `prisma migrate deploy`
+  - `prisma generate`
+  - `next build` (after clearing `.next`)
+- Prefer `npm run vercel-build` if changing the Vercel dashboard Build Command later.
+- Never use `prisma migrate dev` or `prisma migrate reset` in production.
+- Migrations use `DATABASE_URL_UNPOOLED` via Prisma `directUrl`; runtime queries use pooled `DATABASE_URL`.
+- Ensure the database is backed up before major schema changes.
 
 ---
 

@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled URL for runtime (Neon pooler / PgBouncer).
+  url       = env("DATABASE_URL")
+  // Direct/non-pooling URL for migrations and introspection (Neon DATABASE_URL_UNPOOLED).
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum ContestStatus {
