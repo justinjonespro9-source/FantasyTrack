@@ -34,8 +34,11 @@ export default async function Nav() {
 
         <div className="flex flex-1 items-center justify-end gap-4 lg:gap-8">
           <nav className="flex items-center gap-6 text-sm lg:gap-8">
+            <Link href="/#boards" className={navLink}>
+              Position Races
+            </Link>
             <Link href="/dashboard" className={navLink}>
-              Enter the Track
+              My Track
             </Link>
             <Link href="/how-to-play" className={navLink}>
               How it Works
@@ -124,8 +127,11 @@ export default async function Nav() {
         </div>
 
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/[0.05] pt-2 text-xs">
+          <Link href="/#boards" className={navLink}>
+            Position Races
+          </Link>
           <Link href="/dashboard" className={navLink}>
-            Enter the Track
+            My Track
           </Link>
           <Link href="/how-to-play" className={navLink}>
             How it Works

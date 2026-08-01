@@ -12,3 +12,5 @@ export const LEADERBOARD_MIN_WAGER = 100;
 
 export const STARTING_COINS = 700;
 export const POLL_INTERVAL_MS = 10_000;
+/** Lobby quad boards — slower than full contest board to keep load light. */
+export const POSITION_RACES_POLL_MS = 25_000;

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import FantasyTrackHomePage from "./home/page";
 
-const title = "Player performance market";
+const title = "Week 1 Position Races";
 const description =
-  "FantasyTrack turns athlete performance into a live race. Pick your runners, track the fantasy leaderboard, and win when your ticket finishes on the podium.";
+  "FantasyTrack Week 1 Position Races — pick the QB, RB, WR, or TE who finishes Sunday on top. Free-play pooled markets with live odds.";
 
 export const metadata: Metadata = {
   title,
