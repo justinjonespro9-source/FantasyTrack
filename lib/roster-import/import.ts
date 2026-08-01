@@ -54,10 +54,14 @@ function applyEditableOverrides(
   }));
 }
 
-type DbClient = Prisma.TransactionClient | typeof prisma;
+type PlayerCandidate = Prisma.PlayerGetPayload<{ include: { team: true } }>;
 
-async function findMatchingPlayer(
-  db: DbClient,
+/**
+ * Match against an in-memory player cache. Keep DB lookups out of the import
+ * transaction so the interactive transaction only performs writes.
+ */
+function findMatchingPlayer(
+  candidates: PlayerCandidate[],
   params: {
     fullName: string;
     position: string;
@@ -67,21 +71,16 @@ async function findMatchingPlayer(
   const normalized = normalizePlayerName(params.fullName);
   const position = normalizePosition(params.position);
 
-  const candidates = await db.player.findMany({
-    where: {
-      position: position || undefined,
-      active: true,
-    },
-    include: { team: true },
-    take: 200,
-  });
+  const scoped = position
+    ? candidates.filter((p) => normalizePosition(p.position ?? "") === position)
+    : candidates;
 
-  const nameMatches = candidates.filter(
+  const nameMatches = scoped.filter(
     (p) => normalizePlayerName(p.fullName) === normalized
   );
 
   if (nameMatches.length === 0) {
-    return { player: null as null | (typeof nameMatches)[number], warning: null as string | null };
+    return { player: null as PlayerCandidate | null, warning: null as string | null };
   }
 
   const teamMatches = nameMatches.filter((p) => {
@@ -264,6 +263,26 @@ export async function importFantasyTrackRoster(params: {
     existingLanes.map((l) => [normalizePlayerName(l.name), l])
   );
 
+  // Resolve player matches outside the interactive transaction. Previously each
+  // new lane ran player.findMany(take: 200) inside the tx and held a pool
+  // connection for the entire import.
+  const positionsInImport = [
+    ...new Set(
+      rows
+        .map((r) => normalizePosition(r.position))
+        .filter((p): p is string => Boolean(p))
+    ),
+  ];
+  const playerCache: PlayerCandidate[] = await prisma.player.findMany({
+    where: {
+      active: true,
+      ...(positionsInImport.length > 0
+        ? { position: { in: positionsInImport } }
+        : {}),
+    },
+    include: { team: true },
+  });
+
   let importedCount = 0;
   let skippedCount = 0;
   let updatedCount = 0;
@@ -327,7 +346,7 @@ export async function importFantasyTrackRoster(params: {
           continue;
         }
 
-        const match = await findMatchingPlayer(tx, {
+        const match = findMatchingPlayer(playerCache, {
           fullName: row.playerName,
           position: row.position,
           teamAbbr: row.team,
@@ -345,6 +364,11 @@ export async function importFantasyTrackRoster(params: {
             },
           });
           playerId = created.id;
+          // Keep later rows in this batch consistent with prior in-tx creates.
+          playerCache.push({
+            ...created,
+            team: null,
+          } as PlayerCandidate);
         }
 
         await tx.lane.create({

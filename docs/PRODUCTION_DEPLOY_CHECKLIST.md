@@ -10,7 +10,7 @@ Set in your production environment (e.g. Vercel, Railway, or host `.env`):
 
 | Variable | Required | Notes |
 |----------|----------|--------|
-| `DATABASE_URL` | Yes | Production Postgres connection string. |
+| `DATABASE_URL` | Yes | Production Postgres connection string. On Vercel **without** an external connection pooler, add `connection_limit=1` (preserve other query params). Prefer a pooler URL when available. |
 | `NEXTAUTH_URL` | Yes | Full public URL of the app (e.g. `https://app.fantasytrack.com`). |
 | `NEXTAUTH_SECRET` | Yes | Random secret for session signing; generate with `openssl rand -base64 32`. |
 | `SPORTSDATAIO_API_KEY` | For CBB/NBA | Required for basketball imports and live stats. Optional if not using basketball. |
