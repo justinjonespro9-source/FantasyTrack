@@ -2,12 +2,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ContestStatus, TransactionType } from "@prisma/client";
 import ContestBoard from "@/components/contest/contest-board";
+import { ContestSecondaryPanels } from "@/components/contest/contest-secondary-panels";
 import { ShareContestButton } from "@/components/contest/share-contest-button";
-import { ContestMessageBoard } from "@/components/contest-message-board";
 import { ScoringRulesCard } from "@/components/scoring-rules-card";
 import { getContestOddsData } from "@/lib/market";
 import { prisma } from "@/lib/prisma";
-import { ContestLiveTape } from "@/components/contest-live-tape";
 import { getCurrentSession } from "@/lib/session";
 import { SettledRaceBoard } from "@/components/settled-race-board";
 import { formatCoins, formatDateTime, formatOpeningWinOddsCaption } from "@/lib/format";
@@ -889,14 +888,11 @@ export default async function ContestPage({ params }: PageProps) {
         liveGameProgress={(contest as any).liveGameProgress ?? undefined}
         liveGameStatus={(contest as any).liveGameStatus ?? undefined}
       >
-        <div className="flex flex-col gap-4">
-          <ContestLiveTape contestId={contest.id} />
-          <ContestMessageBoard
-            contestId={contest.id}
-            revalidatePath={`/contest/${contest.id}`}
-          />
-          <ScoringRulesCard sport={contest.sport} />
-        </div>
+        <ContestSecondaryPanels
+          contestId={contest.id}
+          sport={contest.sport}
+          revalidatePath={`/contest/${contest.id}`}
+        />
       </ContestBoard>
 
       <section className="rounded-ft border border-white/[0.06] bg-black/25 px-3 py-2.5 text-xs leading-relaxed text-neutral-500">

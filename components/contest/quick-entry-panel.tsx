@@ -43,6 +43,8 @@ type QuickEntryPanelProps = {
   onClose: () => void;
   onSubmitSingle: (market: Market, amount: number) => void | Promise<void>;
   onSubmitWps: (amount: number) => void | Promise<void>;
+  /** Hide chrome when nested in a bottom sheet that already provides a title. */
+  embedded?: boolean;
 };
 
 function projectedMultiple(
@@ -115,6 +117,7 @@ export function QuickEntryPanel({
   onClose,
   onSubmitSingle,
   onSubmitWps,
+  embedded = false,
 }: QuickEntryPanelProps) {
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -192,8 +195,9 @@ export function QuickEntryPanel({
   }, [mode, remainingAllocation]);
 
   useEffect(() => {
-    closeRef.current?.focus();
-  }, [laneId]);
+    if (!embedded) closeRef.current?.focus();
+    else panelRef.current?.querySelector<HTMLElement>('button[role="radio"]')?.focus();
+  }, [laneId, embedded]);
 
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
@@ -287,39 +291,55 @@ export function QuickEntryPanel({
       id={panelId}
       role="region"
       aria-label={`Quick Entry for ${playerName}`}
-      className="rounded-b-ft border border-t-0 border-ft-gold/35 bg-gradient-to-b from-ft-charcoal/98 to-black/95 px-3 py-3 text-sm shadow-[inset_0_1px_0_0_rgba(212,175,55,0.25)] sm:px-4 sm:py-3.5"
+      className={
+        embedded
+          ? "text-sm"
+          : "rounded-b-ft border border-t-0 border-ft-gold/35 bg-gradient-to-b from-ft-charcoal/98 to-black/95 px-3 py-3 text-sm shadow-[inset_0_1px_0_0_rgba(212,175,55,0.25)] sm:px-4 sm:py-3.5"
+      }
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ft-gold/90">
-            Quick Entry
-            <span className="mx-1.5 text-neutral-600">·</span>
-            <span className="tracking-normal text-neutral-100">{playerName}</span>
-            <span className="mx-1.5 text-neutral-600">·</span>
-            <span className="font-semibold tracking-normal text-neutral-300">
-              Current WIN odds {currentWinOddsLabel}
-            </span>
+      {!embedded ? (
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ft-gold/90">
+              Quick Entry
+              <span className="mx-1.5 text-neutral-600">·</span>
+              <span className="tracking-normal text-neutral-100">{playerName}</span>
+              <span className="mx-1.5 text-neutral-600">·</span>
+              <span className="font-semibold tracking-normal text-neutral-300">
+                Current WIN odds {currentWinOddsLabel}
+              </span>
+            </p>
+            {existingSummary ? (
+              <p className="mt-1 text-[11px] text-neutral-400">
+                {existingSummary}.{" "}
+                <a href="#bet-slip" className="font-semibold text-ft-gold hover:underline">
+                  Edit entries
+                </a>
+              </p>
+            ) : null}
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            aria-label="Close quick entry"
+            onClick={onClose}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-neutral-400 transition hover:border-ft-gold/40 hover:text-ft-gold"
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <div className="mb-2">
+          <p className="text-sm text-neutral-300">
+            Current WIN odds{" "}
+            <span className="font-semibold tabular-nums text-neutral-50">{currentWinOddsLabel}</span>
           </p>
           {existingSummary ? (
-            <p className="mt-1 text-[11px] text-neutral-400">
-              {existingSummary}.{" "}
-              <a href="#bet-slip" className="font-semibold text-ft-gold hover:underline">
-                Edit entries
-              </a>
-            </p>
+            <p className="mt-1 text-[12px] text-neutral-400">{existingSummary}</p>
           ) : null}
         </div>
-        <button
-          ref={closeRef}
-          type="button"
-          aria-label="Close quick entry"
-          onClick={onClose}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-neutral-400 transition hover:border-ft-gold/40 hover:text-ft-gold"
-        >
-          ×
-        </button>
-      </div>
+      )}
 
       {!isLoggedIn ? (
         <p className="mt-3 text-xs text-neutral-400">

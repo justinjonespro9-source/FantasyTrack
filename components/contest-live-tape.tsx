@@ -85,10 +85,13 @@ function collapseWpsTapeItems(items: TapeItem[], windowMs = 2000): DisplayTapeIt
 export function ContestLiveTape({
   contestId,
   plain,
+  enabled = true,
 }: {
   contestId: string;
   /** Omit outer card when nested (e.g. mobile accordion). */
   plain?: boolean;
+  /** When false, pauses network polling (collapsed mobile accordion). */
+  enabled?: boolean;
 }) {
   const [items, setItems] = useState<TapeItem[]>([]);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -128,10 +131,13 @@ export function ContestLiveTape({
   }, [contestId]);
 
   useEffect(() => {
-    load();
-    const t = setInterval(load, 2500);
+    if (!enabled) return;
+    void load();
+    const t = setInterval(() => {
+      void load();
+    }, 2500);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, enabled]);
 
   // ✅ Use collapsed items for BOTH the headline and the vertical list
   const displayItems = useMemo(() => collapseWpsTapeItems(items), [items]);
