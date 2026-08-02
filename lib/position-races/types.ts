@@ -63,10 +63,22 @@ export type MarketSnapshot = {
   earliestLockSeconds: number | null;
 };
 
+export type SportRaceListItem = {
+  id: string;
+  title: string;
+  sport: string;
+  sportKey: string;
+  status: string;
+  startTime: string;
+  seriesName: string | null;
+  bucket: "open" | "upcoming" | "completed";
+};
+
 export type PositionRacesLobbyPayload = {
   week: number;
   season: number;
   generatedAt: string;
+  featuredSport: string;
   races: PositionRaceCard[];
   totals: {
     activeRaces: number;
@@ -78,6 +90,7 @@ export type PositionRacesLobbyPayload = {
   featuredLongShots: FeaturedPlayer[];
   playersToWatch: FeaturedPlayer[];
   marketSnapshot: MarketSnapshot;
+  /** @deprecated Prefer racesBySport — kept for older clients */
   otherContests: Array<{
     id: string;
     title: string;
@@ -86,5 +99,7 @@ export type PositionRacesLobbyPayload = {
     startTime: string;
     seriesName: string | null;
   }>;
+  racesBySport: Record<string, SportRaceListItem[]>;
+  availableSports: string[];
   movementAvailable: boolean;
 };

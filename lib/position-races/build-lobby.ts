@@ -8,10 +8,9 @@ import {
   formatSlateLabel,
 } from "@/lib/contest-presentation";
 import { compareLanesByProjectedRank } from "@/lib/admin/lane-sort";
-import {
-  loadOtherPublicContests,
-  selectWeekPositionRaces,
-} from "@/lib/position-races/select";
+import { selectWeekPositionRaces } from "@/lib/position-races/select";
+import { discoverPublicRacesBySport } from "@/lib/races/discover";
+import { getFeaturedRaceSport, getRaceSportPriority } from "@/lib/races/sport-config";
 import type {
   FeaturedPlayer,
   LobbyLaneRow,
@@ -314,7 +313,9 @@ export async function buildPositionRacesLobby(params?: {
   });
 
   const modules = buildFeaturedFromRaces(races);
-  const other = await loadOtherPublicContests(races.map((r) => r.contestId));
+  const racesBySport = await discoverPublicRacesBySport({
+    excludeIds: races.map((r) => r.contestId),
+  });
 
   const earliestLockSeconds = races
     .filter((r) => r.status === ContestStatus.PUBLISHED)
@@ -325,10 +326,18 @@ export async function buildPositionRacesLobby(params?: {
     (r) => r.status === ContestStatus.PUBLISHED && r.timeToLockSeconds === earliest
   );
 
+  const availableSports = getRaceSportPriority().filter((sport) => {
+    if (sport === "football" && races.length > 0) return true;
+    return (racesBySport[sport] ?? []).length > 0;
+  });
+
+  const flattenedOther = getRaceSportPriority().flatMap((sport) => racesBySport[sport] ?? []);
+
   return {
     week,
     season,
     generatedAt: new Date().toISOString(),
+    featuredSport: getFeaturedRaceSport(),
     races,
     totals: {
       activeRaces: races.filter((r) =>
@@ -342,14 +351,16 @@ export async function buildPositionRacesLobby(params?: {
     featuredLongShots: modules.featuredLongShots,
     playersToWatch: modules.playersToWatch,
     marketSnapshot: modules.marketSnapshot,
-    otherContests: other.map((c) => ({
+    otherContests: flattenedOther.map((c) => ({
       id: c.id,
       title: c.title,
       sport: c.sport,
       status: c.status,
-      startTime: c.startTime.toISOString(),
+      startTime: c.startTime,
       seriesName: c.seriesName,
     })),
+    racesBySport,
+    availableSports,
     movementAvailable: false,
   };
 }

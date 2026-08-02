@@ -38,16 +38,16 @@ export function DashboardOnboardingCard({ hasHistory }: Props) {
             Welcome to FantasyTrack
           </h2>
           <ul className="mt-3 space-y-1.5 text-xs leading-relaxed text-neutral-400">
-            <li>Pick runners in active contests.</li>
-            <li>Bet Win / Place / Show as odds move.</li>
-            <li>Track your results and climb the board.</li>
+            <li>Browse Races and pick your runners.</li>
+            <li>Enter Win / Place / Show as the free-play pool moves.</li>
+            <li>Track your results here on My Track.</li>
           </ul>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
-              href="/dashboard"
+              href="/races"
               className="rounded-full bg-ft-cta px-4 py-2 text-xs font-bold text-neutral-950 shadow-ft-inner transition hover:brightness-110"
             >
-              Enter the track
+              Browse races
             </Link>
             <Link
               href="/how-to-play"

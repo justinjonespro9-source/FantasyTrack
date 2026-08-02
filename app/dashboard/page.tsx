@@ -203,10 +203,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <div className="max-w-lg">
             <p className="ft-label text-ft-gold/80">Command center</p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-neutral-50 sm:text-3xl">
-              My track
+              My Track
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-neutral-500">
-              Live contests first — then series, standings, and commish notes below.
+              Your entries, series, standings, and notes — browse public races from Races.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 lg:flex lg:flex-wrap lg:justify-end">
@@ -215,7 +215,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <p className="mt-1 text-xl font-bold tabular-nums text-neutral-400">—</p>
             </div>
             <div className="rounded-ft border border-ft-gold/20 bg-ft-gold/[0.06] px-4 py-3 text-center shadow-inner sm:min-w-[7rem] sm:text-left">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">Open contests</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">Open races</p>
               <p className="mt-1 text-xl font-bold tabular-nums text-ft-gold">{openContestsCount ?? "—"}</p>
             </div>
             <div className="rounded-ft border border-white/[0.06] bg-black/40 px-4 py-3 text-center shadow-inner sm:min-w-[7rem] sm:text-left">
@@ -236,28 +236,44 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-ft-gold/40 to-transparent" aria-hidden />
           <div className="relative mb-6 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="ft-label text-ft-gold/90">Main event</p>
+              <p className="ft-label text-ft-gold/90">Your slate</p>
               <h2 className="mt-1 text-2xl font-bold tracking-tight text-neutral-50 sm:text-[1.65rem]">
-                Active contests
+                Active races
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-500">
-                Open or locked — enter the board to view lines, live scoring, and your slip.
+                Open or locked races in your series — open the board for lines, live scoring, and
+                your slip.
               </p>
             </div>
+            <Link
+              href="/races"
+              className="rounded-full border border-ft-gold/35 bg-black/40 px-4 py-2 text-xs font-semibold text-ft-gold transition hover:border-ft-gold/55 ft-focus-ring"
+            >
+              Browse races
+            </Link>
           </div>
           {allActiveContests.length === 0 ? (
             <div className="relative space-y-4 rounded-ft border border-white/[0.06] bg-black/35 p-5 text-sm text-neutral-400">
-              <p className="text-neutral-300">No active contests right now.</p>
-              <p className="text-sm leading-relaxed">
-                When contests open, they&apos;ll list here first. Join a series so you&apos;re ready when
-                races post.
+              <p className="text-neutral-300">
+                You have not entered a race yet. Browse Races to get started.
               </p>
-              <Link
-                href="/series/join"
-                className="inline-flex items-center justify-center rounded-full bg-ft-cta px-5 py-2.5 text-sm font-bold text-neutral-950 shadow-ft-inner transition hover:brightness-110"
-              >
-                Join a series
-              </Link>
+              <p className="text-sm leading-relaxed">
+                Series you join will also surface their open races here.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/races"
+                  className="inline-flex items-center justify-center rounded-full bg-ft-cta px-5 py-2.5 text-sm font-bold text-neutral-950 shadow-ft-inner transition hover:brightness-110"
+                >
+                  Browse races
+                </Link>
+                <Link
+                  href="/series/join"
+                  className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-neutral-200 transition hover:border-ft-gold/40"
+                >
+                  Join a series
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="relative space-y-3">
@@ -544,14 +560,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <div className="space-y-5 border-t border-white/[0.06] px-5 pb-5 pt-5 sm:px-6 sm:pb-6">
                   <section className="rounded-ft-lg border border-white/[0.06] bg-black/35 p-4 sm:p-5">
                     <div className="mb-4 border-b border-white/[0.06] pb-3">
-                      <h4 className="text-base font-bold text-neutral-50">Active contests</h4>
+                      <h4 className="text-base font-bold text-neutral-50">Active races</h4>
                       <p className="mt-1 text-xs text-neutral-500">In this series only.</p>
                     </div>
 
                     {activeContests.length === 0 ? (
                       <p className="text-sm leading-relaxed text-neutral-500">
-                        No active contests in this series right now. New contests for this
-                        series will show up here as soon as they open.
+                        No active races in this series right now. New races for this series
+                        will show up here as soon as they open.
                       </p>
                     ) : (
                       <div className="space-y-2.5">

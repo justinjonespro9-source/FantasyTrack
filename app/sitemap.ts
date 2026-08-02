@@ -6,14 +6,15 @@ const STATIC_ROUTES: Array<{
   changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
   priority: number;
 }> = [
-  { path: "", changeFrequency: "weekly", priority: 1 },
+  { path: "", changeFrequency: "weekly", priority: 0.9 },
+  { path: "/races", changeFrequency: "hourly", priority: 1 },
   { path: "/how-to-play", changeFrequency: "monthly", priority: 0.9 },
   { path: "/terms", changeFrequency: "monthly", priority: 0.3 },
   { path: "/privacy", changeFrequency: "monthly", priority: 0.3 },
   { path: "/cookies", changeFrequency: "monthly", priority: 0.3 },
   { path: "/disclaimer", changeFrequency: "monthly", priority: 0.3 },
   { path: "/leaderboard", changeFrequency: "daily", priority: 0.7 },
-  { path: "/dashboard", changeFrequency: "daily", priority: 0.8 },
+  { path: "/dashboard", changeFrequency: "daily", priority: 0.6 },
   { path: "/series", changeFrequency: "daily", priority: 0.7 },
 ];
 

@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
 import FantasyTrackHomePage from "./home/page";
 
-const title = "Week 1 Position Races";
+const title = "Player performance races";
 const description =
-  "FantasyTrack Week 1 Position Races — pick the QB, RB, WR, or TE who finishes Sunday on top. Free-play pooled markets with live odds.";
+  "FantasyTrack turns athlete performance into a live race. Explore NFL Week position races, follow the free-play market, and enter from Races.";
 
 export const metadata: Metadata = {
   title,
   description,
   alternates: {
-    canonical: "/",
+    // Same lobby as /races — keep discovery indexing on the canonical route.
+    canonical: "/races",
   },
   openGraph: {
     title,
     description,
-    url: "/",
+    url: "/races",
   },
   twitter: {
     title,

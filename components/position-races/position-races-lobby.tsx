@@ -2,12 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ClientOnly } from "@/components/client-only";
 import { POSITION_RACES_POLL_MS } from "@/lib/constants";
 import { formatCoins, formatDateTime } from "@/lib/format";
 import type { PositionRacesLobbyPayload } from "@/lib/position-races/types";
 import { PositionIcon, POSITION_THEME } from "@/components/position-races/position-theme";
+import {
+  RACE_SPORT_LABELS,
+  getRaceSportPriority,
+  parseSportFilter,
+  type RaceSportKey,
+} from "@/lib/races/sport-config";
 
 function formatCountdown(totalSeconds: number | null | undefined): string {
   if (totalSeconds == null || totalSeconds <= 0) return "Locked";
@@ -33,14 +39,30 @@ function statusTone(status: string): string {
 
 export default function PositionRacesLobby({
   initialData,
+  initialSport = "all",
+  variant = "races",
 }: {
   initialData: PositionRacesLobbyPayload;
+  initialSport?: string;
+  /** home: primary CTA sends users to /races; races: in-page anchors */
+  variant?: "home" | "races";
 }) {
   const [data, setData] = useState(initialData);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const sportFilter = parseSportFilter(initialSport);
 
   const anyOpen = data.races.some((r) => r.status === "PUBLISHED");
+  const featuredIsFootball = (data.featuredSport || "football") === "football";
+  const showFeaturedBoards =
+    sportFilter === "all" || (sportFilter === "football" && featuredIsFootball);
+
+  const filterOptions = useMemo(() => {
+    const available = new Set(data.availableSports ?? []);
+    if (data.races.length > 0) available.add("football");
+    const ordered = getRaceSportPriority().filter((s) => available.has(s));
+    return ["all" as const, ...ordered];
+  }, [data.availableSports, data.races.length]);
 
   const refresh = useCallback(async () => {
     try {
@@ -130,12 +152,21 @@ export default function PositionRacesLobby({
               participant entries determine the live odds.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
-              <a
-                href="#boards"
-                className="rounded-full bg-ft-cta px-5 py-2.5 text-sm font-bold text-neutral-950 shadow-ft-inner transition hover:brightness-110 ft-focus-ring"
-              >
-                View the Races
-              </a>
+              {variant === "home" ? (
+                <Link
+                  href="/races#boards"
+                  className="rounded-full bg-ft-cta px-5 py-2.5 text-sm font-bold text-neutral-950 shadow-ft-inner transition hover:brightness-110 ft-focus-ring"
+                >
+                  Explore Races
+                </Link>
+              ) : (
+                <a
+                  href="#boards"
+                  className="rounded-full bg-ft-cta px-5 py-2.5 text-sm font-bold text-neutral-950 shadow-ft-inner transition hover:brightness-110 ft-focus-ring"
+                >
+                  View the Races
+                </a>
+              )}
               <Link
                 href="/how-to-play"
                 className="rounded-full border border-white/15 bg-black/40 px-5 py-2.5 text-sm font-semibold text-neutral-100 transition hover:border-ft-gold/40 hover:text-ft-gold ft-focus-ring"
@@ -187,13 +218,45 @@ export default function PositionRacesLobby({
         {error ? <p className="text-amber-300/90">{error}</p> : null}
       </div>
 
+      {/* Sport filter — restrained, below hero */}
+      {filterOptions.length > 2 ? (
+        <div className="flex flex-wrap items-center gap-2" role="navigation" aria-label="Race sports">
+          {filterOptions.map((sport) => {
+            const href =
+              sport === "all"
+                ? variant === "home"
+                  ? "/races"
+                  : "/races"
+                : `/races?sport=${sport}`;
+            const active = sportFilter === sport;
+            const label = sport === "all" ? "All" : RACE_SPORT_LABELS[sport as RaceSportKey];
+            return (
+              <Link
+                key={sport}
+                href={href}
+                className={[
+                  "rounded-full border px-3 py-1 text-xs font-semibold transition ft-focus-ring",
+                  active
+                    ? "border-ft-gold/45 bg-ft-gold/15 text-ft-gold"
+                    : "border-white/10 bg-black/30 text-neutral-400 hover:border-ft-gold/30 hover:text-neutral-200",
+                ].join(" ")}
+                aria-current={active ? "page" : undefined}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+
       {/* Quad boards */}
+      {showFeaturedBoards ? (
       <section id="boards" className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="ft-label text-neutral-500">Live boards</p>
+            <p className="ft-label text-neutral-500">Featured</p>
             <h2 className="text-xl font-bold tracking-tight text-neutral-50 sm:text-2xl">
-              Position race markets
+              NFL Week {data.week} Position Races
             </h2>
           </div>
         </div>
@@ -324,8 +387,10 @@ export default function PositionRacesLobby({
           </div>
         )}
       </section>
+      ) : null}
 
-      {/* Supporting modules */}
+      {/* Supporting modules — with featured football boards */}
+      {showFeaturedBoards ? (
       <section className="grid gap-4 lg:grid-cols-3">
         <ModuleCard
           title={showLongShots ? "Featured Long Shots" : "Players to Watch"}
@@ -415,46 +480,94 @@ export default function PositionRacesLobby({
           </dl>
         </ModuleCard>
       </section>
-
-      {/* Other contests */}
-      {data.otherContests.length > 0 ? (
-        <section className="space-y-3 border-t border-white/[0.06] pt-8">
-          <div>
-            <p className="ft-label text-neutral-500">Also on FantasyTrack</p>
-            <h2 className="text-lg font-bold text-neutral-50">Other contests &amp; series</h2>
-          </div>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {data.otherContests.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/contest/${c.id}`}
-                  className="flex items-center justify-between gap-3 rounded-ft border border-white/[0.07] bg-black/30 px-3 py-2.5 transition hover:border-ft-gold/30 ft-focus-ring"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-neutral-100">{c.title}</p>
-                    <p className="text-[11px] text-neutral-500">
-                      {c.seriesName ?? c.sport}
-                      <span className="mx-1.5 text-neutral-700">·</span>
-                      <ClientOnly>
-                        <span>{formatDateTime(new Date(c.startTime))}</span>
-                      </ClientOnly>
-                    </p>
-                  </div>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase ${statusTone(c.status)}`}>
-                    {c.status === "PUBLISHED" ? "Open" : c.status === "LOCKED" ? "Locked" : c.status}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-neutral-500">
-            Looking for your series home?{" "}
-            <Link href="/dashboard" className="text-ft-gold hover:underline">
-              Enter the Track
-            </Link>
-          </p>
-        </section>
       ) : null}
+
+      {/* Sport race lists — hide empty sports */}
+      {getRaceSportPriority()
+        .filter((sport) => {
+          if (sportFilter !== "all" && sportFilter !== sport) return false;
+          if (sport === "football" && showFeaturedBoards) {
+            // Additional football races beyond featured boards
+            return (data.racesBySport?.football ?? []).length > 0;
+          }
+          return (data.racesBySport?.[sport] ?? []).length > 0;
+        })
+        .map((sport) => {
+          const list = data.racesBySport?.[sport] ?? [];
+          const open = list.filter((r) => r.bucket === "open");
+          const upcoming = list.filter((r) => r.bucket === "upcoming");
+          const completed = list.filter((r) => r.bucket === "completed");
+          return (
+            <section
+              key={sport}
+              className="space-y-3 border-t border-white/[0.06] pt-8"
+              id={`sport-${sport}`}
+            >
+              <div>
+                <p className="ft-label text-neutral-500">Browse</p>
+                <h2 className="text-lg font-bold text-neutral-50">
+                  {RACE_SPORT_LABELS[sport]} races
+                </h2>
+              </div>
+              <SportRaceGroup title="Open races" items={open} />
+              <SportRaceGroup title="Upcoming races" items={upcoming} />
+              <SportRaceGroup title="Completed races" items={completed} />
+            </section>
+          );
+        })}
+
+      <p className="text-xs text-neutral-500">
+        Looking for your entries and series?{" "}
+        <Link href="/dashboard" className="text-ft-gold hover:underline">
+          My Track
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+function SportRaceGroup({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{
+    id: string;
+    title: string;
+    status: string;
+    startTime: string;
+    seriesName: string | null;
+    sport: string;
+  }>;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</h3>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {items.map((c) => (
+          <li key={c.id}>
+            <Link
+              href={`/contest/${c.id}`}
+              className="flex items-center justify-between gap-3 rounded-ft border border-white/[0.07] bg-black/30 px-3 py-2.5 transition hover:border-ft-gold/30 ft-focus-ring"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-neutral-100">{c.title}</p>
+                <p className="text-[11px] text-neutral-500">
+                  {c.seriesName ?? c.sport}
+                  <span className="mx-1.5 text-neutral-700">·</span>
+                  <ClientOnly>
+                    <span>{formatDateTime(new Date(c.startTime))}</span>
+                  </ClientOnly>
+                </p>
+              </div>
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase ${statusTone(c.status)}`}>
+                {c.status === "PUBLISHED" ? "Open" : c.status === "LOCKED" ? "Locked" : "Final"}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

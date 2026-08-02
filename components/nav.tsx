@@ -2,22 +2,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { getCurrentSession } from "@/lib/session";
 import SignOutButton from "@/components/ui/signout-button";
-
-const navLink =
-  "whitespace-nowrap rounded-sm text-sm text-neutral-400 transition duration-ft hover:text-ft-gold ft-focus-ring focus-visible:text-ft-gold";
+import { NavLinks } from "@/components/nav-links";
 
 export default async function Nav() {
   const session = await getCurrentSession();
+  const isAdmin = Boolean(session?.user?.isAdmin);
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ft-ink/80 shadow-ft-card backdrop-blur-xl">
-      {/* Desktop / tablet header — max-w aligns with <main> */}
       <div className="mx-auto hidden max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-5 md:flex">
         <Link
           href="/"
-          className="shrink-0 flex items-center rounded-sm transition duration-ft hover:opacity-95 ft-focus-ring"
+          className="flex shrink-0 items-center rounded-sm transition duration-ft hover:opacity-95 ft-focus-ring"
         >
-          <span className="relative block h-[44px] sm:h-[48px] lg:h-[60px] w-[260px] sm:w-[320px] lg:w-[380px] overflow-hidden">
+          <span className="relative block h-[44px] w-[260px] overflow-hidden sm:h-[48px] sm:w-[320px] lg:h-[60px] lg:w-[380px]">
             <Image
               src="/fantasytrack-wordmark-header-clean.png"
               alt="FantasyTrack"
@@ -33,33 +31,14 @@ export default async function Nav() {
         </Link>
 
         <div className="flex flex-1 items-center justify-end gap-4 lg:gap-8">
-          <nav className="flex items-center gap-6 text-sm lg:gap-8">
-            <Link href="/#boards" className={navLink}>
-              Position Races
-            </Link>
-            <Link href="/dashboard" className={navLink}>
-              My Track
-            </Link>
-            <Link href="/how-to-play" className={navLink}>
-              How it Works
-            </Link>
-            <Link href="/leaderboard" className={navLink}>
-              Leaderboard
-            </Link>
-            <Link href="/me" className={navLink}>
-              Profile
-            </Link>
-            {session?.user?.isAdmin && (
-              <Link href="/admin" className={navLink}>
-                Admin
-              </Link>
-            )}
-          </nav>
+          <NavLinks isAdmin={isAdmin} />
 
           <div className="flex items-center gap-3 border-l border-white/[0.08] pl-4 text-sm">
             {session?.user ? (
               <>
-                <span className="max-w-[10rem] truncate text-neutral-300">{session.user.displayName}</span>
+                <span className="max-w-[10rem] truncate text-neutral-300">
+                  {session.user.displayName}
+                </span>
                 <SignOutButton />
               </>
             ) : (
@@ -82,10 +61,9 @@ export default async function Nav() {
         </div>
       </div>
 
-      {/* Mobile header */}
       <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:px-5 md:hidden">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="shrink-0 flex items-center rounded-sm ft-focus-ring">
+          <Link href="/" className="flex shrink-0 items-center rounded-sm ft-focus-ring">
             <span className="relative block h-[34px] w-[220px] overflow-hidden">
               <Image
                 src="/fantasytrack-wordmark-header-clean.png"
@@ -104,7 +82,9 @@ export default async function Nav() {
           <div className="flex items-center gap-2 text-xs">
             {session?.user ? (
               <>
-                <span className="max-w-[7rem] truncate text-neutral-300">{session.user.displayName}</span>
+                <span className="max-w-[7rem] truncate text-neutral-300">
+                  {session.user.displayName}
+                </span>
                 <SignOutButton />
               </>
             ) : (
@@ -126,28 +106,9 @@ export default async function Nav() {
           </div>
         </div>
 
-        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/[0.05] pt-2 text-xs">
-          <Link href="/#boards" className={navLink}>
-            Position Races
-          </Link>
-          <Link href="/dashboard" className={navLink}>
-            My Track
-          </Link>
-          <Link href="/how-to-play" className={navLink}>
-            How it Works
-          </Link>
-          <Link href="/leaderboard" className={navLink}>
-            Leaderboard
-          </Link>
-          <Link href="/me" className={navLink}>
-            Profile
-          </Link>
-          {session?.user?.isAdmin && (
-            <Link href="/admin" className={navLink}>
-              Admin
-            </Link>
-          )}
-        </nav>
+        <div className="border-t border-white/[0.05] pt-2">
+          <NavLinks isAdmin={isAdmin} compact />
+        </div>
       </div>
     </header>
   );
