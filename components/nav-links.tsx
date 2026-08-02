@@ -54,7 +54,12 @@ export function NavLinks({
         Profile
       </Link>
       {isAdmin ? (
-        <Link href="/admin" className={linkClass(onAdmin)} aria-current={onAdmin ? "page" : undefined}>
+        <Link
+          href="/admin"
+          className={linkClass(onAdmin)}
+          aria-current={onAdmin ? "page" : undefined}
+          data-nav="admin"
+        >
           Admin
         </Link>
       ) : null}

@@ -16,6 +16,11 @@ import {
 } from "@/lib/constants";
 import { formatCoins, formatDateTime, formatMultiple } from "@/lib/format";
 import { formatContestLifecycleLabel } from "@/lib/contest-presentation";
+import { formatLockCountdown } from "@/lib/contest/lock-countdown";
+import {
+  contestHasLiveFantasyData,
+  getContestPageEmphasis,
+} from "@/lib/contest/page-emphasis";
 import { ShareContestButton } from "@/components/contest/share-contest-button";
 import type { OddsPayload } from "@/lib/market";
 import { collapseWps, type BetRow } from "@/lib/wps";
@@ -58,6 +63,7 @@ type ContestMeta = {
   supportingCopy?: string | null;
   runnerCount?: number;
   entryCount?: number;
+  seriesName?: string | null;
 };
 
 type MyBetView = {
@@ -90,6 +96,8 @@ type ContestBoardProps = {
   liveGameProgress?: number | null;
   /** From live BoxScore pull (e.g. InProgress, Final). Used for progress label when present. */
   liveGameStatus?: string | null;
+  /** Right-rail modules (tape, discussion, rules). */
+  children?: ReactNode;
 };
 
 type WinHeadline = {
@@ -140,14 +148,6 @@ function getSortablePlayerName(name: string) {
 
 const MAX_WPS_BET_AMOUNT = 30;
 const markets: Market[] = [Market.WIN, Market.PLACE, Market.SHOW];
-
-function formatCountdown(totalSeconds: number): string {
-  if (totalSeconds <= 0) return "Locked";
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${hours}h ${minutes}m ${seconds}s`;
-}
 
 function formatLaneDisplayName(
   name: string,
@@ -345,6 +345,7 @@ export default function ContestBoard({
   contestMeta,
   liveGameProgress,
   liveGameStatus,
+  children,
 }: ContestBoardProps) {
   const [selectedMarket, setSelectedMarket] = useState<Market>(Market.WIN);
   const [selectedLaneId, setSelectedLaneId] = useState<string>(
@@ -368,9 +369,11 @@ export default function ContestBoard({
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [mobileBetTab, setMobileBetTab] = useState<"slip" | "bets">("slip");
 
-  // Inline slip opened under a specific odds row (live board)
+  // Inline slip opened under a specific odds row
   const [inlineSlipLaneId, setInlineSlipLaneId] = useState<string | null>(null);
   const [openScoringLaneId, setOpenScoringLaneId] = useState<string | null>(null);
+  const [marketUpdatedAt, setMarketUpdatedAt] = useState<Date>(() => new Date());
+  const [liveBoardExpanded, setLiveBoardExpanded] = useState(false);
 
   const myBetsScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -460,7 +463,6 @@ export default function ContestBoard({
 
   const hasPoolEntries = useMemo(() => poolHasEntries(odds), [odds]);
   const winPoolTotal = odds.poolTotals.WIN ?? 0;
-  const meaningfulPool = winPoolTotal >= MEANINGFUL_POOL_THRESHOLD;
 
   const marketRanks = useMemo(() => {
     const ranked = [...lanes].sort((a, b) => {
@@ -791,6 +793,7 @@ export default function ContestBoard({
     if (res.ok) {
       const payload = (await res.json()) as OddsPayload;
       setOdds(payload);
+      setMarketUpdatedAt(new Date());
     }
   }
 
@@ -984,269 +987,417 @@ export default function ContestBoard({
   const trackConditionsLabel = formatTrackConditionsLabel(trackConditions);
   const displayHeadline = contestMeta?.headline?.trim() || title;
   const lifecycleLabel = formatContestLifecycleLabel(status);
+  const lifecycleUpper = lifecycleLabel.toUpperCase();
   const runnerCount = contestMeta?.runnerCount ?? lanes.length;
-  const boardEntryCount = contestMeta?.entryCount;
+  const boardEntryCount = contestMeta?.entryCount ?? 0;
   const totalPoolAmount =
     (odds.poolTotals.WIN ?? 0) + (odds.poolTotals.PLACE ?? 0) + (odds.poolTotals.SHOW ?? 0);
+  const hasLiveFantasy = contestHasLiveFantasyData(lanes);
+  const pageEmphasis = getContestPageEmphasis({
+    status,
+    hasLiveFantasyData: hasLiveFantasy,
+    liveGameStatus,
+  });
+  const lockCountdownLabel = formatLockCountdown(
+    odds.timeToLockSeconds,
+    new Date(startTime),
+    (d) => formatDateTime(d).replace(", ", " at ")
+  );
+  const mostBackedLane = (() => {
+    let best: LaneView | null = null;
+    let bestAmt = -1;
+    for (const lane of lanes) {
+      const amt = odds.laneTotals[lane.id]?.WIN ?? 0;
+      if (amt > bestAmt) {
+        bestAmt = amt;
+        best = lane;
+      }
+    }
+    return bestAmt > 0 ? best : null;
+  })();
+  const marketUpdatedLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(marketUpdatedAt);
+  const statusPillClass =
+    status === ContestStatus.PUBLISHED
+      ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-200"
+      : status === ContestStatus.LOCKED
+        ? "border-ft-gold/40 bg-ft-gold/10 text-ft-gold"
+        : status === ContestStatus.SETTLED
+          ? "border-white/15 bg-white/[0.06] text-neutral-200"
+          : "border-neutral-600/70 bg-neutral-900/80 text-neutral-200";
+
+  const liveBoardNode = (
+    <LiveRaceBoard
+      contestId={contestId}
+      title={title}
+      sport={sport}
+      startTime={startTime}
+      endTime={endTime}
+      lanes={lanes.map((lane) => ({
+        id: lane.id,
+        name: lane.name,
+        team: lane.team ?? null,
+        position: lane.position ?? null,
+        fantasyPoints: lane.liveFantasyPoints ?? lane.fantasyPoints ?? null,
+        status: lane.status,
+      }))}
+      userPickLaneIds={isLoggedIn ? userPickLaneIds : undefined}
+      liveGameProgress={liveGameProgress ?? undefined}
+      liveGameStatus={liveGameStatus ?? undefined}
+      presentation={pageEmphasis === "PRE_RACE" ? "compact" : "full"}
+      expanded={liveBoardExpanded}
+      onExpandedChange={setLiveBoardExpanded}
+    />
+  );
+
+  const enterRaceRail = (
+    <div className="rounded-ft-lg border border-ft-gold/30 bg-gradient-to-b from-ft-gold/[0.08] to-black/40 p-4 shadow-ft-card">
+      {!isLoggedIn ? (
+        <>
+          <p className="text-sm font-bold text-neutral-50">Enter Race</p>
+          <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+            Free-play Win / Place / Show pools. Log in to stake your weekly allocation.
+          </p>
+          <Link
+            href="/auth/login"
+            className="ft-btn-primary mt-3 flex w-full items-center justify-center px-4 py-2.5 text-sm font-bold"
+          >
+            Log in to enter
+          </Link>
+        </>
+      ) : myBets.length > 0 ? (
+        <>
+          <p className="text-sm font-bold text-neutral-50">Your ticket</p>
+          <p className="mt-1 text-xs text-neutral-400">
+            Entered {formatCoins(coinsUsedInContest)} ·{" "}
+            <span className="text-ft-gold tabular-nums">
+              {formatCoins(odds.myCoinsRemainingInContest)} remaining
+            </span>
+          </p>
+          <ul className="mt-3 space-y-1.5 text-xs text-neutral-300">
+            {ticketsByLane.slice(0, 4).map((g) => (
+              <li key={g.laneId} className="flex justify-between gap-2">
+                <span className="truncate">{g.laneName}</span>
+                <span className="shrink-0 tabular-nums text-neutral-100">
+                  {formatCoins(laneTotals.get(g.laneId) ?? 0)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <a
+            href="#bet-slip"
+            className="mt-3 inline-flex text-xs font-semibold text-ft-gold hover:underline"
+          >
+            {bettingClosed ? "Review ticket" : "Add or edit entries"}
+          </a>
+        </>
+      ) : (
+        <>
+          <p className="text-sm font-bold text-neutral-50">Enter Race</p>
+          <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+            Win / Place / Show — pool odds move with free-play entries until lock.
+          </p>
+          <p className="mt-2 text-xs text-neutral-500">
+            Remaining allocation{" "}
+            <span className="font-semibold tabular-nums text-ft-gold">
+              {formatCoins(odds.myCoinsRemainingInContest)}
+            </span>
+          </p>
+          <a
+            href="#bet-slip"
+            className="ft-btn-primary mt-3 flex w-full items-center justify-center px-4 py-2.5 text-sm font-bold"
+          >
+            {bettingClosed ? "Entries closed" : "Enter Race"}
+          </a>
+        </>
+      )}
+    </div>
+  );
 
   return (
-    <section className="relative isolate overflow-hidden rounded-ft-lg border border-white/[0.07] bg-ft-gradient-panel p-5 shadow-ft-card backdrop-blur-sm sm:p-6">
-      <div className="pointer-events-none absolute inset-0 z-0 bg-ft-radial-gold opacity-90" />
-      <div className="relative z-10 space-y-6">
-      <header className="flex flex-col gap-4 border-b border-white/[0.06] pb-5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div className="min-w-0 space-y-2">
-          <h2 className="text-xl font-bold tracking-tight text-neutral-50 sm:text-2xl">
-            {displayHeadline}
-          </h2>
-          {contestMeta?.supportingCopy ? (
-            <p className="max-w-2xl text-sm leading-relaxed text-neutral-300">
-              {contestMeta.supportingCopy}
-            </p>
-          ) : null}
-          <p className="ft-label text-neutral-500 sm:text-[11px]">
-            Locks{" "}
-            <ClientOnly>
-              <span>{formatDateTime(new Date(startTime))}</span>
-            </ClientOnly>{" "}
-            · {lifecycleLabel}
-          </p>
-          <div className="flex flex-wrap gap-2 pt-0.5">
-            {contestMeta?.week != null ? (
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-300">
-                NFL Week {contestMeta.week}
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,28%)] lg:items-start lg:gap-6">
+      <div className="min-w-0 space-y-4">
+        <section className="relative overflow-hidden rounded-ft-lg border border-white/[0.07] bg-ft-gradient-panel px-4 py-3.5 shadow-ft-card sm:px-5 sm:py-4">
+          <div className="pointer-events-none absolute inset-0 bg-ft-radial-gold opacity-70" />
+          <div className="relative space-y-3">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[11px] text-neutral-400">
+              <span
+                className={[
+                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                  statusPillClass,
+                ].join(" ")}
+              >
+                {lifecycleUpper}
               </span>
-            ) : (
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-300">
-                {sportLabel}
+              <span className="hidden text-neutral-600 sm:inline">·</span>
+              <span>
+                {bettingClosed
+                  ? "Entries closed"
+                  : `Entries accepted until ${formatDateTime(new Date(startTime))}`}
               </span>
-            )}
-            {contestMeta?.position ? (
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-300">
-                {contestMeta.position}
-              </span>
-            ) : null}
-            {contestMeta?.slateLabel ? (
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-                {contestMeta.slateLabel}
-              </span>
-            ) : (
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-                {trackConditionsLabel}
-              </span>
-            )}
-            {contestMeta?.scoringLabel ? (
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-                {contestMeta.scoringLabel}
-              </span>
-            ) : null}
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-              {runnerCount} runners
-            </span>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-              Pool {formatCoins(totalPoolAmount)} free-play
-            </span>
-            {boardEntryCount != null ? (
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-                {boardEntryCount} entries
-              </span>
-            ) : null}
+              {contestMeta?.seriesName ? (
+                <>
+                  <span className="hidden text-neutral-600 sm:inline">·</span>
+                  <span className="text-neutral-500">
+                    Counts toward{" "}
+                    <span className="font-medium text-neutral-300">{contestMeta.seriesName}</span>
+                  </span>
+                </>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 space-y-1.5">
+                <h1 className="text-xl font-bold tracking-tight text-neutral-50 sm:text-2xl">
+                  {displayHeadline}
+                </h1>
+                {contestMeta?.supportingCopy ? (
+                  <p className="max-w-xl text-sm leading-snug text-neutral-300">
+                    {contestMeta.supportingCopy}
+                  </p>
+                ) : null}
+                <p className="text-xs text-neutral-500">
+                  Rankings organize the field; the pool sets the odds.
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {contestMeta?.week != null ? (
+                    <span className="rounded border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-300">
+                      NFL Week {contestMeta.week}
+                    </span>
+                  ) : (
+                    <span className="rounded border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-300">
+                      {sportLabel}
+                    </span>
+                  )}
+                  {contestMeta?.position ? (
+                    <span className="rounded border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-300">
+                      {contestMeta.position}
+                    </span>
+                  ) : null}
+                  {contestMeta?.scoringLabel ? (
+                    <span className="rounded border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+                      {contestMeta.scoringLabel}
+                    </span>
+                  ) : null}
+                  {contestMeta?.slateLabel ? (
+                    <span className="rounded border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+                      {contestMeta.slateLabel.replace(/ games$/i, "")}
+                    </span>
+                  ) : trackConditionsLabel ? (
+                    <span className="rounded border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+                      {trackConditionsLabel}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-stretch lg:flex-col lg:items-end">
+                <div className="grid grid-cols-3 gap-2 sm:min-w-[17rem]">
+                  <div className="rounded border border-white/[0.08] bg-black/35 px-2.5 py-2 text-center">
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-neutral-500">
+                      Pool
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold tabular-nums text-neutral-50">
+                      {formatCoins(totalPoolAmount)}
+                    </p>
+                  </div>
+                  <div className="rounded border border-white/[0.08] bg-black/35 px-2.5 py-2 text-center">
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-neutral-500">
+                      Entries
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold tabular-nums text-neutral-50">
+                      {boardEntryCount}
+                    </p>
+                  </div>
+                  <div className="rounded border border-white/[0.08] bg-black/35 px-2.5 py-2 text-center">
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-neutral-500">
+                      Runners
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold tabular-nums text-neutral-50">
+                      {runnerCount}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <ShareContestButton
+                    contestId={contestId}
+                    contestTitle={displayHeadline}
+                    className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-neutral-300 transition hover:border-ft-gold/35 hover:text-ft-gold"
+                  />
+                  <Link
+                    href="/how-to-play"
+                    className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-neutral-300 transition hover:border-ft-gold/35 hover:text-ft-gold"
+                  >
+                    How to Play
+                  </Link>
+                  <span
+                    className={[
+                      "rounded-full border px-2.5 py-1 text-[11px] font-semibold tabular-nums",
+                      bettingClosed
+                        ? "border-white/10 text-neutral-500"
+                        : "border-ft-gold/30 bg-ft-gold/5 text-ft-gold",
+                    ].join(" ")}
+                  >
+                    {bettingClosed ? "Entries closed" : lockCountdownLabel}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 text-xs sm:justify-end sm:text-sm">
-          <ShareContestButton contestId={contestId} contestTitle={displayHeadline} />
-          <Link href="/how-to-play" className="ft-btn-ghost px-3 py-1.5 text-xs sm:text-sm">
-            How to Play
-          </Link>
+        <div className="lg:hidden">{enterRaceRail}</div>
 
-          {!bettingClosed ? (
-            <div className="rounded-full border border-ft-gold/30 bg-ft-gold/5 px-3 py-1.5 text-xs text-neutral-200 shadow-ft-inner sm:text-sm">
-              <span className="hidden text-neutral-500 sm:inline">Locks in </span>
-              <span className="font-bold tabular-nums text-ft-gold">
-                {formatCountdown(odds.timeToLockSeconds)}
-              </span>
-            </div>
-          ) : (
-            <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-neutral-400 sm:text-sm">
-              Entries closed
-            </div>
-          )}
-        </div>
-      </header>
+        {pageEmphasis === "LIVE" || pageEmphasis === "FINAL" ? (
+          <div className="relative rounded-ft-lg border border-ft-gold/20 bg-black/20 p-1 sm:p-1.5">
+            {liveBoardNode}
+          </div>
+        ) : null}
 
-      <p className="rounded-ft border border-white/[0.06] bg-black/30 px-3 py-2.5 text-xs leading-relaxed text-neutral-400">
-        FantasyTrack uses a pooled market. Rankings and projections organize the field, while
-        participant entries determine the live odds. Amounts shown are free-play currency — not
-        real-money wagering.
-      </p>
+        {bettingClosed && pageEmphasis === "PRE_RACE" ? (
+          <div className="rounded-ft border border-white/10 bg-black/40 px-3 py-2 text-xs text-neutral-400">
+            Betting is closed — this race no longer accepts entries.
+          </div>
+        ) : null}
 
-      {/* Hero: live standings — primary focal point */}
-      <div className="relative">
         <div
-          className="pointer-events-none absolute -inset-px rounded-ft-lg bg-gradient-to-b from-ft-gold/15 via-transparent to-transparent opacity-80"
-          aria-hidden
-        />
-        <div className="relative rounded-ft-lg border border-ft-gold/20 bg-black/20 p-1 shadow-[0_0_48px_-8px_rgba(212,175,55,0.18)] sm:p-1.5">
-          <LiveRaceBoard
-            contestId={contestId}
-            title={title}
-            sport={sport}
-            startTime={startTime}
-            endTime={endTime}
-            lanes={lanes.map((lane) => ({
-              id: lane.id,
-              name: lane.name,
-              team: lane.team ?? null,
-              position: lane.position ?? null,
-              fantasyPoints: lane.liveFantasyPoints ?? lane.fantasyPoints ?? null,
-              status: lane.status,
-            }))}
-            userPickLaneIds={isLoggedIn ? userPickLaneIds : undefined}
-            liveGameProgress={liveGameProgress ?? undefined}
-            liveGameStatus={liveGameStatus ?? undefined}
-          />
-        </div>
-      </div>
-
-      {bettingClosed ? (
-        <div className="rounded-ft border border-white/10 bg-black/40 p-4 text-sm text-neutral-300 shadow-inner">
-          <div className="font-semibold text-neutral-100">Betting is closed</div>
-          <div className="mt-1 text-neutral-500">
-            This contest has been locked and can no longer accept wagers.
-          </div>
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.06] pt-6">
-        <div className="space-y-1.5">
-          <p className="ft-label text-neutral-500">Markets</p>
-          <p className="text-lg font-bold tracking-tight text-neutral-50">Odds &amp; pools</p>
-          <p className="max-w-lg text-xs leading-relaxed text-neutral-500">
-            {meaningfulPool
-              ? "Live pool odds and market rank move with free-play entries until lock."
-              : "Projected rank organizes the field until the pool has meaningful entries."}{" "}
-            Closing odds are preserved at lock.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs sm:text-sm">
-          <label htmlFor="lane-sort" className="text-neutral-500">
-            Sort
-          </label>
-          <select
-            id="lane-sort"
-            value={sortKey}
-            onChange={(event) => {
-              const nextSort = event.target.value as LaneSortKey;
-              setSortKey(nextSort);
-            }}
-            className="rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-neutral-100 transition hover:border-ft-gold/30"
-          >
-            <option value="MARKET_RANK">Market Rank</option>
-            <option value="PROJECTED_RANK">Projected Rank</option>
-            <option value="CURRENT_ODDS">Current Odds</option>
-            <option value="MOST_BACKED">Most Backed</option>
-            <option value="PLAYER">Player A-Z</option>
-          </select>
-        </div>
-      </div>
-
-      {isLoggedIn && (
-        <div className="rounded-ft border border-white/[0.07] bg-black/35 px-4 py-3 text-sm shadow-inner">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-neutral-500">
-              <span>
-                Required{" "}
-                <span className="ml-1 font-semibold tabular-nums text-neutral-100">
-                  {formatCoins(REQUIRED_TOTAL_WAGER_PER_CONTEST)}
-                </span>
-              </span>
-              <span>
-                Wagered{" "}
-                <span className="ml-1 font-semibold tabular-nums text-neutral-100">
-                  {formatCoins(coinsUsedInContest)}
-                </span>
-              </span>
-              <span>
-                Remaining{" "}
-                <span className="ml-1 font-semibold tabular-nums text-ft-gold">
-                  {formatCoins(odds.myCoinsRemainingInContest)}
-                </span>
-              </span>
+          id="odds-board"
+          className="sticky top-[4.5rem] z-20 -mx-1 space-y-2 border-b border-white/[0.06] bg-ft-ink/95 px-1 py-2 backdrop-blur-md sm:top-20"
+        >
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-base font-bold tracking-tight text-neutral-50">Odds &amp; pools</p>
+              <p className="mt-0.5 max-w-xl text-[11px] leading-snug text-neutral-500">
+                Projected Rank organizes the field. Participant entries determine live odds and
+                Market Rank.
+              </p>
             </div>
-            {coinsUsedInContest >= REQUIRED_TOTAL_WAGER_PER_CONTEST && (
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="hidden tabular-nums text-neutral-500 sm:inline">
+                Pool {formatCoins(totalPoolAmount)}
+              </span>
+              <label htmlFor="lane-sort" className="text-neutral-500">
+                Sort
+              </label>
+              <select
+                id="lane-sort"
+                value={sortKey}
+                onChange={(event) => {
+                  const nextSort = event.target.value as LaneSortKey;
+                  setSortKey(nextSort);
+                }}
+                className="rounded-full border border-white/10 bg-black/40 px-2.5 py-1 text-neutral-100 transition hover:border-ft-gold/30"
+              >
+                <option value="MARKET_RANK">Market Rank</option>
+                <option value="PROJECTED_RANK">Projected Rank</option>
+                <option value="CURRENT_ODDS">Current Odds</option>
+                <option value="MOST_BACKED">Most Backed</option>
+                <option value="PLAYER">Player A-Z</option>
+              </select>
+              {!bettingClosed ? (
+                <a
+                  href="#bet-slip"
+                  className="rounded-full border border-ft-gold/35 bg-ft-gold/10 px-2.5 py-1 text-[11px] font-semibold text-ft-gold transition hover:bg-ft-gold/15"
+                >
+                  Enter
+                </a>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 rounded border border-white/[0.07] bg-black/40 px-3 py-2 text-[11px] text-neutral-400 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1">
+            <span>
+              Pool <span className="font-semibold tabular-nums text-neutral-100">{formatCoins(totalPoolAmount)}</span>
+            </span>
+            <span className="hidden sm:inline text-neutral-600">·</span>
+            <span>
+              <span className="font-semibold tabular-nums text-neutral-100">{boardEntryCount}</span>{" "}
+              entries
+            </span>
+            {isLoggedIn ? (
+              <>
+                <span className="hidden sm:inline text-neutral-600">·</span>
+                <span>
+                  Your entries{" "}
+                  <span className="font-semibold tabular-nums text-neutral-100">
+                    {formatCoins(coinsUsedInContest)}
+                  </span>
+                </span>
+                <span className="hidden sm:inline text-neutral-600">·</span>
+                <span>
+                  <span className="font-semibold tabular-nums text-ft-gold">
+                    {formatCoins(odds.myCoinsRemainingInContest)}
+                  </span>{" "}
+                  remaining
+                </span>
+              </>
+            ) : null}
+            {mostBackedLane ? (
+              <>
+                <span className="hidden sm:inline text-neutral-600">·</span>
+                <span>
+                  Leader:{" "}
+                  <span className="font-medium text-neutral-200">{mostBackedLane.name}</span>
+                </span>
+              </>
+            ) : null}
+            <span className="hidden sm:inline text-neutral-600">·</span>
+            <span>
+              Updated <span className="tabular-nums text-neutral-300">{marketUpdatedLabel}</span>
+            </span>
+            {isLoggedIn && coinsUsedInContest >= REQUIRED_TOTAL_WAGER_PER_CONTEST ? (
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
                 Allocated
               </span>
-            )}
+            ) : null}
           </div>
         </div>
-      )}
 
-      {/* Mobile: pool totals strip (replaces wide table header) */}
-      <div className="grid grid-cols-3 gap-2 rounded-ft border border-white/[0.07] bg-black/35 p-3 text-center shadow-inner md:hidden">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">Win pool</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums text-neutral-100">{formatCoins(odds.poolTotals.WIN)}</p>
+        <div className="grid grid-cols-3 gap-2 rounded-ft border border-white/[0.07] bg-black/35 p-2.5 text-center md:hidden">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">Win</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums text-neutral-100">
+              {formatCoins(odds.poolTotals.WIN)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">Place</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums text-neutral-200">
+              {formatCoins(odds.poolTotals.PLACE)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">Show</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums text-neutral-200">
+              {formatCoins(odds.poolTotals.SHOW)}
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">Place</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums text-neutral-200">{formatCoins(odds.poolTotals.PLACE)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">Show</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums text-neutral-200">{formatCoins(odds.poolTotals.SHOW)}</p>
-        </div>
-      </div>
 
       <div className="hidden overflow-x-auto rounded-ft border border-white/[0.07] shadow-ft-card md:block">
-        <div className="max-h-[30rem] overflow-y-auto">
-          <table className="w-full table-auto border-separate border-spacing-0 text-left text-sm md:table-fixed md:min-w-[760px]">
+          <table className="w-full table-fixed border-separate border-spacing-0 text-left text-sm min-w-[720px]">
           <colgroup>
-            <col className="min-w-[200px] md:w-[240px]" />
-            <col className="w-[76px]" />
-            <col className="w-[108px]" />
-            <col className="w-[120px]" />
-            <col className="w-[120px]" />
-            <col className="w-[120px]" />
+            <col className="w-[56px]" />
+            <col className="w-[22%]" />
+            <col className="w-[72px]" />
+            <col className="w-[14%]" />
+            <col className="w-[14%]" />
+            <col className="w-[16%]" />
+            <col className="w-[72px]" />
           </colgroup>
 
-          <thead className="sticky top-0 z-10 border-b border-white/[0.06] bg-ft-charcoal/95 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500 backdrop-blur-md">
+          <thead className="border-b border-white/[0.06] bg-ft-charcoal/95 text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500">
             <tr>
-              <th className="px-3 py-3 text-left">Runner</th>
-              <th className="px-2 py-3 text-right">
-                <span className="inline-block text-right">
-                  {hasPoolEntries ? "Live FP" : "Proj pts"}
-                </span>
-              </th>
-              <th
-                className="px-3 py-3 text-left"
-                title={
-                  hasPoolEntries
-                    ? "Current Odds and Market Rank come from the free-play pool. Projected Rank stays independent."
-                    : "Projected Rank from the imported field. Pool odds appear after the first valid entries."
-                }
-              >
-                {hasPoolEntries ? "Current Odds" : "Projected Rank"}
-              </th>
-              <th className="px-3 py-3 text-left">
-                {hasPoolEntries ? "Pool Share" : "WIN pool"}
-                <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-400">
-                  {formatCoins(odds.poolTotals.WIN)}
-                </div>
-              </th>
-              <th className="px-3 py-3 text-left">
-                PLACE
-                <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-500">
-                  {formatCoins(odds.poolTotals.PLACE)}
-                </div>
-              </th>
-              <th className="px-3 py-3 text-left">
-                SHOW
-                <div className="mt-0.5 text-[11px] font-semibold tabular-nums tracking-normal text-neutral-500">
-                  {formatCoins(odds.poolTotals.SHOW)}
-                </div>
-              </th>
+              <th className="px-2 py-2.5 text-center">Mkt</th>
+              <th className="px-2 py-2.5 text-left">Runner</th>
+              <th className="px-2 py-2.5 text-right">Live FP</th>
+              <th className="px-2 py-2.5 text-left">Odds</th>
+              <th className="px-2 py-2.5 text-left">Pool share</th>
+              <th className="px-2 py-2.5 text-left">Your pos.</th>
+              <th className="px-2 py-2.5 text-right">Proj</th>
             </tr>
           </thead>
 
@@ -1274,11 +1425,17 @@ export default function ContestBoard({
                 "cursor-pointer border-b border-white/[0.04] text-neutral-100 transition-colors duration-ft",
               ].join(" ");
 
-              const placeTotal = odds.laneTotals[lane.id]?.PLACE ?? 0;
-              const showTotal = odds.laneTotals[lane.id]?.SHOW ?? 0;
-              const playerLabel = formatLaneDisplayName(lane.name, lane.position, lane.team);
+              const myStake = laneTotals.get(lane.id) ?? 0;
+              const estReturn =
+                myStake > 0 && winMultiple != null ? Math.floor(myStake * winMultiple) : null;
+              const playerLabel = lane.name;
               const projectedPts = formatProjectedPoints(lane.projectedPoints);
               const projectedRank = lane.seedRank ?? lane.displayOrder ?? null;
+              const liveFp = showProjectionShell
+                ? projectedPts ?? "—"
+                : ((lane.liveFantasyPoints ?? lane.fantasyPoints) ?? 0)
+                    .toFixed(1)
+                    .replace(/\.0$/, "");
 
               return (
                 <Fragment key={lane.id}>
@@ -1290,144 +1447,115 @@ export default function ContestBoard({
                       setInlineSlipLaneId((current) => (current === lane.id ? null : lane.id));
                     }}
                   >
-                    <td className="px-3 py-2.5 align-middle">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <td className="px-2 py-3 align-middle text-center">
+                      <span className="text-sm font-bold tabular-nums text-neutral-100">
+                        {marketRank != null ? `#${marketRank}` : "—"}
+                      </span>
+                    </td>
+
+                    <td className="px-2 py-3 align-middle">
+                      <div className="flex min-w-0 items-center gap-1.5">
                         <span
                           className={[
-                            "min-w-0 truncate text-[15px] font-semibold leading-snug tracking-tight text-neutral-50",
+                            "min-w-0 truncate text-[14px] font-semibold leading-snug text-neutral-50",
                             isScratched ? "text-neutral-500 line-through" : "",
                           ].join(" ")}
                         >
                           {playerLabel}
                         </span>
-                        {renderLaneStatus(lane.status) ? (
-                          <span className="inline-flex shrink-0">{renderLaneStatus(lane.status)}</span>
-                        ) : null}
+                        {renderLaneStatus(lane.status)}
                       </div>
                       {matchup ? (
-                        <p className="mt-0.5 truncate text-[11px] text-neutral-500">{matchup}</p>
+                        <p className="mt-0.5 truncate text-[11px] leading-snug text-neutral-500">
+                          {matchup}
+                        </p>
                       ) : null}
                     </td>
 
-                  <td className="px-2 py-2.5 align-middle text-right">
-                    <div className="flex flex-col items-end gap-1">
+                    <td className="px-2 py-3 align-middle text-right">
                       <span
                         className={[
-                          "text-lg font-bold tabular-nums tracking-tight text-neutral-100",
+                          "text-sm font-bold tabular-nums text-neutral-100",
                           active ? "text-ft-gold-bright" : "",
                         ].join(" ")}
                       >
-                        {showProjectionShell
-                          ? projectedPts ?? "—"
-                          : ((lane.liveFantasyPoints ?? lane.fantasyPoints) ?? 0)
-                              .toFixed(2)
-                              .replace(/\.?0+$/, "")}
+                        {liveFp}
                       </span>
-                      <span className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">
-                        {showProjectionShell ? "proj pts" : "pts"}
-                      </span>
-                      {!showProjectionShell && projectedPts ? (
-                        <span className="text-[10px] text-neutral-500">Proj {projectedPts}</span>
+                      {lane.scoringBreakdown ? (
+                        <div className="mt-0.5 flex justify-end">
+                          <ScoringBreakdownAccordion
+                            breakdown={lane.scoringBreakdown}
+                            open={openScoringLaneId === lane.id}
+                            onToggle={() =>
+                              setOpenScoringLaneId(openScoringLaneId === lane.id ? null : lane.id)
+                            }
+                          />
+                        </div>
                       ) : null}
-                      <ScoringBreakdownAccordion
-                        breakdown={lane.scoringBreakdown}
-                        open={openScoringLaneId === lane.id}
-                        onToggle={() =>
-                          setOpenScoringLaneId(openScoringLaneId === lane.id ? null : lane.id)
-                        }
-                      />
-                    </div>
-                  </td>
+                    </td>
 
-                  <td className="px-3 py-2.5 align-middle">
-                    <div className="flex flex-col gap-0.5">
+                    <td className="px-2 py-3 align-middle">
                       {showProjectionShell ? (
-                        <>
+                        <p className="text-xs text-neutral-500">Awaiting pool</p>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-1">
                           <span
                             className={[
-                              "font-semibold tabular-nums text-neutral-100",
+                              "text-sm font-semibold tabular-nums text-neutral-100",
                               isScratched ? "text-neutral-500 line-through" : "",
                             ].join(" ")}
                           >
-                            {projectedRank != null ? `#${projectedRank}` : "—"}
+                            {headline.label}
                           </span>
-                          <p className="text-[11px] leading-snug text-neutral-500">
-                            Pool odds not established
-                          </p>
-                        </>
+                          {headline.badge === "LIVE" ? (
+                            <span className="rounded border border-ft-gold/35 bg-ft-gold/10 px-1 py-0.5 text-[9px] font-bold uppercase text-ft-gold">
+                              Live
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-2 py-3 align-middle">
+                      {showProjectionShell ? (
+                        <span className="text-sm text-neutral-500">—</span>
                       ) : (
                         <>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                              className={[
-                                "font-semibold tabular-nums text-neutral-100",
-                                isScratched ? "text-neutral-500 line-through" : "",
-                              ].join(" ")}
-                            >
-                              {headline.label}
-                            </span>
-                            {headline.badge && (
-                              <span
-                                className={
-                                  headline.badge === "LIVE"
-                                    ? "rounded-full border border-ft-gold/35 bg-ft-gold/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ft-gold"
-                                    : "rounded-full border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300"
-                                }
-                              >
-                                {headline.badge}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] leading-snug text-neutral-500">
-                            Market Rank #{marketRank ?? "—"}
-                            {projectedRank != null ? ` · Proj #${projectedRank}` : ""}
+                          <p className="text-sm font-semibold tabular-nums text-neutral-100">
+                            {formatCoins(winTotal)}
+                          </p>
+                          <p className="text-[11px] tabular-nums text-neutral-500">
+                            {formatPoolShare(winTotal, winPoolTotal)}
                           </p>
                         </>
                       )}
-                    </div>
-                  </td>
+                    </td>
 
-                  <td className="px-3 py-2.5 align-middle">
-                    {showProjectionShell ? (
-                      <>
-                        <p className="text-sm font-semibold tabular-nums text-neutral-100">—</p>
-                        <p className="hidden text-[11px] text-neutral-500 md:block">No pool yet</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm font-semibold tabular-nums text-neutral-100">
-                          {formatPoolShare(winTotal, winPoolTotal)}
-                        </p>
-                        <p className="hidden text-[11px] text-neutral-500 md:block">
-                          {formatCoins(winTotal)}
-                          {(lane.entryCount ?? 0) > 0 ? ` · ${lane.entryCount} entries` : ""}
-                        </p>
-                      </>
-                    )}
-                  </td>
+                    <td className="px-2 py-3 align-middle">
+                      {myStake > 0 ? (
+                        <>
+                          <p className="text-sm font-semibold tabular-nums text-ft-gold">
+                            {formatCoins(myStake)}
+                          </p>
+                          <p className="text-[11px] tabular-nums text-neutral-500">
+                            {estReturn != null ? `Est. ${formatCoins(estReturn)}` : "Entered"}
+                          </p>
+                        </>
+                      ) : (
+                        <span className="text-sm text-neutral-600">—</span>
+                      )}
+                    </td>
 
-                  <td className="px-3 py-2.5 align-middle">
-                    <p className="text-sm font-semibold tabular-nums text-neutral-100">
-                      {showProjectionShell ? "—" : formatCoins(placeTotal)}
-                    </p>
-                    <p className="text-[11px] text-neutral-500 md:block hidden">
-                      {showProjectionShell ? "—" : formatMultiple(odds.estMultiples[lane.id]?.PLACE ?? null)}
-                    </p>
-                  </td>
-
-                  <td className="px-3 py-2.5 align-middle">
-                    <p className="text-sm font-semibold tabular-nums text-neutral-100">
-                      {showProjectionShell ? "—" : formatCoins(showTotal)}
-                    </p>
-                    <p className="hidden text-[11px] text-neutral-500 md:block">
-                      {showProjectionShell ? "—" : formatMultiple(odds.estMultiples[lane.id]?.SHOW ?? null)}
-                    </p>
-                  </td>
+                    <td className="px-2 py-3 align-middle text-right">
+                      <span className="text-sm font-semibold tabular-nums text-neutral-300">
+                        {projectedRank != null ? `#${projectedRank}` : "—"}
+                      </span>
+                    </td>
                   </tr>
 
                   {inlineSlipLaneId === lane.id && (
                     <tr className="bg-black/50">
-                      <td colSpan={6} className="px-3 py-4 sm:px-4">
+                      <td colSpan={7} className="px-3 py-3 sm:px-4">
                         {renderQuickSlipPanel(lane, playerLabel, headline)}
                       </td>
                     </tr>
@@ -1437,7 +1565,6 @@ export default function ContestBoard({
             })}
           </tbody>
         </table>
-        </div>
       </div>
 
       {/* Mobile: card list — no horizontal scroll; details hold place/show/pools */}
@@ -1647,10 +1774,8 @@ export default function ContestBoard({
         })}
       </div>
 
-      <p className="max-w-3xl text-xs leading-relaxed text-neutral-500">
-        <span className="font-medium text-neutral-400">Note:</span> Current Odds and Market Rank come
-        from free-play pool entries. Projected Rank never sets the price. Closing odds and pool
-        shares are preserved when the contest locks.
+      <p className="text-[11px] leading-relaxed text-neutral-600">
+        Free-play currency only — not real-money wagering. Closing odds are preserved at lock.
       </p>
 
       <div className="flex gap-1 rounded-full border border-white/[0.08] bg-black/40 p-1 text-xs font-semibold text-neutral-400 shadow-inner md:hidden">
@@ -1680,16 +1805,16 @@ export default function ContestBoard({
         </button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div id="bet-slip" className="grid gap-5 lg:grid-cols-2 lg:items-start scroll-mt-28">
         <div
           className={
-            "space-y-8 rounded-ft-lg border border-white/[0.09] bg-gradient-to-b from-black/40 to-black/20 p-6 shadow-ft-slip backdrop-blur-sm transition-all duration-300 ease-out hover:border-white/[0.14] sm:p-7 " +
+            "space-y-6 rounded-ft-lg border border-white/[0.09] bg-gradient-to-b from-black/40 to-black/20 p-5 shadow-ft-slip backdrop-blur-sm transition-all duration-300 ease-out hover:border-white/[0.14] sm:p-6 " +
             (mobileBetTab === "slip" ? "block" : "hidden") +
-            " lg:sticky lg:top-24 lg:z-20 md:block"
+            " md:block"
           }
         >
-          <div className="space-y-2">
-            <h3 className="text-xl font-bold tracking-tight text-neutral-50">Bet slip</h3>
+          <div className="space-y-1.5">
+            <h3 className="text-lg font-bold tracking-tight text-neutral-50">Bet slip</h3>
             <p className="text-sm leading-relaxed text-neutral-500">
               Parimutuel pool — your stake shifts the line for everyone. Review allocation, then confirm.
             </p>
@@ -2563,6 +2688,8 @@ export default function ContestBoard({
         </div>
       </div>
 
+      {pageEmphasis === "PRE_RACE" ? <div className="pt-1">{liveBoardNode}</div> : null}
+
       {status === ContestStatus.SETTLED && (
         <div className="rounded-ft-lg border border-white/[0.08] bg-black/35 p-5 text-sm shadow-ft-card">
           <div className="flex items-center justify-between">
@@ -2657,6 +2784,11 @@ export default function ContestBoard({
         </div>
       )}
       </div>
-    </section>
+
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
+        <div className="hidden lg:block">{enterRaceRail}</div>
+        {children}
+      </aside>
+    </div>
   );
 }

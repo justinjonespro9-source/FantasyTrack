@@ -803,204 +803,123 @@ export default async function ContestPage({ params }: PageProps) {
   });
 
   return (
-    <div className="space-y-8">
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-6">
-          <section className="ft-surface px-4 py-3 sm:px-5 sm:py-4">
-            <div className="flex flex-wrap items-start justify-between gap-4 text-xs">
-              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-                {contest.series?.isPrivate ? (
-                  <span className="inline-flex items-center rounded-full border border-violet-400/50 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
-                    Invite only
-                  </span>
-                ) : null}
-                <span
-                  className={[
-                    "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
-                    contest.status === ContestStatus.PUBLISHED &&
-                      "border-emerald-400/50 bg-emerald-500/10 text-emerald-200",
-                    contest.status === ContestStatus.LOCKED &&
-                      "border-ft-gold/40 bg-ft-gold/10 text-ft-gold",
-                    contest.status === ContestStatus.SETTLED &&
-                      "border-white/15 bg-white/[0.06] text-neutral-200",
-                    contest.status === ContestStatus.DRAFT &&
-                      "border-neutral-600/70 bg-neutral-900/80 text-neutral-200",
-                    (contest.status as any) === "ARCHIVED" &&
-                      "border-neutral-700/70 bg-neutral-900/80 text-neutral-300",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {statusLabel}
-                </span>
-                <p className="max-w-xl text-sm leading-relaxed text-neutral-400">{statusHelp}</p>
-              </div>
+    <div className="space-y-4">
+      {contest.series?.isPrivate ? (
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-200">
+          Invite only series
+        </p>
+      ) : null}
 
-              {contest.series?.name && (
-                <p className="text-[11px] leading-relaxed text-neutral-500 sm:max-w-[14rem] sm:text-right">
-                  Counts toward{" "}
-                  <span className="font-semibold text-neutral-200">{contest.series.name}</span>{" "}
-                  leaderboard.
-                </p>
-              )}
-            </div>
-          </section>
+      <ContestBoard
+        contestId={contest.id}
+        title={contest.title}
+        startTime={contest.startTime.toISOString()}
+        endTime={((contest as any).endTime ?? contest.startTime).toISOString()}
+        sport={contest.sport}
+        trackConditions={(contest as any).trackConditions ?? null}
+        status={contest.status}
+        contestMeta={{
+          season: contest.season,
+          week: contest.week,
+          slateLabel: formatSlateLabel(contest.slate),
+          scoringLabel: formatScoringLabel(contest.scoringFormat),
+          position: positionHint,
+          headline: raceCopy.headline,
+          supportingCopy: raceCopy.supporting,
+          runnerCount: contest.lanes.length,
+          entryCount: ticketCount,
+          seriesName: contest.series?.name ?? null,
+        }}
+        lanes={contest.lanes.map((lane: any) => ({
+          id: lane.id,
+          name: lane.name,
+          team: lane.team,
+          position: lane.position,
+          opponent: lane.opponent ?? null,
+          depthRole: lane.depthRole ?? null,
+          finalRank: lane.finalRank,
+          openingWinOddsTo1: lane.openingWinOddsTo1,
+          fantasyPoints: lane.fantasyPoints,
+          liveFantasyPoints: lane.liveFantasyPoints,
+          status: lane.status,
+          seedRank: lane.seedRank ?? null,
+          displayOrder: lane.displayOrder ?? null,
+          projectedPoints: lane.projectedPoints ?? null,
+          entryCount: entryByLane.get(lane.id) ?? 0,
+          scoringBreakdown:
+            contest.sport === "BASKETBALL"
+              ? getBasketballScoringBreakdown({
+                  points: lane.basketballPoints ?? 0,
+                  rebounds: lane.basketballRebounds ?? 0,
+                  assists: lane.basketballAssists ?? 0,
+                  steals: lane.basketballSteals ?? 0,
+                  blocks: lane.basketballBlocks ?? 0,
+                  turnovers: lane.basketballTurnovers ?? 0,
+                  threePointersMade: lane.basketballThreesMade ?? 0,
+                })
+              : undefined,
+        }))}
+        initialOdds={odds}
+        initialMyBets={myTickets.flatMap((t: any) => {
+          const legs = t.legs ?? [];
+          const legCount = legs.length || 1;
+          const perLegAmount = Math.floor((t.stakeAmount ?? 0) / legCount);
+          const createdAt = (t.placedAt ?? t.createdAt).toISOString();
 
-          <ContestBoard
+          return legs.map((leg: any) => {
+            const payout = (leg.transactions ?? [])
+              .filter((tx: any) => tx.type === TransactionType.PAYOUT)
+              .reduce((sum: number, tx: any) => sum + (tx.amount ?? 0), 0);
+
+            return {
+              id: leg.id,
+              ticketId: t.id ?? null,
+              laneId: leg.lane?.id ?? leg.laneId,
+              laneName: leg.lane?.name ?? leg.laneNameSnap ?? "—",
+              market: leg.market,
+              amount: perLegAmount,
+              createdAt,
+              refunded: leg.lane?.status === "SCRATCHED",
+              payout,
+            };
+          });
+        })}
+        isLoggedIn={Boolean(userId)}
+        isAdmin={isAdmin}
+        liveGameProgress={(contest as any).liveGameProgress ?? undefined}
+        liveGameStatus={(contest as any).liveGameStatus ?? undefined}
+      >
+        <div className="flex flex-col gap-4">
+          <ContestLiveTape contestId={contest.id} />
+          <ContestMessageBoard
             contestId={contest.id}
-            title={contest.title}
-            startTime={contest.startTime.toISOString()}
-            endTime={((contest as any).endTime ?? contest.startTime).toISOString()}
-            sport={contest.sport}
-            trackConditions={(contest as any).trackConditions ?? null}
-            status={contest.status}
-            contestMeta={{
-              season: contest.season,
-              week: contest.week,
-              slateLabel: formatSlateLabel(contest.slate),
-              scoringLabel: formatScoringLabel(contest.scoringFormat),
-              position: positionHint,
-              headline: raceCopy.headline,
-              supportingCopy: raceCopy.supporting,
-              runnerCount: contest.lanes.length,
-              entryCount: ticketCount,
-            }}
-            lanes={contest.lanes.map((lane: any) => ({
-              id: lane.id,
-              name: lane.name,
-              team: lane.team,
-              position: lane.position,
-              opponent: lane.opponent ?? null,
-              depthRole: lane.depthRole ?? null,
-              finalRank: lane.finalRank,
-              openingWinOddsTo1: lane.openingWinOddsTo1,
-              fantasyPoints: lane.fantasyPoints,
-              liveFantasyPoints: lane.liveFantasyPoints,
-              status: lane.status,
-              seedRank: lane.seedRank ?? null,
-              displayOrder: lane.displayOrder ?? null,
-              projectedPoints: lane.projectedPoints ?? null,
-              entryCount: entryByLane.get(lane.id) ?? 0,
-              scoringBreakdown:
-                contest.sport === "BASKETBALL"
-                  ? getBasketballScoringBreakdown({
-                      points: lane.basketballPoints ?? 0,
-                      rebounds: lane.basketballRebounds ?? 0,
-                      assists: lane.basketballAssists ?? 0,
-                      steals: lane.basketballSteals ?? 0,
-                      blocks: lane.basketballBlocks ?? 0,
-                      turnovers: lane.basketballTurnovers ?? 0,
-                      threePointersMade: lane.basketballThreesMade ?? 0,
-                    })
-                  : undefined,
-            }))}
-            initialOdds={odds}
-            initialMyBets={myTickets.flatMap((t: any) => {
-              const legs = t.legs ?? [];
-              const legCount = legs.length || 1;
-              const perLegAmount = Math.floor((t.stakeAmount ?? 0) / legCount);
-              const createdAt = (t.placedAt ?? t.createdAt).toISOString();
-
-              return legs.map((leg: any) => {
-                const payout = (leg.transactions ?? [])
-                  .filter((tx: any) => tx.type === TransactionType.PAYOUT)
-                  .reduce((sum: number, tx: any) => sum + (tx.amount ?? 0), 0);
-
-                return {
-                  id: leg.id,
-                  ticketId: t.id ?? null,
-                  laneId: leg.lane?.id ?? leg.laneId,
-                  laneName: leg.lane?.name ?? leg.laneNameSnap ?? "—",
-                  market: leg.market,
-                  amount: perLegAmount,
-                  createdAt,
-                  refunded: leg.lane?.status === "SCRATCHED",
-                  payout,
-                };
-              });
-            })}
-            isLoggedIn={Boolean(userId)}
-            isAdmin={isAdmin}
-            liveGameProgress={(contest as any).liveGameProgress ?? undefined}
-            liveGameStatus={(contest as any).liveGameStatus ?? undefined}
+            revalidatePath={`/contest/${contest.id}`}
           />
-
-          <section className="ft-surface border-white/[0.05] px-4 py-4 sm:px-5">
-            <p className="text-sm leading-relaxed text-neutral-400">
-              <span className="font-semibold text-ft-gold/90">Scratched players</span> remain visible but cannot
-              be wagered. Existing wagers on a scratch are voided and refunded. If you already met the entry
-              requirement, your entry stays valid. Refunds may be reallocated before lock when time allows.
-            </p>
-          </section>
-
-          {isAdmin &&
-          contest.sport === "BASKETBALL" &&
-          (contest as { homeTeamId?: string | null; awayTeamId?: string | null }).homeTeamId &&
-          (contest as { homeTeamId?: string | null; awayTeamId?: string | null }).awayTeamId ? (
-            <section className="ft-surface px-4 py-4 sm:px-5">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
-                Admin — lanes
-              </p>
-              <BuildLanesAllPlayersButton
-                contestId={contest.id}
-                sport={contest.sport}
-                homeTeamId={(contest as { homeTeamId?: string | null }).homeTeamId ?? null}
-                awayTeamId={(contest as { awayTeamId?: string | null }).awayTeamId ?? null}
-              />
-            </section>
-          ) : null}
+          <ScoringRulesCard sport={contest.sport} />
         </div>
+      </ContestBoard>
 
-        <aside className="flex flex-col gap-5 lg:sticky lg:top-24">
-          <p className="hidden ft-label text-neutral-500 lg:block">Alongside the race</p>
+      <section className="rounded-ft border border-white/[0.06] bg-black/25 px-3 py-2.5 text-xs leading-relaxed text-neutral-500">
+        <span className="font-semibold text-neutral-400">Scratched players</span> stay visible but
+        cannot be entered. Existing tickets on a scratch are voided and refunded.
+      </section>
 
-          {/* Mobile: secondary sections as accordions */}
-          <div className="space-y-3 lg:hidden">
-            <details className="overflow-hidden rounded-ft-lg border border-white/[0.08] bg-black/25">
-              <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-neutral-100 transition hover:bg-white/[0.04]">
-                Live tape
-              </summary>
-              <div className="border-t border-white/[0.06] p-3">
-                <ContestLiveTape contestId={contest.id} plain />
-              </div>
-            </details>
-
-            <details className="overflow-hidden rounded-ft-lg border border-white/[0.08] bg-black/25">
-              <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-neutral-100 transition hover:bg-white/[0.04]">
-                Message board
-              </summary>
-              <div className="border-t border-white/[0.06] p-3">
-                <ContestMessageBoard
-                  contestId={contest.id}
-                  revalidatePath={`/contest/${contest.id}`}
-                  plain
-                />
-              </div>
-            </details>
-
-            <details className="overflow-hidden rounded-ft-lg border border-white/[0.08] bg-black/25">
-              <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-neutral-100 transition hover:bg-white/[0.04]">
-                Scoring rules
-              </summary>
-              <div className="border-t border-white/[0.06] px-4 pb-4 pt-2">
-                <ScoringRulesCard sport={contest.sport} plain />
-              </div>
-            </details>
-          </div>
-
-          {/* Desktop: full secondary column */}
-          <div className="hidden flex-col gap-5 lg:flex">
-            <ContestLiveTape contestId={contest.id} />
-
-            <ContestMessageBoard
-              contestId={contest.id}
-              revalidatePath={`/contest/${contest.id}`}
-            />
-
-            <ScoringRulesCard sport={contest.sport} />
-          </div>
-        </aside>
-      </div>
+      {isAdmin &&
+      contest.sport === "BASKETBALL" &&
+      (contest as { homeTeamId?: string | null; awayTeamId?: string | null }).homeTeamId &&
+      (contest as { homeTeamId?: string | null; awayTeamId?: string | null }).awayTeamId ? (
+        <section className="ft-surface px-4 py-4 sm:px-5">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            Admin — lanes
+          </p>
+          <BuildLanesAllPlayersButton
+            contestId={contest.id}
+            sport={contest.sport}
+            homeTeamId={(contest as { homeTeamId?: string | null }).homeTeamId ?? null}
+            awayTeamId={(contest as { awayTeamId?: string | null }).awayTeamId ?? null}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }

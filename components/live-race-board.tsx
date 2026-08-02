@@ -26,6 +26,14 @@ type LiveRaceBoardProps = {
   liveGameProgress?: number | null;
   /** From live BoxScore pull (e.g. InProgress, Final). Used for progress label when present. */
   liveGameStatus?: string | null;
+  /**
+   * compact: pre-race collapsed card until fantasy points exist.
+   * full: always show progress chrome (default).
+   */
+  presentation?: "full" | "compact";
+  /** Controlled expand for compact pre-race mode. */
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -193,10 +201,19 @@ export function LiveRaceBoard({
   userPickLaneIds,
   liveGameProgress,
   liveGameStatus,
+  presentation = "full",
+  expanded,
+  onExpandedChange,
 }: LiveRaceBoardProps) {
   const previousRankByLaneId = useRef<Record<string, number>>({});
   const [highlightByLaneId, setHighlightByLaneId] = useState<Record<string, "up" | "down">>({});
+  const [internalExpanded, setInternalExpanded] = useState(false);
   const highlightTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const isExpanded = expanded ?? internalExpanded;
+  const setExpanded = (next: boolean) => {
+    onExpandedChange?.(next);
+    if (expanded === undefined) setInternalExpanded(next);
+  };
 
   const lanesWithPoints = useMemo(
     () =>
@@ -270,6 +287,31 @@ export function LiveRaceBoard({
   const progressLabel = formatRaceProgressText(progressPercent, liveGameStatus);
   const segments = getSportSegments(sport);
 
+  if (presentation === "compact" && !hasLiveData && !isExpanded) {
+    return (
+      <section
+        className="rounded-ft border border-white/[0.08] bg-black/30 px-4 py-3"
+        aria-label="Live race board (pre-race)"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-neutral-100">Live race board</p>
+            <p className="mt-0.5 text-xs text-neutral-500">
+              Standings begin when fantasy points post.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="shrink-0 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-neutral-300 transition hover:border-ft-gold/35 hover:text-ft-gold ft-focus-ring"
+          >
+            Expand
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       className="relative overflow-hidden rounded-ft-lg border border-white/[0.09] bg-ft-gradient-panel p-5 shadow-ft-card backdrop-blur-sm sm:p-6"
@@ -288,13 +330,25 @@ export function LiveRaceBoard({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ft-gold/40 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-ft-gold" />
-          </span>
-          <div className="rounded-full border border-ft-gold/30 bg-ft-gold/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-ft-gold shadow-ft-inner">
-            Live
-          </div>
+          {presentation === "compact" && !hasLiveData ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-neutral-400 transition hover:border-ft-gold/35 hover:text-ft-gold"
+            >
+              Collapse
+            </button>
+          ) : (
+            <>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ft-gold/40 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-ft-gold" />
+              </span>
+              <div className="rounded-full border border-ft-gold/30 bg-ft-gold/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-ft-gold shadow-ft-inner">
+                Live
+              </div>
+            </>
+          )}
         </div>
       </div>
 

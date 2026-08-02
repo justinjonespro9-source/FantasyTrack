@@ -61,7 +61,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SplashScreen />
         <Providers>
           <Nav />
-          <main className="mx-auto max-w-6xl px-4 py-8 sm:px-5 sm:py-10">{children}</main>
+          <main className="mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-6 md:py-7">{children}</main>
           <SiteFooter />
           <FeedbackWidget />
         </Providers>

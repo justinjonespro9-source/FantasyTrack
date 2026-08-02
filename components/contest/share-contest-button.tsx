@@ -84,7 +84,7 @@ export function ShareContestButton({
           "ft-btn-ghost rounded-full px-3 py-2 text-sm font-medium"
         }
       >
-        Share Contest
+        Share Race
       </button>
 
       {open ? (
@@ -96,7 +96,7 @@ export function ShareContestButton({
           <div className="w-full max-w-sm rounded-ft-lg border border-white/[0.1] bg-ft-charcoal/98 p-5 shadow-ft-card backdrop-blur-md">
             <div className="mb-4 flex items-start justify-between gap-3">
               <h2 id="share-contest-title" className="text-base font-bold tracking-tight text-neutral-50">
-                Share this contest
+                Share this race
               </h2>
               <button
                 type="button"
