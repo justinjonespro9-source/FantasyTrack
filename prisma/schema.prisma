@@ -242,6 +242,8 @@ model Contest {
   createdAt       DateTime      @default(now())
   publishedAt     DateTime?
   lockedAt        DateTime?
+  /// AUTO | MANUAL — how the contest entered LOCKED (null = legacy / unknown).
+  lockSource      String?
   settledAt       DateTime?
   archivedAt      DateTime?
   trackConditions String?

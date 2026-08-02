@@ -12,6 +12,8 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { SPORTS, formatSportLabel, type SportKey } from "@/lib/sports";
 import { formatCoins, formatDateTime, formatMultiple } from "@/lib/format";
+import { formatLockTimeCt } from "@/lib/contest/central-time";
+import { clearClosingOddsForContest } from "@/lib/admin/clear-closing-odds";
 import { autoLockContests, settleContestAtomic, snapshotClosingOddsForContest } from "@/lib/market";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
@@ -27,7 +29,10 @@ import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 import ReminderEmailPanel from "@/components/admin/reminder-email-panel";
 import XPostComposer from "@/components/admin/x-post-composer";
 import AdminOddsLanes from "@/components/admin/admin-odds-lanes";
+import { EditLockTimePanel } from "@/components/admin/edit-lock-time-panel";
+import { BulkLockTimePanel } from "@/components/admin/bulk-lock-time-panel";
 import { sortLanesForAdminOdds } from "@/lib/admin/lane-sort";
+import { applySeriesPositionLockTimeAction } from "@/app/admin/lock-time-actions";
 import { X_PROVIDER_KEY } from "@/lib/x/oauth";
 import { computeHockeyFantasyPoints } from "@/lib/scoring-hockey";
 import { computeBasketballFantasyPoints } from "@/lib/scoring-basketball";
@@ -2053,7 +2058,11 @@ async function lockContestAction(formData: FormData) {
     await snapshotClosingOddsForContest(contestId, tx);
     await tx.contest.update({
       where: { id: contestId },
-      data: { status: ContestStatus.LOCKED, lockedAt: new Date() },
+      data: {
+        status: ContestStatus.LOCKED,
+        lockedAt: new Date(),
+        lockSource: "MANUAL",
+      },
     });
   });
 
@@ -2084,13 +2093,17 @@ async function unlockContestAction(formData: FormData) {
     ? new Date(now.getTime() + 2 * 60 * 60 * 1000)
     : contest.startTime;
 
-  await prisma.contest.update({
-    where: { id: contestId },
-    data: {
-      status: ContestStatus.PUBLISHED,
-      lockedAt: null,
-      ...(needsStartTimeBump ? { startTime: newStartTime } : {}),
-    },
+  await prisma.$transaction(async (tx) => {
+    await clearClosingOddsForContest(contestId, tx);
+    await tx.contest.update({
+      where: { id: contestId },
+      data: {
+        status: ContestStatus.PUBLISHED,
+        lockedAt: null,
+        lockSource: null,
+        ...(needsStartTimeBump ? { startTime: newStartTime } : {}),
+      },
+    });
   });
 
   revalidatePath("/admin");
@@ -2398,13 +2411,19 @@ function xOAuthErrorBannerMessage(raw: string | undefined): string | null {
   return X_OAUTH_ERROR_USER_MESSAGE[code] ?? null;
 }
 
-type AdminPageProps = { searchParams?: { autofill?: string; x_oauth_error?: string } };
+type AdminPageProps = {
+  searchParams?: { autofill?: string; x_oauth_error?: string; lockMsg?: string };
+};
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const session = await getCurrentSession();
   if (!session?.user?.id || !session.user.isAdmin) redirect("/auth/login");
 
   const xOAuthBannerText = xOAuthErrorBannerMessage(searchParams?.x_oauth_error);
+  const lockMsg =
+    typeof searchParams?.lockMsg === "string" && searchParams.lockMsg.trim()
+      ? searchParams.lockMsg.trim()
+      : null;
 
   await autoLockContests();
 
@@ -2550,6 +2569,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   return (
     <div className="space-y-6">
+      {lockMsg ? (
+        <div
+          role="status"
+          className="rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-900"
+        >
+          {lockMsg}
+        </div>
+      ) : null}
+
       <CardSection title="Data providers (SportsDataIO)" right={null}>
         <p className="text-xs text-track-600 mb-2">
           Import league, teams, and players from SportsDataIO so you can create contests from
@@ -2791,6 +2819,42 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       Delete series
                     </ConfirmSubmitButton>
                   </form>
+                  <form
+                    action={applySeriesPositionLockTimeAction}
+                    className="flex flex-wrap items-end gap-1 rounded border border-dashed border-track-300 p-2"
+                  >
+                    <input type="hidden" name="seriesId" value={s.id} />
+                    <input type="hidden" name="reopenMode" value="auto" />
+                    <p className="w-full text-[10px] font-semibold uppercase tracking-wide text-track-600">
+                      Apply lock time to all open position races in this series
+                    </p>
+                    <label className="text-[10px]">
+                      Date
+                      <input
+                        name="lockDate"
+                        type="date"
+                        defaultValue="2026-09-13"
+                        required
+                        className="mt-0.5 block rounded border border-track-200 px-1 py-0.5"
+                      />
+                    </label>
+                    <label className="text-[10px]">
+                      Time (CT)
+                      <input
+                        name="lockTime"
+                        type="time"
+                        defaultValue="10:00"
+                        required
+                        className="mt-0.5 block rounded border border-track-200 px-1 py-0.5"
+                      />
+                    </label>
+                    <ConfirmSubmitButton
+                      confirmMessage="Apply this Central Time lock to all open POSITION_WEEKLY races in this series? Auto-locked races with a future lock will reopen; tickets stay intact."
+                      className="rounded bg-amber-500 px-2 py-1 text-[11px] font-semibold text-neutral-950"
+                    >
+                      Apply series lock time
+                    </ConfirmSubmitButton>
+                  </form>
                 </div>
               </div>
             ))}
@@ -2856,7 +2920,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <option value="NEUTRAL">Neutral</option>
           </select>
 
-          <input name="startTime" type="datetime-local" required />
+          <label className="block text-xs text-track-600">
+            <span className="font-medium text-track-800">Lock date &amp; time</span>
+            <span className="mt-0.5 block">
+              Browser local time on create; edit afterward in Central Time.
+            </span>
+            <input name="startTime" type="datetime-local" required className="mt-1 w-full" />
+          </label>
 
           <select name="status" defaultValue={ContestStatus.DRAFT}>
             {Object.values(ContestStatus).map((status) => (
@@ -2873,6 +2943,21 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         </form>
 
+        <div className="mt-4">
+          <BulkLockTimePanel
+            contests={activeContests.map((c) => ({
+              id: c.id,
+              title: c.title,
+              status: c.status,
+              startTimeIso: c.startTime.toISOString(),
+              seriesName: c.series?.name ?? "—",
+              week: c.week ?? null,
+              season: c.season ?? null,
+              contestType: c.contestType ?? null,
+            }))}
+          />
+        </div>
+
         <div className="mt-4 space-y-3">
           {activeContests.map((contest) => (
             <details key={contest.id} className="rounded border border-track-200 group">
@@ -2882,7 +2967,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     <p className="font-medium">{contest.title}</p>
                     <p className="text-sm text-track-600">
                       {contest.series?.name ?? "—"} · {contest.sport} ·{" "}
-                      {formatDateTime(contest.startTime)} · {contest.status}
+                      <span className="font-medium text-track-800">
+                        Lock {formatLockTimeCt(contest.startTime)}
+                      </span>{" "}
+                      · {contest.status}
+                      {(contest as { lockSource?: string | null }).lockSource
+                        ? ` · ${(contest as { lockSource?: string | null }).lockSource}`
+                        : ""}
                     </p>
                   </div>
                   <span className="text-xs text-track-500 select-none group-open:hidden">Expand ▼</span>
@@ -2895,7 +2986,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <p className="font-medium">{contest.title}</p>
                   <p className="text-sm text-track-600">
                     {contest.series?.name ?? "—"} · {contest.sport} ·{" "}
-                    {formatDateTime(contest.startTime)} · {contest.status}
+                    <span className="font-medium text-track-800">
+                      Lock {formatLockTimeCt(contest.startTime)}
+                    </span>{" "}
+                    · {contest.status}
                   </p>
                   <form
                     action={updateContestTrackConditionsAction}
@@ -2958,6 +3052,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 )}
 
                 <div className="flex flex-wrap items-center gap-2">
+                  <EditLockTimePanel
+                    contestId={contest.id}
+                    title={contest.title}
+                    status={contest.status}
+                    startTimeIso={contest.startTime.toISOString()}
+                    lockSource={(contest as { lockSource?: string | null }).lockSource ?? null}
+                    ticketCount={contest.tickets?.length ?? 0}
+                    hasClosingSnapshots={contest.lanes.some(
+                      (l) =>
+                        (l as { closingWinOddsTo1?: number | null }).closingWinOddsTo1 != null ||
+                        (l as { closingPlaceOddsTo1?: number | null }).closingPlaceOddsTo1 != null ||
+                        (l as { closingShowOddsTo1?: number | null }).closingShowOddsTo1 != null
+                    )}
+                  />
                   <Link
                     href={`/admin/roster-import?contestId=${contest.id}`}
                     className="rounded bg-amber-500 px-3 py-1 text-sm font-semibold text-neutral-950"

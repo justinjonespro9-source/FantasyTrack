@@ -220,7 +220,11 @@ export async function autoLockContests(now = new Date(), db: DbLikeClient = pris
         // ✅ Lock contest
         await tdb.contest.update({
           where: { id: c.id },
-          data: { status: ContestStatus.LOCKED, lockedAt: now },
+          data: {
+            status: ContestStatus.LOCKED,
+            lockedAt: now,
+            lockSource: "AUTO",
+          },
         });
 
         // ✅ OFFICIAL system post (best effort; lock should still succeed without it)
@@ -241,7 +245,11 @@ export async function autoLockContests(now = new Date(), db: DbLikeClient = pris
 
       await db.contest.update({
         where: { id: c.id },
-        data: { status: ContestStatus.LOCKED, lockedAt: now },
+        data: {
+          status: ContestStatus.LOCKED,
+          lockedAt: now,
+          lockSource: "AUTO",
+        },
       });
 
       if (admin?.id) {

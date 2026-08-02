@@ -16,6 +16,7 @@ import {
 } from "@/lib/constants";
 import { formatCoins, formatDateTime, formatMultiple } from "@/lib/format";
 import { formatContestLifecycleLabel } from "@/lib/contest-presentation";
+import { formatLockTimeCt } from "@/lib/contest/central-time";
 import { formatLockCountdown } from "@/lib/contest/lock-countdown";
 import {
   contestHasLiveFantasyData,
@@ -943,7 +944,7 @@ export default function ContestBoard({
   const lockCountdownLabel = formatLockCountdown(
     odds.timeToLockSeconds,
     new Date(startTime),
-    (d) => formatDateTime(d).replace(", ", " at ")
+    (d) => formatLockTimeCt(d).replace(" · ", " at ")
   );
   const mostBackedLane = (() => {
     let best: LaneView | null = null;
@@ -1246,7 +1247,7 @@ export default function ContestBoard({
               <span>
                 {bettingClosed
                   ? "Entries closed"
-                  : `Entries accepted until ${formatDateTime(new Date(startTime))}`}
+                  : `Entries accepted until ${formatLockTimeCt(new Date(startTime))}`}
               </span>
               {contestMeta?.seriesName ? (
                 <>
