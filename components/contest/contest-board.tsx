@@ -22,6 +22,7 @@ import {
   getContestPageEmphasis,
 } from "@/lib/contest/page-emphasis";
 import { ShareContestButton } from "@/components/contest/share-contest-button";
+import { QuickEntryPanel } from "@/components/contest/quick-entry-panel";
 import type { OddsPayload } from "@/lib/market";
 import { collapseWps, type BetRow } from "@/lib/wps";
 import { formatSportLabel } from "@/lib/sports";
@@ -624,164 +625,65 @@ export default function ContestBoard({
     Math.min(100, (coinsUsedInContest / REQUIRED_TOTAL_WAGER_PER_CONTEST) * 100)
   );
 
-  /** Shared quick-slip panel for desktop table row and mobile card (no betting logic duplication). */
-  function renderQuickSlipPanel(lane: LaneView, playerLabel: string, headline: WinHeadline) {
-    const isScratchedLane = lane.status === "SCRATCHED";
+  function closeQuickEntry(returnFocusLaneId?: string | null) {
+    const laneToFocus = returnFocusLaneId ?? inlineSlipLaneId;
+    setInlineSlipLaneId(null);
+    if (laneToFocus) {
+      requestAnimationFrame(() => {
+        const row = document.querySelector<HTMLElement>(`[data-lane-row="${laneToFocus}"]`);
+        row?.focus();
+      });
+    }
+  }
+
+  function renderQuickEntry(lane: LaneView, playerLabel: string, headline: WinHeadline) {
+    const existingLines = myBets
+      .filter((b) => b.laneId === lane.id && !b.refunded)
+      .map((b) => ({ market: b.market, amount: b.amount }));
+    const lanePool = odds.laneTotals[lane.id] ?? {
+      [Market.WIN]: 0,
+      [Market.PLACE]: 0,
+      [Market.SHOW]: 0,
+    };
+
     return (
-      <div className="space-y-4 rounded-ft-lg border border-ft-gold/30 bg-gradient-to-b from-ft-charcoal/98 to-black/90 p-4 text-sm text-neutral-100 shadow-ft-card sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <button
-            type="button"
-            className="min-w-0 flex-1 text-left transition hover:opacity-90"
-            onClick={() => setInlineSlipLaneId(null)}
-          >
-            <p className="ft-label text-neutral-500">Quick slip</p>
-            <p className="mt-1 truncate text-lg font-bold text-neutral-50">{playerLabel}</p>
-            <p className="mt-1 text-sm text-neutral-400">
-              WIN line{" "}
-              <span className="font-semibold tabular-nums text-ft-gold">{headline.label}</span>
-            </p>
-          </button>
-          <div className="flex items-start gap-2">
-            {headline.helper ? (
-              <p className="max-w-[14rem] text-xs leading-relaxed text-neutral-500">{headline.helper}</p>
-            ) : null}
-            <button
-              type="button"
-              aria-label="Close inline bet slip"
-              onClick={() => setInlineSlipLaneId(null)}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 text-neutral-400 transition hover:border-ft-gold/40 hover:text-ft-gold"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-
-        {!isLoggedIn ? (
-          <p className="text-sm text-neutral-400">
-            <Link href="/auth/login" className="font-semibold text-ft-gold underline-offset-4 hover:underline">
-              Log in
-            </Link>{" "}
-            to place bets.
-          </p>
-        ) : bettingClosed ? (
-          <p className="rounded-ft border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-neutral-400">
-            Betting is closed for this contest.
-          </p>
-        ) : !canBetByStatus ? (
-          <p className="text-xs text-neutral-400">Contest is not open for betting.</p>
-        ) : isScratchedLane ? (
-          <p className="text-xs font-medium text-red-300">Scratched lanes cannot accept new wagers.</p>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {markets.map((market) => (
-                <button
-                  key={market}
-                  type="button"
-                  onClick={() => setSelectedMarket(market)}
-                  className={
-                    "rounded-full border px-4 py-2 text-xs font-semibold transition duration-ft " +
-                    (selectedMarket === market
-                      ? "border-ft-gold/45 bg-ft-gold/12 text-ft-gold"
-                      : "border-white/10 bg-white/[0.04] text-neutral-400 hover:text-neutral-200")
-                  }
-                >
-                  {market}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <input
-                type="number"
-                min={MIN_BET_AMOUNT}
-                max={MAX_BET_AMOUNT}
-                step={5}
-                value={singleAmount}
-                onChange={(event) => setSingleAmount(event.target.value)}
-                className="min-h-11 w-full flex-1 rounded-ft border border-white/10 bg-black/50 px-3 py-2 text-xl font-bold tabular-nums text-neutral-50 sm:max-w-[10rem]"
-                disabled={disableAllBetActions || isPending}
-              />
-              <button
-                type="button"
-                onClick={() => void placeSingleBet()}
-                disabled={disableAllBetActions || isPending}
-                className="ft-btn-primary min-h-11 w-full px-5 text-sm font-bold sm:w-auto"
-              >
-                {bettingClosed
-                  ? "Betting closed"
-                  : selectedLaneIsScratched
-                    ? "Lane scratched"
-                    : `Place ${selectedMarket}`}
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:flex-row sm:items-end">
-              <input
-                type="number"
-                min={MIN_BET_AMOUNT}
-                max={MAX_WPS_BET_AMOUNT}
-                step={5}
-                value={wpsAmount}
-                onChange={(event) => setWpsAmount(event.target.value)}
-                className="min-h-11 w-full flex-1 rounded-ft border border-white/10 bg-black/50 px-3 py-2 text-xl font-bold tabular-nums text-neutral-50 sm:max-w-[10rem]"
-                disabled={disableAllBetActions || isPending}
-              />
-              <button
-                type="button"
-                onClick={() => void placeWpsBet()}
-                disabled={disableAllBetActions || isPending}
-                className="ft-btn-primary min-h-11 w-full px-5 text-sm font-bold sm:w-auto"
-              >
-                Place WPS
-              </button>
-            </div>
-
-            <p className="text-[11px] leading-relaxed text-neutral-500">
-              Same rules as the main slip: min {formatCoins(MIN_BET_AMOUNT)}, $5 steps. WPS = 3× charge (
-              {formatCoins(Math.max(0, parsedWpsAmount || 0) * 3)} total at this amount).
-            </p>
-
-            {selectedMarket === Market.WIN &&
-            singleValid &&
-            selectedLaneId === lane.id &&
-            canBetByStatus &&
-            !bettingClosed &&
-            !selectedLaneIsScratched ? (
-              <div className="rounded-ft border border-ft-gold/20 bg-ft-gold/[0.05] p-3 text-[11px] text-neutral-300">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-neutral-200">Line impact</span>
-                  <OddsMoveInfoPopover />
-                </div>
-                <p className="mt-2 font-semibold tabular-nums text-neutral-100">
-                  Est. WIN multiple after bet ≈{" "}
-                  {projectedSingleWinMultiple === null ? "—" : `${projectedSingleWinMultiple.toFixed(2)}×`}
-                </p>
-                <p className="mt-1 text-neutral-500">Estimate only.</p>
-              </div>
-            ) : null}
-
-            {wpsValid &&
-            selectedLaneId === lane.id &&
-            canBetByStatus &&
-            !bettingClosed &&
-            !selectedLaneIsScratched ? (
-              <div className="rounded-ft border border-ft-gold/20 bg-ft-gold/[0.05] p-3 text-[11px] text-neutral-300">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-neutral-200">WIN pool impact</span>
-                  <OddsMoveInfoPopover />
-                </div>
-                <p className="mt-2 font-semibold tabular-nums text-neutral-100">
-                  Est. WIN multiple after WPS ≈{" "}
-                  {projectedWpsWinMultiple === null ? "—" : `${projectedWpsWinMultiple.toFixed(2)}×`}
-                </p>
-                <p className="mt-1 text-neutral-500">Estimate only.</p>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
+      <QuickEntryPanel
+        laneId={lane.id}
+        playerName={playerLabel}
+        currentWinOddsLabel={headline.label}
+        remainingAllocation={odds.myCoinsRemainingInContest}
+        existingLines={existingLines}
+        isLoggedIn={isLoggedIn}
+        bettingClosed={bettingClosed}
+        canBet={canBetByStatus}
+        isScratched={lane.status === "SCRATCHED"}
+        isPending={isPending}
+        poolTotals={odds.poolTotals}
+        laneTotals={lanePool}
+        onClose={() => closeQuickEntry(lane.id)}
+        onSubmitSingle={async (market, amount) => {
+          setSelectedLaneId(lane.id);
+          setSelectedMarket(market);
+          setSingleAmount(String(amount));
+          await placeSingleBet({
+            laneId: lane.id,
+            market,
+            amount,
+            fromQuickEntry: true,
+            playerName: playerLabel,
+          });
+        }}
+        onSubmitWps={async (amount) => {
+          setSelectedLaneId(lane.id);
+          setWpsAmount(String(amount));
+          await placeWpsBet({
+            laneId: lane.id,
+            amount,
+            fromQuickEntry: true,
+            playerName: playerLabel,
+          });
+        }}
+      />
     );
   }
 
@@ -808,39 +710,52 @@ export default function ContestBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: poll depends only on contestId/bettingClosed; refreshOdds is not stable
   }, [contestId, bettingClosed]);
 
-  async function placeSingleBet() {
+  async function placeSingleBet(opts?: {
+    laneId?: string;
+    market?: Market;
+    amount?: number;
+    fromQuickEntry?: boolean;
+    playerName?: string;
+  }) {
     setError("");
     setMessage("");
 
-    if (selectedLaneIsScratched) {
-      setError("Scratched lanes cannot accept new wagers.");
+    const laneId = opts?.laneId ?? selectedLaneId;
+    const market = opts?.market ?? selectedMarket;
+    const amount = opts?.amount ?? parsedSingleAmount;
+    const lane = laneById.get(laneId);
+    const laneScratched = lane?.status === "SCRATCHED";
+    const playerName = opts?.playerName ?? lane?.name ?? "runner";
+
+    if (laneScratched) {
+      setError("Scratched runners cannot accept new entries.");
       return;
     }
 
     if (bettingClosed) {
-      setError("Betting is closed for this contest.");
+      setError("Entries are closed for this race.");
       return;
     }
 
-    if (disableAllBetActions) return;
+    if (!isLoggedIn || !canBetByStatus) return;
 
-    if (!Number.isInteger(parsedSingleAmount) || singleTooSmall) {
-      setError(`Minimum bet is ${formatCoins(MIN_BET_AMOUNT)}.`);
+    if (!Number.isInteger(amount) || amount < MIN_BET_AMOUNT) {
+      setError(`Minimum entry is ${formatCoins(MIN_BET_AMOUNT)}.`);
       return;
     }
 
-    if (singleNotIncrement) {
-      setError("Bets must be placed in increments of $5.");
+    if (amount % 5 !== 0) {
+      setError("Entries must be in increments of $5.");
       return;
     }
 
-    if (singleTooLarge) {
-      setError(`Maximum single bet is ${formatCoins(MAX_BET_AMOUNT)}.`);
+    if (amount > MAX_BET_AMOUNT) {
+      setError(`Maximum single entry is ${formatCoins(MAX_BET_AMOUNT)}.`);
       return;
     }
 
-    if (odds.myCoinsRemainingInContest < parsedSingleAmount) {
-      setError("This wager exceeds your remaining contest allocation.");
+    if (odds.myCoinsRemainingInContest < amount) {
+      setError("This entry exceeds your remaining contest allocation.");
       return;
     }
 
@@ -849,9 +764,9 @@ export default function ContestBoard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          laneId: selectedLaneId,
-          market: selectedMarket,
-          amount: parsedSingleAmount,
+          laneId,
+          market,
+          amount,
         }),
       });
 
@@ -869,12 +784,14 @@ export default function ContestBoard({
       };
 
       if (!response.ok) {
-        setError(payload.error ?? "Failed to place bet.");
+        setError(payload.error ?? "Failed to add entry.");
         return;
       }
 
-      if (payload.odds) setOdds(payload.odds);
-      else await refreshOdds();
+      if (payload.odds) {
+        setOdds(payload.odds);
+        setMarketUpdatedAt(new Date());
+      } else await refreshOdds();
 
       if (payload.createdBets?.length) {
         const newRows: MyBetView[] = payload.createdBets.map((bet) => ({
@@ -891,44 +808,60 @@ export default function ContestBoard({
         setMyBets((prev) => [...newRows, ...prev]);
       }
 
-      setMessage("Bet placed.");
+      if (opts?.fromQuickEntry) {
+        setInlineSlipLaneId(null);
+        setMessage(`${market} entry added for ${playerName}`);
+      } else {
+        setMessage(`${market} entry added for ${playerName}`);
+      }
     });
   }
 
-  async function placeWpsBet() {
+  async function placeWpsBet(opts?: {
+    laneId?: string;
+    amount?: number;
+    fromQuickEntry?: boolean;
+    playerName?: string;
+  }) {
     setError("");
     setMessage("");
 
-    if (selectedLaneIsScratched) {
-      setError("Scratched lanes cannot accept new wagers.");
+    const laneId = opts?.laneId ?? selectedLaneId;
+    const amount = opts?.amount ?? parsedWpsAmount;
+    const lane = laneById.get(laneId);
+    const laneScratched = lane?.status === "SCRATCHED";
+    const playerName = opts?.playerName ?? lane?.name ?? "runner";
+
+    if (laneScratched) {
+      setError("Scratched runners cannot accept new entries.");
       return;
     }
 
     if (bettingClosed) {
-      setError("Betting is closed for this contest.");
+      setError("Entries are closed for this race.");
       return;
     }
 
-    if (disableAllBetActions) return;
+    if (!isLoggedIn || !canBetByStatus) return;
 
-    if (!Number.isInteger(parsedWpsAmount) || wpsTooSmall) {
-      setError(`Minimum WPS leg amount is ${formatCoins(MIN_BET_AMOUNT)}.`);
+    if (!Number.isInteger(amount) || amount < MIN_BET_AMOUNT) {
+      setError(`Minimum WPS amount is ${formatCoins(MIN_BET_AMOUNT)} per pool.`);
       return;
     }
 
-    if (wpsNotIncrement) {
-      setError("WPS amount must be in increments of $5.");
+    if (amount % 5 !== 0) {
+      setError("WPS amounts must be in increments of $5.");
       return;
     }
 
-    if (wpsTooLarge) {
-      setError(`Maximum WPS amount is ${formatCoins(MAX_WPS_BET_AMOUNT)} per leg.`);
+    if (amount > MAX_WPS_BET_AMOUNT) {
+      setError(`Maximum WPS amount is ${formatCoins(MAX_WPS_BET_AMOUNT)} per pool.`);
       return;
     }
 
-    const totalCost = parsedWpsAmount * 3;
+    const totalCost = amount * 3;
     if (odds.myCoinsRemainingInContest < totalCost) {
-      setError("WPS total wager exceeds your remaining contest allocation.");
+      setError("WPS total exceeds your remaining contest allocation.");
       return;
     }
 
@@ -937,9 +870,9 @@ export default function ContestBoard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          laneId: selectedLaneId,
+          laneId,
           action: "WPS",
-          amount: parsedWpsAmount,
+          amount,
         }),
       });
 
@@ -957,12 +890,14 @@ export default function ContestBoard({
       };
 
       if (!response.ok) {
-        setError(payload.error ?? "Failed to place WPS.");
+        setError(payload.error ?? "Failed to add WPS entry.");
         return;
       }
 
-      if (payload.odds) setOdds(payload.odds);
-      else await refreshOdds();
+      if (payload.odds) {
+        setOdds(payload.odds);
+        setMarketUpdatedAt(new Date());
+      } else await refreshOdds();
 
       if (payload.createdBets?.length) {
         const newRows: MyBetView[] = payload.createdBets.map((bet) => ({
@@ -979,7 +914,10 @@ export default function ContestBoard({
         setMyBets((prev) => [...newRows, ...prev]);
       }
 
-      setMessage("WPS placed (WIN + PLACE + SHOW). Total wager charged.");
+      if (opts?.fromQuickEntry) {
+        setInlineSlipLaneId(null);
+      }
+      setMessage(`WPS entry added for ${playerName}`);
     });
   }
 
@@ -1263,6 +1201,23 @@ export default function ContestBoard({
           </div>
         ) : null}
 
+        {message ? (
+          <p
+            role="status"
+            className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-200"
+          >
+            {message}
+          </p>
+        ) : null}
+        {error && inlineSlipLaneId ? (
+          <p
+            role="alert"
+            className="rounded border border-red-500/30 bg-red-950/40 px-3 py-2 text-xs font-medium text-red-300"
+          >
+            {error}
+          </p>
+        ) : null}
+
         <div
           id="odds-board"
           className="sticky top-[4.5rem] z-20 -mx-1 space-y-2 border-b border-white/[0.06] bg-ft-ink/95 px-1 py-2 backdrop-blur-md sm:top-20"
@@ -1440,11 +1395,21 @@ export default function ContestBoard({
               return (
                 <Fragment key={lane.id}>
                   <tr
+                    data-lane-row={lane.id}
+                    tabIndex={inlineSlipLaneId === lane.id ? -1 : undefined}
                     className={rowClassName}
                     onClick={() => {
                       if (isScratched) return;
                       setSelectedLaneId(lane.id);
                       setInlineSlipLaneId((current) => (current === lane.id ? null : lane.id));
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        if (isScratched) return;
+                        setSelectedLaneId(lane.id);
+                        setInlineSlipLaneId((current) => (current === lane.id ? null : lane.id));
+                      }
                     }}
                   >
                     <td className="px-2 py-3 align-middle text-center">
@@ -1554,9 +1519,9 @@ export default function ContestBoard({
                   </tr>
 
                   {inlineSlipLaneId === lane.id && (
-                    <tr className="bg-black/50">
-                      <td colSpan={7} className="px-3 py-3 sm:px-4">
-                        {renderQuickSlipPanel(lane, playerLabel, headline)}
+                    <tr className="border-b border-ft-gold/25 bg-gradient-to-r from-ft-gold/[0.06] via-black/40 to-transparent">
+                      <td colSpan={7} className="p-0">
+                        {renderQuickEntry(lane, playerLabel, headline)}
                       </td>
                     </tr>
                   )}
@@ -1704,10 +1669,10 @@ export default function ContestBoard({
                     setInlineSlipLaneId((current) => (current === lane.id ? null : lane.id));
                   }}
                 >
-                  {slipOpenHere ? "Hide quick slip" : "Quick bet"}
+                  {slipOpenHere ? "Hide quick entry" : "Quick Entry"}
                 </button>
                 <p className="mt-1.5 text-center text-[10px] leading-snug text-neutral-600">
-                  Quick bet opens the slip. Expand below for pool lines and scoring.
+                  Opens a compact entry control. Expand below for pool lines and scoring.
                 </p>
               </div>
 
@@ -1767,7 +1732,9 @@ export default function ContestBoard({
               </details>
 
               {inlineSlipLaneId === lane.id ? (
-                <div className="border-t border-ft-gold/25 bg-black/40 p-2">{renderQuickSlipPanel(lane, playerLabel, headline)}</div>
+                <div className="border-t border-ft-gold/35 bg-black/40">
+                  {renderQuickEntry(lane, playerLabel, headline)}
+                </div>
               ) : null}
             </div>
           );
@@ -1814,7 +1781,7 @@ export default function ContestBoard({
           }
         >
           <div className="space-y-1.5">
-            <h3 className="text-lg font-bold tracking-tight text-neutral-50">Bet slip</h3>
+            <h3 className="text-lg font-bold tracking-tight text-neutral-50">Race entry</h3>
             <p className="text-sm leading-relaxed text-neutral-500">
               Parimutuel pool — your stake shifts the line for everyone. Review allocation, then confirm.
             </p>
@@ -2023,12 +1990,12 @@ export default function ContestBoard({
                   ? "Betting closed"
                   : selectedLaneIsScratched
                   ? "Lane scratched"
-                  : `Place ${selectedMarket}`}
+                  : `Enter ${selectedMarket}`}
               </button>
             </div>
 
             <p className="text-xs leading-relaxed text-neutral-500">
-              Increments of $5. Max single bet {formatCoins(MAX_BET_AMOUNT)}.
+              Increments of $5. Max single entry {formatCoins(MAX_BET_AMOUNT)}.
             </p>
 
             {singleTooSmall ? (
@@ -2153,7 +2120,7 @@ export default function ContestBoard({
                 disabled={disableAllBetActions || isPending}
                 className="ft-btn-primary flex min-h-[3.25rem] w-full items-center justify-center px-6 text-base font-bold disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500"
               >
-                {bettingClosed ? "Betting closed" : selectedLaneIsScratched ? "Lane scratched" : "Place WPS"}
+                {bettingClosed ? "Entries closed" : selectedLaneIsScratched ? "Lane scratched" : "Enter WPS"}
               </button>
             </div>
 
