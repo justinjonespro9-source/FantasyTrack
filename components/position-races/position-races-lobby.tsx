@@ -351,8 +351,17 @@ export default function PositionRacesLobby({
                                 <td className="max-w-[7.5rem] truncate px-2 py-1 font-medium text-neutral-100">
                                   {lane.name}
                                 </td>
-                                <td className="px-2 py-1 tabular-nums text-neutral-300">
-                                  {lane.oddsEstablished ? lane.oddsLabel : "—"}
+                                <td className="px-2 py-1 text-neutral-300">
+                                  <span
+                                    className={
+                                      lane.oddsSource === "OPENING"
+                                        ? "text-[10px] leading-snug text-neutral-400"
+                                        : "tabular-nums"
+                                    }
+                                    title={lane.oddsLabel}
+                                  >
+                                    {lane.oddsLabel}
+                                  </span>
                                 </td>
                                 <td className="px-2 py-1 tabular-nums text-neutral-400">
                                   {race.hasMeaningfulPool
@@ -370,7 +379,9 @@ export default function PositionRacesLobby({
                       </table>
                       {!race.hasMeaningfulPool ? (
                         <p className="border-t border-white/[0.05] px-2 py-1.5 text-[10px] text-neutral-500">
-                          Pool odds not established · sorted by projected rank
+                          {race.topLanes.some((l) => l.oddsSource === "OPENING")
+                            ? "Opening lines · sorted by projected rank"
+                            : "Pool odds not established · sorted by projected rank"}
                         </p>
                       ) : null}
                     </div>
@@ -396,7 +407,9 @@ export default function PositionRacesLobby({
           title={showLongShots ? "Featured Long Shots" : "Players to Watch"}
           subtitle={
             showLongShots
-              ? "Longer current pool odds across the four races"
+              ? data.races.some((r) => r.hasMeaningfulPool)
+                ? "Longer current pool odds across the four races"
+                : "Longer opening lines across the four races"
               : "Projected standouts while the pool forms"
           }
         >

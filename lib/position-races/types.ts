@@ -12,6 +12,9 @@ export type LobbyLaneRow = {
   winPoolAmount: number;
   poolSharePct: number | null;
   winMultiple: number | null;
+  openingWinOddsTo1: number | null;
+  /** LIVE = WIN pool, OPENING = admin pre-race line, NONE = empty */
+  oddsSource: "LIVE" | "OPENING" | "NONE";
   oddsLabel: string;
   oddsEstablished: boolean;
 };

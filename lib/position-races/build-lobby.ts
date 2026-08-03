@@ -11,6 +11,7 @@ import { compareLanesByProjectedRank } from "@/lib/admin/lane-sort";
 import { selectWeekPositionRaces } from "@/lib/position-races/select";
 import { discoverPublicRacesBySport } from "@/lib/races/discover";
 import { getFeaturedRaceSport, getRaceSportPriority } from "@/lib/races/sport-config";
+import { selectLobbyPreviewOdds } from "@/lib/position-races/lobby-odds";
 import type {
   FeaturedPlayer,
   LobbyLaneRow,
@@ -24,13 +25,6 @@ import type {
 export const LOBBY_MEANINGFUL_POOL_THRESHOLD = 25;
 const TOP_LANE_COUNT = 12;
 
-function formatOddsLabel(winMultiple: number | null): string {
-  if (winMultiple == null) return "Odds not established";
-  const oddsTo1 = Math.max(winMultiple - 1, 0);
-  if (oddsTo1 < 1) return `${winMultiple.toFixed(2)}x`;
-  return `${oddsTo1.toFixed(0)}-1`;
-}
-
 function sortTopLanes(
   lanes: Array<{
     id: string;
@@ -40,6 +34,7 @@ function sortTopLanes(
     seedRank: number | null;
     displayOrder: number | null;
     projectedPoints: number | null;
+    openingWinOddsTo1: number | null;
     status: string;
   }>,
   odds: Awaited<ReturnType<typeof getContestOddsData>>,
@@ -51,11 +46,17 @@ function sortTopLanes(
     .filter((l) => l.status !== "SCRATCHED")
     .map((lane) => {
       const winPoolAmount = odds?.laneTotals[lane.id]?.WIN ?? 0;
-      const winMultiple = odds?.estMultiples[lane.id]?.WIN ?? null;
+      const liveWinMultiple = odds?.estMultiples[lane.id]?.WIN ?? null;
+      const preview = selectLobbyPreviewOdds({
+        liveWinMultiple,
+        winPoolAmount,
+        openingWinOddsTo1: lane.openingWinOddsTo1,
+      });
       return {
         lane,
         winPoolAmount,
-        winMultiple,
+        liveWinMultiple,
+        preview,
         projectedRank: lane.seedRank ?? lane.displayOrder ?? null,
       };
     });
@@ -63,8 +64,8 @@ function sortTopLanes(
   enriched.sort((a, b) => {
     if (hasMeaningfulPool) {
       if (a.winPoolAmount !== b.winPoolAmount) return b.winPoolAmount - a.winPoolAmount;
-      const aM = a.winMultiple ?? 9999;
-      const bM = b.winMultiple ?? 9999;
+      const aM = a.liveWinMultiple ?? 9999;
+      const bM = b.liveWinMultiple ?? 9999;
       if (aM !== bM) return aM - bM;
     }
     return compareLanesByProjectedRank(a.lane, b.lane);
@@ -72,8 +73,8 @@ function sortTopLanes(
 
   const marketOrder = [...enriched].sort((a, b) => {
     if (a.winPoolAmount !== b.winPoolAmount) return b.winPoolAmount - a.winPoolAmount;
-    const aM = a.winMultiple ?? 9999;
-    const bM = b.winMultiple ?? 9999;
+    const aM = a.liveWinMultiple ?? 9999;
+    const bM = b.liveWinMultiple ?? 9999;
     if (aM !== bM) return aM - bM;
     return compareLanesByProjectedRank(a.lane, b.lane);
   });
@@ -81,7 +82,6 @@ function sortTopLanes(
   marketOrder.forEach((row, idx) => marketRankById.set(row.lane.id, idx + 1));
 
   return enriched.slice(0, TOP_LANE_COUNT).map((row) => {
-    const oddsEstablished = row.winMultiple != null;
     return {
       id: row.lane.id,
       name: row.lane.name,
@@ -95,9 +95,11 @@ function sortTopLanes(
         winPool > 0 && row.winPoolAmount > 0
           ? Number(((row.winPoolAmount / winPool) * 100).toFixed(1))
           : null,
-      winMultiple: row.winMultiple,
-      oddsLabel: formatOddsLabel(row.winMultiple),
-      oddsEstablished,
+      winMultiple: row.preview.winMultiple,
+      openingWinOddsTo1: row.lane.openingWinOddsTo1,
+      oddsSource: row.preview.oddsSource,
+      oddsLabel: row.preview.oddsLabel,
+      oddsEstablished: row.preview.oddsEstablished,
     };
   });
 }
@@ -107,7 +109,9 @@ function buildFeaturedFromRaces(races: PositionRaceCard[]): {
   playersToWatch: FeaturedPlayer[];
   marketSnapshot: MarketSnapshot;
 } {
-  const anyOdds = races.some((r) => r.hasMeaningfulPool);
+  const anyOdds = races.some((r) =>
+    r.topLanes.some((l) => l.oddsSource === "LIVE" || l.oddsSource === "OPENING")
+  );
 
   const longShots: FeaturedPlayer[] = [];
   if (anyOdds) {
@@ -243,6 +247,7 @@ export async function buildPositionRacesLobby(params?: {
             seedRank: true,
             displayOrder: true,
             projectedPoints: true,
+            openingWinOddsTo1: true,
             status: true,
           },
           orderBy: [{ seedRank: "asc" }, { displayOrder: "asc" }, { name: "asc" }],
