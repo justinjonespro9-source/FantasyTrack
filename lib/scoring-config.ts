@@ -1,12 +1,25 @@
 import type { SportKey } from "@/lib/sports";
 import type { ScoringRuleSection } from "@/lib/scoring-rules";
+import {
+  FANTASYTRACK_NFL_FULL_PPR_V1,
+  FANTASYTRACK_NFL_HALF_PPR_V1,
+  FANTASYTRACK_NFL_HALF_PPR_V2,
+  getFantasyRules,
+  getFantasyScoringReferenceTables,
+} from "@/lib/fantasy";
+import { resolveContestFantasyScoringVersion } from "@/lib/fantasy/resolve-contest-version";
+import { scoreDefenseFantasy } from "@/lib/fantasy/defense-scoring";
+import { scorePlayerFantasy } from "@/lib/fantasy/player-scoring";
 
 /**
  * Centralized, sport-specific scoring configuration and calculators.
  *
- * NOTE: All future admin live scoring UIs and external stat feeds should map
- * provider fields into these raw stat keys. Do not apply bonuses in the UI;
- * they are derived here from raw inputs only.
+ * NFL fantasy points use the shared RankEyeQ/FantasyTrack versioned engine
+ * (`lib/fantasy`). Contest.scoringFormat selects Half vs Full PPR; settled
+ * Lane.fantasyPoints are never recomputed when rules change.
+ *
+ * NOTE: Admin live scoring UIs and external stat feeds should map provider
+ * fields into these raw stat keys. Do not apply bonuses in the UI.
  */
 
 // ---------- Shared type helpers ----------
@@ -46,6 +59,7 @@ export type FootballQBRawStats = {
   rushingTouchdowns?: number | null;
   twoPointConversions?: number | null;
   fumblesLost?: number | null;
+  returnTouchdowns?: number | null;
 };
 
 export type FootballSkillRawStats = {
@@ -56,6 +70,7 @@ export type FootballSkillRawStats = {
   receivingTouchdowns?: number | null;
   twoPointConversions?: number | null;
   fumblesLost?: number | null;
+  returnTouchdowns?: number | null;
 };
 
 export type FootballKickerRawStats = {
@@ -71,6 +86,7 @@ export type FootballDSTRawStats = {
   interceptions?: number | null;
   fumbleRecoveries?: number | null;
   defensiveTouchdowns?: number | null;
+  specialTeamsTouchdowns?: number | null;
   safeties?: number | null;
   blockedKicks?: number | null;
   pointsAllowed?: number | null;
@@ -351,101 +367,82 @@ export function getBasketballScoringBreakdown(raw: BasketballRawStats): ScoringB
 
 // ---------- Football ----------
 
-export const FOOTBALL_SCORING_RULES: ScoringRuleSection[] = [
-  {
-    title: "Eligible Positions: QB / RB / WR / TE",
-    items: [
-      "Passing yards = +0.04 pts/yd",
-      "Passing TD = +4 pts",
-      "Interception thrown = -2 pts",
-      "Rushing yards = +0.1 pts/yd",
-      "Rushing TD = +6 pts",
-      "Receiving yards = +0.1 pts/yd",
-      "Receiving TD = +6 pts",
-      "Reception = +1 pt",
-      "2-point conversion (pass, run, or catch) = +2 pts",
-      "Fumble lost = -2 pts",
-      "300+ passing yards (QB) = +3 pts",
-      "100+ rushing yards (QB / RB / WR / TE) = +3 pts",
-      "100+ receiving yards (RB / WR / TE) = +3 pts",
-    ],
-  },
-  {
-    title: "Eligible Position: Kicker",
-    items: [
-      "Extra point made = +1 pt",
-      "Field goal 0–39 yds = +3 pts",
-      "Field goal 40–49 yds = +4 pts",
-      "Field goal 50+ yds = +5 pts",
-      "Field goal missed = -1 pt",
-    ],
-  },
-  {
-    title: "Eligible Position: Defense / Special Teams",
-    items: [
-      "Sack = +1 pt",
-      "Interception = +2 pts",
-      "Fumble recovery = +2 pts",
-      "Defensive TD = +6 pts",
-      "Safety = +2 pts",
-      "Blocked kick = +2 pts",
-      "0 points allowed = +10 pts",
-      "1–6 points allowed = +7 pts",
-      "7–13 points allowed = +4 pts",
-      "14–20 points allowed = +1 pt",
-      "21–27 points allowed = 0 pts",
-      "28–34 points allowed = -1 pt",
-      "35+ points allowed = -4 pts",
-    ],
-  },
-];
+/** @deprecated Prefer getFootballScoringRules(scoringFormat). Kept for sport-only lookups. */
+export const FOOTBALL_SCORING_RULES: ScoringRuleSection[] =
+  buildFootballScoringRuleSections(FANTASYTRACK_NFL_HALF_PPR_V2);
 
-export function computeFootballQBFantasyPointsFromRaw(raw: FootballQBRawStats): number {
-  const passingYards = raw.passingYards ?? 0;
-  const passingTDs = raw.passingTouchdowns ?? 0;
-  const interceptions = raw.interceptionsThrown ?? 0;
-  const rushingYards = raw.rushingYards ?? 0;
-  const rushingTDs = raw.rushingTouchdowns ?? 0;
-  const twoPoints = raw.twoPointConversions ?? 0;
-  const fumblesLost = raw.fumblesLost ?? 0;
-
-  let total =
-    passingYards * 0.04 +
-    passingTDs * 4 +
-    interceptions * -2 +
-    rushingYards * 0.1 +
-    rushingTDs * 6 +
-    twoPoints * 2 +
-    fumblesLost * -2;
-
-  if (passingYards >= 300) total += 3;
-  if (rushingYards >= 100) total += 3;
-
-  return Number.isFinite(total) ? total : 0;
+function buildFootballScoringRuleSections(version: string): ScoringRuleSection[] {
+  const { offenseRows, defenseRows } = getFantasyScoringReferenceTables(version);
+  const { player } = getFantasyRules(version);
+  return [
+    {
+      title: `Eligible Positions: QB / RB / WR / TE · ${player.label}`,
+      items: offenseRows.map((row) => `${row.category} = ${row.value}`),
+    },
+    {
+      title: "Eligible Position: Kicker (FantasyTrack extension)",
+      items: [
+        "Extra point made = +1 pt",
+        "Field goal 0–39 yds = +3 pts",
+        "Field goal 40–49 yds = +4 pts",
+        "Field goal 50+ yds = +5 pts",
+        "Field goal missed = -1 pt",
+      ],
+    },
+    {
+      title: "Eligible Position: Defense / Special Teams",
+      items: defenseRows.map((row) => `${row.category} = ${row.value}`),
+    },
+  ];
 }
 
-export function computeFootballSkillFantasyPointsFromRaw(raw: FootballSkillRawStats): number {
-  const rushingYards = raw.rushingYards ?? 0;
-  const rushingTDs = raw.rushingTouchdowns ?? 0;
-  const receptions = raw.receptions ?? 0;
-  const receivingYards = raw.receivingYards ?? 0;
-  const receivingTDs = raw.receivingTouchdowns ?? 0;
-  const twoPoints = raw.twoPointConversions ?? 0;
-  const fumblesLost = raw.fumblesLost ?? 0;
+export function getFootballScoringRules(
+  scoringFormat?: string | null
+): ScoringRuleSection[] {
+  const version = resolveContestFantasyScoringVersion(scoringFormat);
+  return buildFootballScoringRuleSections(version);
+}
 
-  let total =
-    rushingYards * 0.1 +
-    rushingTDs * 6 +
-    receptions * 1 +
-    receivingYards * 0.1 +
-    receivingTDs * 6 +
-    twoPoints * 2 +
-    fumblesLost * -2;
+export function computeFootballQBFantasyPointsFromRaw(
+  raw: FootballQBRawStats,
+  scoringFormat?: string | null
+): number {
+  const { player } = getFantasyRules(resolveContestFantasyScoringVersion(scoringFormat));
+  const { fantasyPoints } = scorePlayerFantasy(
+    {
+      passingYards: raw.passingYards ?? 0,
+      passingTds: raw.passingTouchdowns ?? 0,
+      interceptions: raw.interceptionsThrown ?? 0,
+      rushingYards: raw.rushingYards ?? 0,
+      rushingTds: raw.rushingTouchdowns ?? 0,
+      twoPointConversions: raw.twoPointConversions ?? 0,
+      fumblesLost: raw.fumblesLost ?? 0,
+      returnTds: raw.returnTouchdowns ?? 0,
+    },
+    player
+  );
+  return Number.isFinite(fantasyPoints) ? fantasyPoints : 0;
+}
 
-  if (rushingYards >= 100) total += 3;
-  if (receivingYards >= 100) total += 3;
-
-  return Number.isFinite(total) ? total : 0;
+export function computeFootballSkillFantasyPointsFromRaw(
+  raw: FootballSkillRawStats,
+  scoringFormat?: string | null
+): number {
+  const { player } = getFantasyRules(resolveContestFantasyScoringVersion(scoringFormat));
+  const { fantasyPoints } = scorePlayerFantasy(
+    {
+      rushingYards: raw.rushingYards ?? 0,
+      rushingTds: raw.rushingTouchdowns ?? 0,
+      receptions: raw.receptions ?? 0,
+      receivingYards: raw.receivingYards ?? 0,
+      receivingTds: raw.receivingTouchdowns ?? 0,
+      twoPointConversions: raw.twoPointConversions ?? 0,
+      fumblesLost: raw.fumblesLost ?? 0,
+      returnTds: raw.returnTouchdowns ?? 0,
+    },
+    player
+  );
+  return Number.isFinite(fantasyPoints) ? fantasyPoints : 0;
 }
 
 export function computeFootballKickerFantasyPointsFromRaw(raw: FootballKickerRawStats): number {
@@ -465,33 +462,33 @@ export function computeFootballKickerFantasyPointsFromRaw(raw: FootballKickerRaw
   return Number.isFinite(total) ? total : 0;
 }
 
-export function computeFootballDSTFantasyPointsFromRaw(raw: FootballDSTRawStats): number {
-  const sacks = raw.sacks ?? 0;
-  const interceptions = raw.interceptions ?? 0;
-  const fumbles = raw.fumbleRecoveries ?? 0;
-  const td = raw.defensiveTouchdowns ?? 0;
-  const safeties = raw.safeties ?? 0;
-  const blocked = raw.blockedKicks ?? 0;
-  const ptsAllowed = raw.pointsAllowed ?? 0;
-
-  let total =
-    sacks * 1 +
-    interceptions * 2 +
-    fumbles * 2 +
-    td * 6 +
-    safeties * 2 +
-    blocked * 2;
-
-  if (ptsAllowed <= 0) total += 10;
-  else if (ptsAllowed <= 6) total += 7;
-  else if (ptsAllowed <= 13) total += 4;
-  else if (ptsAllowed <= 20) total += 1;
-  else if (ptsAllowed <= 27) total += 0;
-  else if (ptsAllowed <= 34) total += -1;
-  else total += -4;
-
-  return Number.isFinite(total) ? total : 0;
+export function computeFootballDSTFantasyPointsFromRaw(
+  raw: FootballDSTRawStats,
+  scoringFormat?: string | null
+): number {
+  const { defense } = getFantasyRules(resolveContestFantasyScoringVersion(scoringFormat));
+  const { fantasyPoints } = scoreDefenseFantasy(
+    {
+      sacks: raw.sacks ?? 0,
+      interceptions: raw.interceptions ?? 0,
+      fumbleRecoveries: raw.fumbleRecoveries ?? 0,
+      defensiveTds: raw.defensiveTouchdowns ?? 0,
+      specialTeamsTds: raw.specialTeamsTouchdowns ?? 0,
+      safeties: raw.safeties ?? 0,
+      blockedKicks: raw.blockedKicks ?? 0,
+      pointsAllowed: raw.pointsAllowed ?? 0,
+    },
+    defense
+  );
+  return Number.isFinite(fantasyPoints) ? fantasyPoints : 0;
 }
+
+// Re-export version constants for admin/docs
+export {
+  FANTASYTRACK_NFL_HALF_PPR_V2,
+  FANTASYTRACK_NFL_HALF_PPR_V1,
+  FANTASYTRACK_NFL_FULL_PPR_V1,
+};
 
 // ---------- Baseball ----------
 
@@ -729,6 +726,7 @@ export const FOOTBALL_ADMIN_FIELDS: {
     { rawKey: "rushingTouchdowns", laneKey: "footballRushingTDs", label: "Rush TD", inputType: "int", step: 1, quick: [1] },
     { rawKey: "twoPointConversions", laneKey: "footballTwoPointConversions", label: "2PT", inputType: "int", step: 1 },
     { rawKey: "fumblesLost", laneKey: "footballFumblesLost", label: "Fum Lost", inputType: "int", step: 1 },
+    { rawKey: "returnTouchdowns", laneKey: "footballReturnTDs", label: "Ret TD", inputType: "int", step: 1, quick: [1] },
   ],
   SKILL: [
     { rawKey: "rushingYards", laneKey: "footballRushingYards", label: "Rush Yds", inputType: "int", step: 1, quick: [5, 10] },
@@ -738,6 +736,7 @@ export const FOOTBALL_ADMIN_FIELDS: {
     { rawKey: "receivingTouchdowns", laneKey: "footballReceivingTDs", label: "Rec TD", inputType: "int", step: 1, quick: [1] },
     { rawKey: "twoPointConversions", laneKey: "footballTwoPointConversions", label: "2PT", inputType: "int", step: 1 },
     { rawKey: "fumblesLost", laneKey: "footballFumblesLost", label: "Fum Lost", inputType: "int", step: 1 },
+    { rawKey: "returnTouchdowns", laneKey: "footballReturnTDs", label: "Ret TD", inputType: "int", step: 1, quick: [1] },
   ],
   K: [
     { rawKey: "extraPointsMade", laneKey: "footballExtraPointsMade", label: "XP", inputType: "int", step: 1, quick: [1] },
@@ -751,6 +750,7 @@ export const FOOTBALL_ADMIN_FIELDS: {
     { rawKey: "interceptions", laneKey: "footballDSTInterceptions", label: "INT", inputType: "int", step: 1, quick: [1] },
     { rawKey: "fumbleRecoveries", laneKey: "footballFumbleRecoveries", label: "FR", inputType: "int", step: 1, quick: [1] },
     { rawKey: "defensiveTouchdowns", laneKey: "footballDefensiveTDs", label: "Def TD", inputType: "int", step: 1, quick: [1] },
+    { rawKey: "specialTeamsTouchdowns", laneKey: "footballSpecialTeamsTDs", label: "ST TD", inputType: "int", step: 1, quick: [1] },
     { rawKey: "safeties", laneKey: "footballSafeties", label: "Safeties", inputType: "int", step: 1 },
     { rawKey: "blockedKicks", laneKey: "footballBlockedKicks", label: "Blk K", inputType: "int", step: 1 },
     { rawKey: "pointsAllowed", laneKey: "footballPointsAllowed", label: "Pts Allowed", inputType: "int", step: 1 },

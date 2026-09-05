@@ -1,12 +1,18 @@
 import type { SportKey } from "@/lib/sports";
-import { SPORT_SCORING_RULES_BY_SPORT } from "./scoring-config";
+import {
+  getFootballScoringRules,
+  SPORT_SCORING_RULES_BY_SPORT,
+} from "./scoring-config";
 
 export type ScoringRuleSection = {
   title: string;
   items: string[];
 };
 
-export function getScoringRules(sport: string | null | undefined): ScoringRuleSection[] {
+export function getScoringRules(
+  sport: string | null | undefined,
+  scoringFormat?: string | null
+): ScoringRuleSection[] {
   if (!sport) {
     return [
       {
@@ -17,6 +23,10 @@ export function getScoringRules(sport: string | null | undefined): ScoringRuleSe
   }
 
   const normalized = sport.toUpperCase() as SportKey;
+
+  if (normalized === "FOOTBALL") {
+    return getFootballScoringRules(scoringFormat);
+  }
 
   return (
     SPORT_SCORING_RULES_BY_SPORT[normalized] ?? [

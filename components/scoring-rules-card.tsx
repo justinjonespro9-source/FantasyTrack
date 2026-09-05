@@ -2,12 +2,13 @@ import { getScoringRules } from "@/lib/scoring-rules";
 
 type ScoringRulesCardProps = {
   sport: string | null | undefined;
+  scoringFormat?: string | null;
   /** Flatten styles when nested inside another surface (e.g. mobile accordion). */
   plain?: boolean;
 };
 
-export function ScoringRulesCard({ sport, plain }: ScoringRulesCardProps) {
-  const sections = getScoringRules(sport);
+export function ScoringRulesCard({ sport, scoringFormat, plain }: ScoringRulesCardProps) {
+  const sections = getScoringRules(sport, scoringFormat);
 
   return (
     <section className={plain ? "space-y-5" : "ft-surface p-5 sm:p-6"}>

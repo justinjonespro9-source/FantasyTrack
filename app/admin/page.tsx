@@ -1406,8 +1406,12 @@ async function updateFootballLiveStatsAction(formData: FormData) {
 
   const lane = (await prisma.lane.findUnique({
     where: { id: laneId },
+    include: { contest: { select: { scoringFormat: true } } },
   })) as any;
 
+  if (!lane) throw new Error("Lane not found.");
+
+  const scoringFormat = lane.contest?.scoringFormat ?? null;
   const position = (lane?.position ?? "").toUpperCase();
   const role =
     position === "QB"
@@ -1462,15 +1466,19 @@ async function updateFootballLiveStatsAction(formData: FormData) {
 
   let liveFantasyPoints = 0;
   if (role === "QB") {
-    liveFantasyPoints = computeFootballQBFantasyPointsFromRaw({
-      passingYards: mergedLane.footballPassingYards ?? 0,
-      passingTouchdowns: mergedLane.footballPassingTDs ?? 0,
-      interceptionsThrown: mergedLane.footballInterceptions ?? 0,
-      rushingYards: mergedLane.footballRushingYards ?? 0,
-      rushingTouchdowns: mergedLane.footballRushingTDs ?? 0,
-      twoPointConversions: mergedLane.footballTwoPointConversions ?? 0,
-      fumblesLost: mergedLane.footballFumblesLost ?? 0,
-    });
+    liveFantasyPoints = computeFootballQBFantasyPointsFromRaw(
+      {
+        passingYards: mergedLane.footballPassingYards ?? 0,
+        passingTouchdowns: mergedLane.footballPassingTDs ?? 0,
+        interceptionsThrown: mergedLane.footballInterceptions ?? 0,
+        rushingYards: mergedLane.footballRushingYards ?? 0,
+        rushingTouchdowns: mergedLane.footballRushingTDs ?? 0,
+        twoPointConversions: mergedLane.footballTwoPointConversions ?? 0,
+        fumblesLost: mergedLane.footballFumblesLost ?? 0,
+        returnTouchdowns: mergedLane.footballReturnTDs ?? 0,
+      },
+      scoringFormat
+    );
   } else if (role === "K") {
     liveFantasyPoints = computeFootballKickerFantasyPointsFromRaw({
       extraPointsMade: mergedLane.footballExtraPointsMade ?? 0,
@@ -1480,25 +1488,33 @@ async function updateFootballLiveStatsAction(formData: FormData) {
       fieldGoalsMissed: mergedLane.footballFieldGoalsMissed ?? 0,
     });
   } else if (role === "DST") {
-    liveFantasyPoints = computeFootballDSTFantasyPointsFromRaw({
-      sacks: mergedLane.footballSacks ?? 0,
-      interceptions: mergedLane.footballDSTInterceptions ?? 0,
-      fumbleRecoveries: mergedLane.footballFumbleRecoveries ?? 0,
-      defensiveTouchdowns: mergedLane.footballDefensiveTDs ?? 0,
-      safeties: mergedLane.footballSafeties ?? 0,
-      blockedKicks: mergedLane.footballBlockedKicks ?? 0,
-      pointsAllowed: mergedLane.footballPointsAllowed ?? 0,
-    });
+    liveFantasyPoints = computeFootballDSTFantasyPointsFromRaw(
+      {
+        sacks: mergedLane.footballSacks ?? 0,
+        interceptions: mergedLane.footballDSTInterceptions ?? 0,
+        fumbleRecoveries: mergedLane.footballFumbleRecoveries ?? 0,
+        defensiveTouchdowns: mergedLane.footballDefensiveTDs ?? 0,
+        specialTeamsTouchdowns: mergedLane.footballSpecialTeamsTDs ?? 0,
+        safeties: mergedLane.footballSafeties ?? 0,
+        blockedKicks: mergedLane.footballBlockedKicks ?? 0,
+        pointsAllowed: mergedLane.footballPointsAllowed ?? 0,
+      },
+      scoringFormat
+    );
   } else {
-    liveFantasyPoints = computeFootballSkillFantasyPointsFromRaw({
-      rushingYards: mergedLane.footballRushingYards ?? 0,
-      rushingTouchdowns: mergedLane.footballRushingTDs ?? 0,
-      receptions: mergedLane.footballReceptions ?? 0,
-      receivingYards: mergedLane.footballReceivingYards ?? 0,
-      receivingTouchdowns: mergedLane.footballReceivingTDs ?? 0,
-      twoPointConversions: mergedLane.footballTwoPointConversions ?? 0,
-      fumblesLost: mergedLane.footballFumblesLost ?? 0,
-    });
+    liveFantasyPoints = computeFootballSkillFantasyPointsFromRaw(
+      {
+        rushingYards: mergedLane.footballRushingYards ?? 0,
+        rushingTouchdowns: mergedLane.footballRushingTDs ?? 0,
+        receptions: mergedLane.footballReceptions ?? 0,
+        receivingYards: mergedLane.footballReceivingYards ?? 0,
+        receivingTouchdowns: mergedLane.footballReceivingTDs ?? 0,
+        twoPointConversions: mergedLane.footballTwoPointConversions ?? 0,
+        fumblesLost: mergedLane.footballFumblesLost ?? 0,
+        returnTouchdowns: mergedLane.footballReturnTDs ?? 0,
+      },
+      scoringFormat
+    );
   }
 
   await prisma.lane.update({

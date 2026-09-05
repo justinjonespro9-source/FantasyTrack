@@ -392,6 +392,7 @@ model Lane {
   footballReceptions          Int?
   footballTwoPointConversions Int?
   footballFumblesLost         Int?
+  footballReturnTDs           Int?
   footballExtraPointsMade     Int?
   footballFieldGoals0to39     Int?
   footballFieldGoals40to49    Int?
@@ -401,6 +402,7 @@ model Lane {
   footballDSTInterceptions    Int?
   footballFumbleRecoveries    Int?
   footballDefensiveTDs        Int?
+  footballSpecialTeamsTDs     Int?
   footballSafeties            Int?
   footballBlockedKicks        Int?
   footballPointsAllowed       Int?

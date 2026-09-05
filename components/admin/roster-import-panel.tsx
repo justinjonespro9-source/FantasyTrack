@@ -83,7 +83,7 @@ export default function RosterImportPanel({
   const [contestType, setContestType] = useState(selected?.contestType ?? "POSITION_WEEKLY");
   const [season, setSeason] = useState(String(selected?.season ?? 2026));
   const [week, setWeek] = useState(String(selected?.week ?? 1));
-  const [scoring, setScoring] = useState(selected?.scoringFormat ?? "PPR");
+  const [scoring, setScoring] = useState(selected?.scoringFormat ?? "HALF_PPR");
   const [slate, setSlate] = useState(selected?.slate ?? "SUNDAY_AFTERNOON");
   const [position, setPosition] = useState("RB");
   const [rolePreset, setRolePreset] = useState("RB:RB1_RB2");
@@ -116,7 +116,7 @@ export default function RosterImportPanel({
     setContestType(c.contestType ?? "POSITION_WEEKLY");
     setSeason(String(c.season ?? 2026));
     setWeek(String(c.week ?? 1));
-    setScoring(c.scoringFormat ?? "PPR");
+    setScoring(c.scoringFormat ?? "HALF_PPR");
     setSlate(c.slate ?? "SUNDAY_AFTERNOON");
     setImportResult(null);
     void refreshBatches(id);
@@ -461,8 +461,8 @@ export default function RosterImportPanel({
                 value={scoring}
                 onChange={(e) => setScoring(e.target.value)}
               >
-                <option value="PPR">PPR</option>
-                <option value="HALF_PPR">HALF_PPR</option>
+                <option value="PPR">PPR (Full, historical)</option>
+                <option value="HALF_PPR">HALF_PPR (V2 + yardage bonuses)</option>
                 <option value="STANDARD">STANDARD</option>
               </select>
             </label>

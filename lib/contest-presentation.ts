@@ -9,7 +9,10 @@ export const SLATE_LABELS: Record<string, string> = {
 
 export const SCORING_LABELS: Record<string, string> = {
   PPR: "Full PPR",
-  HALF_PPR: "Half PPR",
+  HALF_PPR: "Half PPR + yardage bonuses",
+  FANTASYTRACK_NFL_HALF_PPR_V2: "Half PPR + yardage bonuses",
+  FANTASYTRACK_NFL_HALF_PPR_V1: "Half PPR (no bonuses)",
+  FANTASYTRACK_NFL_FULL_PPR_V1: "Full PPR",
   STANDARD: "Standard",
 };
 

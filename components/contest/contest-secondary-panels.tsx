@@ -6,6 +6,7 @@ import { ResponsiveSecondarySections } from "@/components/contest/responsive-sec
 type ContestSecondaryPanelsProps = {
   contestId: string;
   sport: string;
+  scoringFormat?: string | null;
   revalidatePath: string;
 };
 
@@ -16,6 +17,7 @@ type ContestSecondaryPanelsProps = {
 export function ContestSecondaryPanels({
   contestId,
   sport,
+  scoringFormat,
   revalidatePath,
 }: ContestSecondaryPanelsProps) {
   return (
@@ -33,7 +35,7 @@ export function ContestSecondaryPanels({
           {
             id: "rules",
             title: "Scoring Rules",
-            children: <ScoringRulesCard sport={sport} />,
+            children: <ScoringRulesCard sport={sport} scoringFormat={scoringFormat} />,
           },
           {
             id: "details",

@@ -735,7 +735,7 @@ export default async function ContestPage({ params }: PageProps) {
           ) : null}
         </section>
 
-        <ScoringRulesCard sport={contest.sport} />
+        <ScoringRulesCard sport={contest.sport} scoringFormat={contest.scoringFormat} />
 
         {isAdmin ? (
           <section className="ft-surface p-4">
@@ -891,6 +891,7 @@ export default async function ContestPage({ params }: PageProps) {
         <ContestSecondaryPanels
           contestId={contest.id}
           sport={contest.sport}
+          scoringFormat={contest.scoringFormat}
           revalidatePath={`/contest/${contest.id}`}
         />
       </ContestBoard>
